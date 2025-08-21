@@ -1,0 +1,65 @@
+query GetPair($id: String!) {
+  pair(id: $id) {
+    id
+    asset0 {
+      id
+      name
+      symbol
+    }
+    asset1 {
+      id
+      name
+      symbol
+    }
+    createdAtBlockNumber
+    createdAtTimestamp
+    createdAtTxnId
+    creator
+    feeBps
+    reserves {
+      asset0
+      asset1
+    }
+    pool {
+      id
+      name
+      assetIds
+      pairIds
+      metadata
+    }
+    metadata
+  }
+}
+
+query GetPairs($ids: [String!]!) {
+  pairs(ids: $ids) {
+    id
+    asset0 {
+      id
+      name
+      symbol
+    }
+    asset1 {
+      id
+      name
+      symbol
+    }
+    createdAtBlockNumber
+    createdAtTimestamp
+    createdAtTxnId
+    creator
+    feeBps
+    reserves {
+      asset0
+      asset1
+    }
+    pool {
+      id
+      name
+      assetIds
+      pairIds
+      metadata
+    }
+    metadata
+  }
+}

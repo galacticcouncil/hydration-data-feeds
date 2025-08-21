@@ -1,0 +1,22 @@
+{
+  "name": "hydration-data-feeds",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@10.2.4",
+  "workspaces": [
+    "apps/*"
+  ],
+  "devDependencies": {
+    "@graphql-codegen/cli": "^5.0.3",
+    "@graphql-codegen/typescript-document-nodes": "^4.0.11"
+  }
+
+}

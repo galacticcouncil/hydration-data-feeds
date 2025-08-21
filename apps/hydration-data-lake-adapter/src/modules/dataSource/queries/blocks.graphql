@@ -1,0 +1,17 @@
+query GetLatestBlock {
+  latestBlock {
+    number
+    timestamp
+    hash
+    metadata
+  }
+}
+
+query GetBlockByNumber($blockNumber: Int!) {
+  block(number: $blockNumber) {
+    number
+    timestamp
+    hash
+    metadata
+  }
+}

@@ -1,0 +1,81 @@
+query GetEvents($fromBlock: Int!, $toBlock: Int!, $limit: Int, $offset: Int) {
+  events(fromBlock: $fromBlock, toBlock: $toBlock, limit: $limit, offset: $offset) {
+    totalCount
+    data {
+      ... on SwapEvent {
+        block {
+          number
+          timestamp
+          hash
+          metadata
+        }
+        eventType
+        txnId
+        txnIndex
+        eventIndex
+        maker
+        pairId
+        asset0In
+        asset1In
+        asset0Out
+        asset1Out
+        priceNative
+        reserves {
+          asset0
+          asset1
+        }
+        metadata
+      }
+      ... on JoinExitEvent {
+        block {
+          number
+          timestamp
+          hash
+          metadata
+        }
+        eventType
+        txnId
+        txnIndex
+        eventIndex
+        maker
+        pairId
+        amount0
+        amount1
+        reserves {
+          asset0
+          asset1
+        }
+        metadata
+      }
+    }
+  }
+}
+
+query GetSwapEvents($fromBlock: Int!, $toBlock: Int!, $pairIds: [String!], $limit: Int, $offset: Int) {
+  swapEvents(fromBlock: $fromBlock, toBlock: $toBlock, pairIds: $pairIds, limit: $limit, offset: $offset) {
+    totalCount
+    data {
+      block {
+        number
+        timestamp
+        hash
+      }
+      eventType
+      txnId
+      txnIndex
+      eventIndex
+      maker
+      pairId
+      asset0In
+      asset1In
+      asset0Out
+      asset1Out
+      priceNative
+      reserves {
+        asset0
+        asset1
+      }
+      metadata
+    }
+  }
+}
