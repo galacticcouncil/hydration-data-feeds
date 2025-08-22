@@ -12,8 +12,11 @@ import {
   GetLatestSwapWithBlockQueryVariables,
   StableswapLiquidityEventsOrderBy,
   SwapsOrderBy,
+  GetAssetById,
+  GetAssetByIdQuery,
+  GetAssetByIdQueryVariables,
 } from './graphqlSupport/main/apiTypes';
-import { DatasourceBlock } from './graphqlSupport/types';
+import { DatasourceAsset, DatasourceBlock } from './graphqlSupport/types';
 
 @Injectable()
 export class DataSourceService {
@@ -81,5 +84,31 @@ export class DataSourceService {
     const highestBlockHeight = Math.max(...blocksMap.keys());
 
     return blocksMap.get(highestBlockHeight) || null;
+  }
+
+  async getAssetById({
+    id,
+    endpoint = ApiEndpoint.MAIN_INDEXER_API,
+  }: {
+    id: string;
+    endpoint?: ApiEndpoint;
+  }): Promise<DatasourceAsset | null> {
+    const { data, error } = await this.graphqlClientProvider.gqlRequest<
+      GetAssetByIdQuery,
+      GetAssetByIdQueryVariables
+    >({
+      query: GetAssetById,
+      variables: {
+        id,
+      },
+      endpoint,
+    });
+
+    if (error) {
+      this.logger.error(`Failed to fetch pairs:`, error);
+      return null;
+    }
+
+    return data.asset || null;
   }
 }

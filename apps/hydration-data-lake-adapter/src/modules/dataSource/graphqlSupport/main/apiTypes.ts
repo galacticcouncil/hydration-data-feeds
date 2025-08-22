@@ -116109,6 +116109,13 @@ export type _ProcessorStatus = {
   name: Scalars['String']['output'];
 };
 
+export type GetAssetByIdQueryVariables = Exact<{
+  id: Scalars['String']['input'];
+}>;
+
+
+export type GetAssetByIdQuery = { __typename?: 'Query', asset?: { __typename?: 'Asset', id: string, name?: string | null, symbol?: string | null, decimals?: number | null } | null };
+
 export type GetLatestProcessedBlockEnsuredByEventsQueryVariables = Exact<{
   first: Scalars['Int']['input'];
   orderBy?: InputMaybe<Array<EventsOrderBy> | EventsOrderBy>;
@@ -116135,6 +116142,16 @@ export type GetLatestSwapWithBlockQueryVariables = Exact<{
 export type GetLatestSwapWithBlockQuery = { __typename?: 'Query', swaps?: { __typename?: 'SwapsConnection', nodes: Array<{ __typename?: 'Swap', id: string, event?: { __typename?: 'Event', block?: { __typename?: 'Block', id: string, height: number, hash: string, timestamp: any } | null } | null } | null> } | null };
 
 
+export const GetAssetById = gql`
+    query GetAssetById($id: String!) {
+  asset(id: $id) {
+    id
+    name
+    symbol
+    decimals
+  }
+}
+    `;
 export const GetLatestProcessedBlockEnsuredByEvents = gql`
     query GetLatestProcessedBlockEnsuredByEvents($first: Int!, $orderBy: [EventsOrderBy!], $filter: EventFilter) {
   events(first: $first, orderBy: $orderBy, filter: $filter) {

@@ -13,7 +13,7 @@ import {
   DexScreenerJoinExitEvent,
   DexScreenerEvent,
 } from './dexscreener.interfaces';
-import { DatasourceBlock } from '../../../dataSource/graphqlSupport/types';
+import { DatasourceAsset, DatasourceBlock } from '../../../dataSource/graphqlSupport/types';
 
 @Injectable()
 export class DexScreenerTransformer extends BaseTransformer {
@@ -31,6 +31,23 @@ export class DexScreenerTransformer extends BaseTransformer {
 
     return { block };
   }
+
+  transformAsset({ id, name, symbol, decimals }: DatasourceAsset): DexScreenerAssetResponse {
+    this.logger.debug('Transforming asset data for DEX Screener');
+
+    const asset: DexScreenerAsset = {
+      id,
+      name,
+      symbol,
+      totalSupply: '0',
+      circulatingSupply: '0',
+      coinGeckoId: 'coinGeckoId',
+      coinMarketCapId: 'coinMarketCapId',
+    };
+
+    return { asset };
+  }
+
   //
   // transformAsset(graphqlData: any): DexScreenerAssetResponse {
   //   this.logger.debug(`Transforming asset data for DEX Screener: ${graphqlData.asset?.id}`);
