@@ -7,9 +7,7 @@ import { ProvidersModule } from './providers/providers.module';
 
 @Module({
   imports: [ProvidersModule, ConfigurationModule, DataSourceModule, ConsumersModule],
-  controllers: [
-    ConsumerInfoController,
-  ],
+  controllers: [ConsumerInfoController],
   providers: [],
 })
 export class AppModule {}
