@@ -1,0 +1,24 @@
+version: "3.7"
+
+networks:
+  default:
+    driver: overlay
+
+services:
+  hdl-adapter:
+    image: adapter-img
+    ports:
+      - "8088:8080"
+    environment:
+      NODE_ENV: "production"
+      PORT: 8080
+      MAIN_INDEXER_GRAPHQL_ENDPOINT: "https://galacticcouncil.squids.live/hydration-pools:whale-prod/api/graphql"
+    networks:
+      - default
+    command:
+      - sh
+      - -c
+      - "node dist/main.js"
+    deploy:
+      restart_policy:
+        condition: on-failure
