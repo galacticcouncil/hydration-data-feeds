@@ -1,0 +1,607 @@
+[
+  {
+    "asset": {
+      "id": "0",
+      "name": "Hydration",
+      "symbol": "HDX",
+      "decimals": 12,
+      "coinGeckoId": "hydradx",
+      "coinMarketCapId": "6753"
+    }
+  },
+  {
+    "asset": {
+      "id": "0x34d5ffb83d14d82f87aaf2f13be895a3c814c2ad",
+      "name": "GIGADOT",
+      "symbol": "GDOT",
+      "decimals": 18,
+      "coinGeckoId": "gigadot"
+    }
+  },
+  {
+    "asset": {
+      "id": "0x8a598fe3e3a471ce865332e330d303502a0e2f52",
+      "name": "GIGAETH",
+      "symbol": "GETH",
+      "decimals": 18,
+      "coinGeckoId": "gigaeth"
+    }
+  },
+  {
+    "asset": {
+      "id": "1",
+      "name": "H2O",
+      "symbol": "H2O",
+      "decimals": 12,
+      "coinGeckoId": "h2o-2"
+    }
+  },
+  {
+    "asset": {
+      "id": "10",
+      "name": "Tether",
+      "symbol": "USDT",
+      "decimals": 6,
+      "coinGeckoId": "tether",
+      "coinMarketCapId": "825"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000081",
+      "name": "Pendulum",
+      "symbol": "PEN",
+      "decimals": 12,
+      "coinGeckoId": "pendulum-chain",
+      "coinMarketCapId": "23476"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000085",
+      "name": "Gavun Wud",
+      "symbol": "WUD",
+      "decimals": 10,
+      "coinGeckoId": "gavun-wud"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000099",
+      "name": "Acala",
+      "symbol": "ACA",
+      "decimals": 12,
+      "coinGeckoId": "acala",
+      "coinMarketCapId": "6756"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000100",
+      "name": "Liquid DOT",
+      "symbol": "LDOT",
+      "decimals": 10,
+      "coinMarketCapId": "20725"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000189",
+      "name": "Wrapped Ethereum",
+      "symbol": "WETH",
+      "decimals": 18,
+      "coinGeckoId": "weth",
+      "coinMarketCapId": "2396"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000190",
+      "name": "Wrapped Bitcoin",
+      "symbol": "WBTC",
+      "decimals": 8,
+      "coinGeckoId": "wrapped-bitcoin",
+      "coinMarketCapId": "3717"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000624",
+      "name": "AAVE",
+      "symbol": "AAVE",
+      "decimals": 18,
+      "coinGeckoId": "aave",
+      "coinMarketCapId": "7278"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000625",
+      "name": "Ethena Staked USDe",
+      "symbol": "sUSDe",
+      "decimals": 18,
+      "coinGeckoId": "ethena-staked-usde",
+      "coinMarketCapId": "29471"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000626",
+      "name": "Savings USDS",
+      "symbol": "sUSDS",
+      "decimals": 18,
+      "coinGeckoId": "susds"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000745",
+      "name": "sUSDS (Moonbeam Wormhole)",
+      "symbol": "sUSDS",
+      "decimals": 18,
+      "coinGeckoId": "susds"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000752",
+      "name": "Solana (Moonbeam Wormhole)",
+      "symbol": "SOL",
+      "decimals": 9,
+      "coinGeckoId": "solana",
+      "coinMarketCapId": "5426"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000753",
+      "name": "SUI (Moonbeam Wormhole)",
+      "symbol": "SUI",
+      "decimals": 9,
+      "coinGeckoId": "sui",
+      "coinMarketCapId": "20947"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000765",
+      "name": "Threshold BTC",
+      "symbol": "tBTC",
+      "decimals": 18,
+      "coinGeckoId": "tbtc",
+      "coinMarketCapId": "26133"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000766",
+      "name": "USDC (Ethereum native)",
+      "symbol": "USDC",
+      "decimals": 6,
+      "coinGeckoId": "usd-coin"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000767",
+      "name": "Tether (Ethereum native)",
+      "symbol": "USDT",
+      "decimals": 6,
+      "coinGeckoId": "tether"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000771",
+      "name": "Kusama",
+      "symbol": "KSM",
+      "decimals": 12,
+      "coinGeckoId": "kusama"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000794",
+      "name": "Chainlink",
+      "symbol": "LINK",
+      "decimals": 18,
+      "coinGeckoId": "chainlink"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000795",
+      "name": "SKY",
+      "symbol": "SKY",
+      "decimals": 18,
+      "coinGeckoId": "sky"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000796",
+      "name": "Lido",
+      "symbol": "LDO",
+      "decimals": 18,
+      "coinGeckoId": "lido-dao"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000809",
+      "name": "Wrapped staked ETH",
+      "symbol": "wstETH",
+      "decimals": 18,
+      "coinGeckoId": "wrapped-steth"
+    }
+  },
+  {
+    "asset": {
+      "id": "1000851",
+      "name": "Lombard Staked BTC",
+      "symbol": "LBTC",
+      "decimals": 8,
+      "coinGeckoId": "lombard-staked-btc"
+    }
+  },
+  {
+    "asset": {
+      "id": "11",
+      "name": "interBTC",
+      "symbol": "iBTC",
+      "decimals": 8,
+      "coinGeckoId": "interbtc"
+    }
+  },
+  {
+    "asset": {
+      "id": "12",
+      "name": "Zeitgeist",
+      "symbol": "ZTG",
+      "decimals": 10,
+      "coinGeckoId": "zeitgeist"
+    }
+  },
+  {
+    "asset": {
+      "id": "13",
+      "name": "Centrifuge",
+      "symbol": "CFG",
+      "decimals": 18,
+      "coinGeckoId": "centrifuge"
+    }
+  },
+  {
+    "asset": {
+      "id": "14",
+      "name": "Bifrost Native Coin",
+      "symbol": "BNC",
+      "decimals": 12,
+      "coinGeckoId": "bifrost-native-coin"
+    }
+  },
+  {
+    "asset": {
+      "id": "15",
+      "name": "Bifrost Voucher DOT",
+      "symbol": "vDOT",
+      "decimals": 10,
+      "coinGeckoId": "voucher-dot"
+    }
+  },
+  {
+    "asset": {
+      "id": "16",
+      "name": "Glimmer",
+      "symbol": "GLMR",
+      "decimals": 18,
+      "coinGeckoId": "moonbeam"
+    }
+  },
+  {
+    "asset": {
+      "id": "17",
+      "name": "Interlay",
+      "symbol": "INTR",
+      "decimals": 10,
+      "coinGeckoId": "interlay",
+      "coinMarketCapId": "20366"
+    }
+  },
+  {
+    "asset": {
+      "id": "18",
+      "name": "DAI (Moonbeam Wormhole)",
+      "symbol": "DAI",
+      "decimals": 18,
+      "coinGeckoId": "dai",
+      "coinMarketCapId": "4943"
+    }
+  },
+  {
+    "asset": {
+      "id": "19",
+      "name": "Wrapped BTC (Moonbeam Wormhole)",
+      "symbol": "WBTC",
+      "decimals": 8,
+      "coinGeckoId": "wrapped-bitcoin",
+      "coinMarketCapId": "3717"
+    }
+  },
+  {
+    "asset": {
+      "id": "2",
+      "name": "DAI (Acala Wormhole)",
+      "symbol": "DAI",
+      "decimals": 18,
+      "coinGeckoId": "dai",
+      "coinMarketCapId": "4943"
+    }
+  },
+  {
+    "asset": {
+      "id": "20",
+      "name": "Wrapped ETH (Moonbeam Wormhole)",
+      "symbol": "WETH",
+      "decimals": 18,
+      "coinGeckoId": "weth",
+      "coinMarketCapId": "2396"
+    }
+  },
+  {
+    "asset": {
+      "id": "21",
+      "name": "USDC (Moonbeam Wormhole)",
+      "symbol": "USDC",
+      "decimals": 6,
+      "coinGeckoId": "usd-coin",
+      "coinMarketCapId": "3408"
+    }
+  },
+  {
+    "asset": {
+      "id": "22",
+      "name": "USDC",
+      "symbol": "USDC",
+      "decimals": 6,
+      "coinGeckoId": "usd-coin",
+      "coinMarketCapId": "3408"
+    }
+  },
+  {
+    "asset": {
+      "id": "23",
+      "name": "Tether (Moonbeam Wormhole)",
+      "symbol": "USDT",
+      "decimals": 6,
+      "coinGeckoId": "tether",
+      "coinMarketCapId": "825"
+    }
+  },
+  {
+    "asset": {
+      "id": "24",
+      "name": "Subsocial",
+      "symbol": "SUB",
+      "decimals": 10,
+      "coinGeckoId": "subsocial",
+      "coinMarketCapId": "6845"
+    }
+  },
+  {
+    "asset": {
+      "id": "25",
+      "name": "Unique network",
+      "symbol": "UNQ",
+      "decimals": 18,
+      "coinGeckoId": "unique-network",
+      "coinMarketCapId": "13695"
+    }
+  },
+  {
+    "asset": {
+      "id": "252525",
+      "name": "Energy Web X",
+      "symbol": "EWT",
+      "decimals": 18,
+      "coinGeckoId": "energy-web-token",
+      "coinMarketCapId": "5268"
+    }
+  },
+  {
+    "asset": {
+      "id": "26",
+      "name": "Nodle",
+      "symbol": "NODL",
+      "decimals": 11,
+      "coinGeckoId": "nodle-network",
+      "coinMarketCapId": "6837"
+    }
+  },
+  {
+    "asset": {
+      "id": "27",
+      "name": "Crust",
+      "symbol": "CRU",
+      "decimals": 12,
+      "coinGeckoId": "crust-network",
+      "coinMarketCapId": "6747"
+    }
+  },
+  {
+    "asset": {
+      "id": "28",
+      "name": "KILT",
+      "symbol": "KILT",
+      "decimals": 15,
+      "coinGeckoId": "kilt-protocol-2",
+      "coinMarketCapId": "37468"
+    }
+  },
+  {
+    "asset": {
+      "id": "29",
+      "name": "Polimec",
+      "symbol": "PLMC",
+      "decimals": 10,
+      "coinGeckoId": "l",
+      "coinMarketCapId": "28501"
+    }
+  },
+  {
+    "asset": {
+      "id": "3",
+      "name": "Wrapped BTC (Acala Wormhole)",
+      "symbol": "WBTC",
+      "decimals": 8,
+      "coinGeckoId": "wrapped-bitcoin",
+      "coinMarketCapId": "3717"
+    }
+  },
+  {
+    "asset": {
+      "id": "30",
+      "name": "Mythos",
+      "symbol": "MYTH",
+      "decimals": 18,
+      "coinGeckoId": "mythos",
+      "coinMarketCapId": "22125"
+    }
+  },
+  {
+    "asset": {
+      "id": "31",
+      "name": "Darwinia Network RING",
+      "symbol": "RING",
+      "decimals": 18,
+      "coinGeckoId": "darwinia-network-native-token"
+    }
+  },
+  {
+    "asset": {
+      "id": "32",
+      "name": "Ajuna Network",
+      "symbol": "AJUN",
+      "decimals": 12,
+      "coinGeckoId": "ajuna-network-2",
+      "coinMarketCapId": "24538"
+    }
+  },
+  {
+    "asset": {
+      "id": "33",
+      "name": "Voucher ASTR",
+      "symbol": "vASTR",
+      "decimals": 18,
+      "coinGeckoId": "bifrost-voucher-astr"
+    }
+  },
+  {
+    "asset": {
+      "id": "3370",
+      "name": "LAOS Network",
+      "symbol": "LAOS",
+      "decimals": 18,
+      "coinMarketCapId": "34111"
+    }
+  },
+  {
+    "asset": {
+      "id": "34",
+      "name": "Ethereum",
+      "symbol": "ETH",
+      "decimals": 18,
+      "coinGeckoId": "ethereum",
+      "coinMarketCapId": "1027"
+    }
+  },
+  {
+    "asset": {
+      "id": "35",
+      "name": "OriginTrail",
+      "symbol": "TRAC",
+      "decimals": 18,
+      "coinGeckoId": "origintrail",
+      "coinMarketCapId": "2467"
+    }
+  },
+  {
+    "asset": {
+      "id": "36",
+      "name": "Neuroweb",
+      "symbol": "NEURO",
+      "decimals": 12,
+      "coinGeckoId": "neurowebai",
+      "coinMarketCapId": "34681"
+    }
+  },
+  {
+    "asset": {
+      "id": "37",
+      "name": "SQD",
+      "symbol": "SQD",
+      "decimals": 18,
+      "coinGeckoId": "subsquid",
+      "coinMarketCapId": "12894"
+    }
+  },
+  {
+    "asset": {
+      "id": "4",
+      "name": "Wrapped ETH (Acala Wormhole)",
+      "symbol": "WETH",
+      "decimals": 18,
+      "coinGeckoId": "weth",
+      "coinMarketCapId": "2396"
+    }
+  },
+  {
+    "asset": {
+      "id": "5",
+      "name": "Polkadot",
+      "symbol": "DOT",
+      "decimals": 10,
+      "coinGeckoId": "polkadot",
+      "coinMarketCapId": "6636"
+    }
+  },
+  {
+    "asset": {
+      "id": "6",
+      "name": "ApeCoin (Acala Wormhole)",
+      "symbol": "APE",
+      "decimals": 18,
+      "coinGeckoId": "apecoin",
+      "coinMarketCapId": "18876"
+    }
+  },
+  {
+    "asset": {
+      "id": "7",
+      "name": "USD Coin (Acala Wormhole)",
+      "symbol": "USDC",
+      "decimals": 6,
+      "coinGeckoId": "usd-coin",
+      "coinMarketCapId": "3408"
+    }
+  },
+  {
+    "asset": {
+      "id": "8",
+      "name": "Phala",
+      "symbol": "PHA",
+      "decimals": 12,
+      "coinGeckoId": "pha",
+      "coinMarketCapId": "6841"
+    }
+  },
+  {
+    "asset": {
+      "id": "9",
+      "name": "Astar",
+      "symbol": "ASTR",
+      "decimals": 18,
+      "coinGeckoId": "astar"
+    }
+  }
+]

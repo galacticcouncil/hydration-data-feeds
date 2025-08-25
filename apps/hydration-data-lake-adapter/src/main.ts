@@ -59,11 +59,13 @@ async function bootstrap() {
       },
     });
 
-    logger.log(`Swagger documentation available at: ${appConfig.getServerUrl()}${swaggerPath}`);
+    const swaggerUrl = `${appConfig.getServerUrl()}${swaggerPath}`;
+    logger.log(`Swagger documentation available at: ${swaggerUrl}`);
   }
 
   await app.listen(appConfig.PORT);
-  logger.log(`Application is running on: ${appConfig.getServerUrl()}`);
+  const baseUrl = appConfig.BASE_PATH ? `${appConfig.getServerUrl()}${appConfig.BASE_PATH}` : appConfig.getServerUrl();
+  logger.log(`Application is running on: ${baseUrl}`);
 
   // Log available endpoints
   logger.log('Available GraphQL endpoints:', appConfig.graphql.getConfiguredEndpoints().join(', '));

@@ -19,7 +19,7 @@ import { ApiEndpoint } from '../../../dataSource/types';
 import { BaseConsumerController } from '../../base/base.controller';
 import { DexscreenerResolver } from './dexscreener.resolver';
 
-const dexscrennerConsumerBasePath = `${ApiVersion.V1}/${ConsumerType.DEX_SCREENER}`;
+const dexscrennerConsumerBasePath = `${ConsumerType.DEX_SCREENER}`;
 
 @ApiTags('dexscreener')
 @Controller(dexscrennerConsumerBasePath)

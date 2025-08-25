@@ -17,7 +17,7 @@ export class ConsumerRegistryService {
       type: ConsumerType.DEX_SCREENER,
       version: ApiVersion.V1,
       enabled: true,
-      basePath: 'v1/dexscreener',
+      basePath: 'dexscreener',
       description: 'DEX Screener API v1 - Implementation of DEX Screener Adapter specification',
     });
 

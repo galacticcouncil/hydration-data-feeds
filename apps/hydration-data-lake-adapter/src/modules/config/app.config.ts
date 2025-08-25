@@ -115,8 +115,7 @@ export class AppConfig {
   getServerUrl(): string {
     const protocol = this.isProduction() ? 'https' : 'http';
     const port = this.PORT !== 80 && this.PORT !== 443 ? `:${this.PORT}` : '';
-    const basePath = this.BASE_PATH || '';
-    return `${protocol}://localhost${port}${basePath}`;
+    return `${protocol}://localhost${port}`;
   }
 
   // Validation methods

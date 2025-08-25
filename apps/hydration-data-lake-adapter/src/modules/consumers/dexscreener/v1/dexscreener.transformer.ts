@@ -14,10 +14,14 @@ import {
   DexScreenerEvent,
 } from './dexscreener.interfaces';
 import { DatasourceAsset, DatasourceBlock } from '../../../dataSource/graphqlSupport/types';
+import { AssetMetadataService } from './asset-metadata.service';
 
 @Injectable()
 export class DexScreenerTransformer extends BaseTransformer {
-  constructor(private appConfig: AppConfig) {
+  constructor(
+    private appConfig: AppConfig,
+    private assetMetadataService: AssetMetadataService
+  ) {
     super();
   }
 
@@ -35,15 +39,25 @@ export class DexScreenerTransformer extends BaseTransformer {
   transformAsset({ id, name, symbol, decimals }: DatasourceAsset): DexScreenerAssetResponse {
     this.logger.debug('Transforming asset data for DEX Screener');
 
+    // Get metadata from static file if available
+    const metadata = this.assetMetadataService.getMetadataById(id);
+
     const asset: DexScreenerAsset = {
       id,
-      name,
-      symbol,
+      // Use metadata if available, otherwise fall back to GraphQL data
+      name: metadata?.name || name,
+      symbol: metadata?.symbol || symbol,
       totalSupply: '0',
       circulatingSupply: '0',
-      coinGeckoId: 'coinGeckoId',
-      coinMarketCapId: 'coinMarketCapId',
+      // Set coinGeckoId and coinMarketCapId from metadata
+      coinGeckoId: metadata?.coinGeckoId || undefined,
+      coinMarketCapId: metadata?.coinMarketCapId || undefined,
     };
+
+    // Log if we enhanced the asset with metadata
+    if (metadata) {
+      this.logger.debug(`Enhanced asset ${id} with metadata: coinGeckoId=${metadata.coinGeckoId}, coinMarketCapId=${metadata.coinMarketCapId}`);
+    }
 
     return { asset };
   }
