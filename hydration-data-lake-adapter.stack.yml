@@ -8,14 +8,24 @@ networks:
 
 services:
   hdl-adapter-dev:
-    image: ghcr.io/mckrava/hydration-data-lake-adapter:005121dcc6c7ae88cf00695cf089a8e33fc452c5
+    image: ghcr.io/mckrava/hydration-data-lake-adapter:ce547e209c9174e74b8cc44033364c5f6e3b9f25
     ports:
       - "8088:8088"
     environment:
       NODE_ENV: "production"
       PORT: 8088
       MAIN_INDEXER_GRAPHQL_ENDPOINT: "https://galacticcouncil.squids.live/hydration-pools:whale-prod/api/graphql"
-      CORS_ORIGINS: "http://localhost:8088"
+
+      # Fix CORS and server configuration
+      CORS_ORIGINS: "https://hdl-adapter-dev.kril.hydration.cloud"
+      SERVER_URL: "https://hdl-adapter-dev.kril.hydration.cloud"
+      HOST: "0.0.0.0"
+      ENABLE_CORS: "true"
+      ENABLE_SWAGGER: "true"
+
+      # Optional: Force HTTP internally (Traefik handles HTTPS)
+      FORCE_HTTP: "true"
+
     networks:
       - gateway
       - default
@@ -25,11 +35,26 @@ services:
       - "node dist/main.js"
     deploy:
       labels:
+        # Enable Traefik
         traefik.enable: "true"
+
+        # HTTP to HTTPS redirect
+        traefik.http.routers.hdl-adapter-dev-http.rule: Host(`hdl-adapter-dev.kril.hydration.cloud`)
+        traefik.http.routers.hdl-adapter-dev-http.entrypoints: web
+        traefik.http.routers.hdl-adapter-dev-http.middlewares: https-redirect
+
+        # HTTPS configuration
         traefik.http.routers.hdl-adapter-dev.rule: Host(`hdl-adapter-dev.kril.hydration.cloud`)
         traefik.http.routers.hdl-adapter-dev.entrypoints: websecure
         traefik.http.routers.hdl-adapter-dev.tls: "true"
         traefik.http.routers.hdl-adapter-dev.tls.certresolver: myresolver
+
+        # Service configuration
         traefik.http.services.hdl-adapter-dev.loadbalancer.server.port: "8088"
+
+        # HTTPS redirect middleware
+        traefik.http.middlewares.https-redirect.redirectscheme.scheme: https
+        traefik.http.middlewares.https-redirect.redirectscheme.permanent: "true"
+
       restart_policy:
         condition: on-failure
