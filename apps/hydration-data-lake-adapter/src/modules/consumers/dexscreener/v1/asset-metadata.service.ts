@@ -26,32 +26,11 @@ export class AssetMetadataService {
 
   private loadMetadata(): void {
     try {
-      // Try multiple possible paths to find the metadata file
-      const possiblePaths = [
-        path.join(__dirname, '../../../../../src/data/asset-metadata.json'), // From dist location
-        path.join(process.cwd(), 'src/data/asset-metadata.json'), // From project root
-        path.join(__dirname, '../../../../../../src/data/asset-metadata.json') // Alternative from dist
-      ];
-
-      let metadataContent: string;
-      let foundPath: string | null = null;
-
-      for (const metadataPath of possiblePaths) {
-        try {
-          metadataContent = fs.readFileSync(metadataPath, 'utf8');
-          foundPath = metadataPath;
-          break;
-        } catch (error) {
-          // Continue trying other paths
-          continue;
-        }
-      }
-
-      if (!foundPath) {
-        throw new Error('Asset metadata file not found in any expected locations');
-      }
-
-      this.logger.debug(`Loading metadata from: ${foundPath}`);
+      // Use a single, reliable path from project root
+      const metadataPath = path.join(process.cwd(), 'src/data/asset-metadata.json');
+      
+      this.logger.debug(`Loading metadata from: ${metadataPath}`);
+      const metadataContent = fs.readFileSync(metadataPath, 'utf8');
       const metadataEntries: AssetMetadataEntry[] = JSON.parse(metadataContent);
 
       // Build a map for quick lookups by asset ID
