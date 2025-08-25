@@ -76,6 +76,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           platforms: linux/amd64,linux/arm64
+          file: ./hydration-data-lake-adapter.Dockerfile
           context: ./
           push: true
           tags: ${{ steps.hydration-data-lake-adapter-app-meta.outputs.tags }}
