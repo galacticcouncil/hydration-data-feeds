@@ -3,22 +3,33 @@ version: "3.7"
 networks:
   default:
     driver: overlay
+  gateway:
+    external: true
 
 services:
-  hdl-adapter:
-    image: adapter-img
+  hdl-adapter-dev:
+    image: ghcr.io/mckrava/hydration-data-lake-adapter:005121dcc6c7ae88cf00695cf089a8e33fc452c5
     ports:
-      - "8088:8080"
+      - "8088:8088"
     environment:
       NODE_ENV: "production"
-      PORT: 8080
+      PORT: 8088
       MAIN_INDEXER_GRAPHQL_ENDPOINT: "https://galacticcouncil.squids.live/hydration-pools:whale-prod/api/graphql"
+      CORS_ORIGINS: "http://localhost:8088"
     networks:
+      - gateway
       - default
     command:
       - sh
       - -c
       - "node dist/main.js"
     deploy:
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.hdl-adapter-dev.rule: Host(`hdl-adapter-dev.kril.hydration.cloud`)
+        traefik.http.routers.hdl-adapter-dev.entrypoints: websecure
+        traefik.http.routers.hdl-adapter-dev.tls: "true"
+        traefik.http.routers.hdl-adapter-dev.tls.certresolver: myresolver
+        traefik.http.services.hdl-adapter-dev.loadbalancer.server.port: "8088"
       restart_policy:
         condition: on-failure

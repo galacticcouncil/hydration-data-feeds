@@ -31,6 +31,20 @@ export class AppConfig {
   @IsString()
   readonly BASE_PATH?: string;
 
+  @IsOptional()
+  @IsString()
+  readonly SERVER_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  readonly HOST?: string;
+
+  @Transform(({ value }: { value: string }) => value === 'true')
+  readonly FORCE_HTTP: boolean = true;
+
+  @Transform(({ value }: { value: string }) => value.split(',') || [])
+  readonly CORS_ORIGINS: string[] = ['http://localhost:8080'];
+
   @IsNotEmpty()
   @IsString()
   readonly DEX_KEY: string = 'hydration';
@@ -113,10 +127,16 @@ export class AppConfig {
   }
 
   getServerUrl(): string {
-    const protocol = this.isProduction() ? 'https' : 'http';
-    const port = this.PORT !== 80 && this.PORT !== 443 ? `:${this.PORT}` : '';
+    if (this.SERVER_URL) {
+      return this.SERVER_URL;
+    }
+
+    // Fallback logic
+    const protocol = this.FORCE_HTTP ? 'http' : this.isProduction() ? 'https' : 'http';
+    const host = this.HOST || 'localhost';
+    const port = this.PORT !== 80 && this.PORT !== 443 && !this.FORCE_HTTP ? `:${this.PORT}` : '';
     const basePath = this.BASE_PATH || '';
-    return `${protocol}://localhost${port}${basePath}`;
+    return `${protocol}://${host}${port}${basePath}`;
   }
 
   // Validation methods

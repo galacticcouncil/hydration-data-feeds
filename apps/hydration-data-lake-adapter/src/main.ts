@@ -23,7 +23,12 @@ async function bootstrap() {
   );
 
   if (appConfig.ENABLE_CORS) {
-    app.enableCors();
+    app.enableCors({
+      origin: appConfig.CORS_ORIGINS,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+      credentials: true,
+    });
     logger.log('CORS enabled');
   }
 
