@@ -134,7 +134,7 @@ export class AppConfig {
     // Fallback logic
     const protocol = this.FORCE_HTTP ? 'http' : this.isProduction() ? 'https' : 'http';
     const host = this.HOST || 'localhost';
-    const port = this.PORT !== 80 && this.PORT !== 443 && !this.FORCE_HTTP ? `:${this.PORT}` : '';
+    const port = this.PORT !== 80 && this.PORT !== 443 ? `:${this.PORT}` : '';
     const basePath = this.BASE_PATH || '';
     return `${protocol}://${host}${port}${basePath}`;
   }
