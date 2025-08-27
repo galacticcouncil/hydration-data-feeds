@@ -1,29 +1,23 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { AssetEnhancementEntry, AssetEnhancementData } from './types';
 
 @Injectable()
-export class AssetEnhancementService {
+export class AssetEnhancementService implements OnModuleInit {
   private readonly logger = new Logger(AssetEnhancementService.name);
   private assetEnhancementMap: Map<string, AssetEnhancementData> = new Map();
 
-  constructor() {
-    this.loadAssetEnhancementData();
+  async onModuleInit() {
+    await this.loadAssetEnhancementData();
   }
 
-  private loadAssetEnhancementData(): void {
+  private async loadAssetEnhancementData() {
     try {
-      const assetsFilePath = join(process.cwd(), 'src/data/assets.json');
-      const assetsData = readFileSync(assetsFilePath, 'utf8');
-      const assets: AssetEnhancementEntry[] = JSON.parse(assetsData);
+      const assets: AssetEnhancementEntry[] = await import('./assets.json');
 
       // Create a map for fast lookup by asset ID
       assets.forEach(({ asset }) => {
         this.assetEnhancementMap.set(asset.id, asset);
       });
-
-      this.logger.log(`Loaded ${assets.length} asset enhancement entries from ${assetsFilePath}`);
     } catch (error) {
       this.logger.error('Failed to load asset enhancement data:', error);
     }
@@ -41,9 +35,9 @@ export class AssetEnhancementService {
     return Array.from(this.assetEnhancementMap.keys());
   }
 
-  reloadAssetEnhancementData(): void {
+  async reloadAssetEnhancementData() {
     this.assetEnhancementMap.clear();
-    this.loadAssetEnhancementData();
+    await this.loadAssetEnhancementData();
     this.logger.log('Asset enhancement data reloaded');
   }
 }

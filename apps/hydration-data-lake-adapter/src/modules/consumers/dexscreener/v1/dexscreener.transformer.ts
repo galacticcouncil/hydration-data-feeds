@@ -14,13 +14,13 @@ import {
   DexScreenerEvent,
 } from './dexscreener.interfaces';
 import { DatasourceAsset, DatasourceBlock } from '../../../dataSource/graphqlSupport/types';
-import { AssetEnhancementService } from '../../../../data';
+import { AssetEnhancementService } from '../../../dataSource/dataEnhancement/assets';
 
 @Injectable()
 export class DexScreenerTransformer extends BaseTransformer {
   constructor(
     private appConfig: AppConfig,
-    private assetEnhancementService: AssetEnhancementService,
+    private assetEnhancementService: AssetEnhancementService
   ) {
     super();
   }

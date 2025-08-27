@@ -9,16 +9,9 @@ import {
   DexScreenerGetAssetParamsDto,
   DexScreenerGetPairParamsDto,
 } from './dexscreener.dto';
-import {
-  DexScreenerLatestBlockResponse,
-  DexScreenerAssetResponse,
-  DexScreenerPairResponse,
-  DexScreenerEventsResponse,
-} from './dexscreener.interfaces';
-import { ApiEndpoint } from '../../../dataSource/types';
+import { DexScreenerLatestBlockResponse, DexScreenerAssetResponse } from './dexscreener.interfaces';
 import { BaseConsumerController } from '../../base/base.controller';
 import { DexscreenerResolver } from './dexscreener.resolver';
-import { AssetEnhancementService } from '../../../../data';
 
 const dexscrennerConsumerBasePath = `${ApiVersion.V1}/${ConsumerType.DEX_SCREENER}`;
 
@@ -27,8 +20,7 @@ const dexscrennerConsumerBasePath = `${ApiVersion.V1}/${ConsumerType.DEX_SCREENE
 export class DexScreenerV1Controller extends BaseConsumerController {
   constructor(
     private readonly dexscreenerResolver: DexscreenerResolver,
-    protected readonly appConfig: AppConfig,
-    private readonly assetEnhancementService: AssetEnhancementService,
+    protected readonly appConfig: AppConfig
   ) {
     super(appConfig);
   }

@@ -1,14 +1,13 @@
 import { Module } from '@nestjs/common';
 import { DexScreenerV1Controller } from './dexscreener.controller';
 import { DexScreenerTransformer } from './dexscreener.transformer';
-import { DataSourceService } from '../../../dataSource/data-source.service';
 import { DexscreenerResolver } from './dexscreener.resolver';
-import { AssetEnhancementService } from '../../../../data';
+import { DataSourceModule } from '../../../dataSource/data-source.module';
 
 @Module({
-  imports: [],
+  imports: [DataSourceModule],
   controllers: [DexScreenerV1Controller],
-  providers: [DexScreenerTransformer, DexscreenerResolver, DataSourceService, AssetEnhancementService],
+  providers: [DexScreenerTransformer, DexscreenerResolver],
   exports: [DexScreenerTransformer],
 })
 export class DexScreenerV1Module {}
