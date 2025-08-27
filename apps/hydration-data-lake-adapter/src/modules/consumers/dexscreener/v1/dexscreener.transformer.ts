@@ -14,10 +14,14 @@ import {
   DexScreenerEvent,
 } from './dexscreener.interfaces';
 import { DatasourceAsset, DatasourceBlock } from '../../../dataSource/graphqlSupport/types';
+import { AssetEnhancementService } from '../../../../data';
 
 @Injectable()
 export class DexScreenerTransformer extends BaseTransformer {
-  constructor(private appConfig: AppConfig) {
+  constructor(
+    private appConfig: AppConfig,
+    private assetEnhancementService: AssetEnhancementService,
+  ) {
     super();
   }
 
@@ -35,14 +39,17 @@ export class DexScreenerTransformer extends BaseTransformer {
   transformAsset({ id, name, symbol, decimals }: DatasourceAsset): DexScreenerAssetResponse {
     this.logger.debug('Transforming asset data for DEX Screener');
 
+    // Get enhancement data for this asset
+    const enhancement = this.assetEnhancementService.getAssetEnhancement(id);
+
     const asset: DexScreenerAsset = {
       id,
       name,
       symbol,
       totalSupply: '0',
       circulatingSupply: '0',
-      coinGeckoId: 'coinGeckoId',
-      coinMarketCapId: 'coinMarketCapId',
+      ...(enhancement?.coinGeckoId && { coinGeckoId: enhancement.coinGeckoId }),
+      ...(enhancement?.coinMarketCapId && { coinMarketCapId: enhancement.coinMarketCapId }),
     };
 
     return { asset };
