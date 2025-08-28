@@ -52,6 +52,9 @@ export class AppConfig {
   readonly DEFAULT_CHAIN_ID: number = 1;
 
   @Transform(({ value }: { value: string }) => +value)
+  readonly ENTITIES_CACHE_TTL_MS: number = -1; // -1 means cache never expires
+
+  @Transform(({ value }: { value: string }) => +value)
   readonly API_CACHE_TTL_MS: number = 600_000; // 10 minutes
 
   @Transform(({ value }: { value: string }) => +value)
