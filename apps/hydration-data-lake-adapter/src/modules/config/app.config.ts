@@ -61,7 +61,10 @@ export class AppConfig {
   readonly REQUEST_TIMEOUT_MS: number = 30_000;
 
   @Transform(({ value }: { value: string }) => +value)
-  readonly MAX_BLOCK_RANGE: number = 1000;
+  readonly MAX_BLOCK_RANGE: number = -1;
+
+  @Transform(({ value }: { value: string }) => +value)
+  readonly MAX_BLOCKS_RANGE_FETCH_BATCH: number = 300;
 
   @Transform(({ value }: { value: string }) => +value)
   readonly DEFAULT_PAGE_SIZE: number = 100;
@@ -84,6 +87,9 @@ export class AppConfig {
   @Transform(({ value }: { value: string }) => value === 'true')
   readonly ENABLE_TYPED_GRAPHQL: boolean = true;
 
+  @Transform(({ value }: { value: string }) => +value)
+  readonly HYDRADX_SS58_PREFIX: number = 0;
+
   @IsOptional()
   @IsString()
   readonly LOG_LEVEL?: string;
@@ -104,7 +110,6 @@ export class AppConfig {
     } catch (errors) {
       if (Array.isArray(errors) && errors[0] instanceof ValidationError) {
         errors.forEach((error: ValidationError) => {
-          // @ts-ignore
           Object.values(error.constraints).forEach((msg) => console.error(msg));
         });
       } else {
@@ -147,7 +152,7 @@ export class AppConfig {
       throw new Error('fromBlock must be less than or equal to toBlock');
     }
 
-    if (toBlock - fromBlock > this.MAX_BLOCK_RANGE) {
+    if (this.MAX_BLOCK_RANGE > 0 && toBlock - fromBlock > this.MAX_BLOCK_RANGE) {
       throw new Error(`Block range cannot exceed ${this.MAX_BLOCK_RANGE} blocks`);
     }
   }

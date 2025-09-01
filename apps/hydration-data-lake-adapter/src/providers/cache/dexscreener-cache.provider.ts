@@ -3,10 +3,14 @@ import { AppConfig } from '../../modules/config';
 import { DexScreenerCacheProviderToken } from '../index';
 const Keyv = require('keyv');
 import { BaseCacheClient } from './base-cache.helper';
-import { DexScreenerPair } from '../../modules/consumers/dexscreener/v1/dexscreener.interfaces';
+import {
+  DexScreenerBlock,
+  DexScreenerPair,
+} from '../../modules/consumers/dexscreener/v1/dexscreener.interfaces';
 
 export enum EntitiesCacheKeyPrefix {
   DXSCR_PAIR = 'DXSCR_PAIR',
+  DXSCR_BLOCK = 'DXSCR_BLOCK',
 }
 
 @Injectable()
@@ -18,10 +22,26 @@ export class DexScreenerCacheProvider extends BaseCacheClient {
   }
 
   async setPair(id: string, entity: DexScreenerPair) {
-    await this.cache.set(`${EntitiesCacheKeyPrefix.DXSCR_PAIR}_${id}`, entity);
+    try {
+      await this.cache.set(`${EntitiesCacheKeyPrefix.DXSCR_PAIR}_${id}`, entity);
+    } catch (e) {}
   }
   async getPair(id: string): Promise<DexScreenerPair | undefined> {
-    return this.cache.get(`${EntitiesCacheKeyPrefix.DXSCR_PAIR}_${id}`);
+    try {
+      return this.cache.get(`${EntitiesCacheKeyPrefix.DXSCR_PAIR}_${id}`);
+    } catch (e) {}
+    return;
+  }
+  async setBlock(id: string, entity: DexScreenerBlock) {
+    try {
+      await this.cache.set(`${EntitiesCacheKeyPrefix.DXSCR_BLOCK}_${id}`, entity);
+    } catch (e) {}
+  }
+  async getBlock(id: string): Promise<DexScreenerBlock | undefined> {
+    try {
+      return this.cache.get(`${EntitiesCacheKeyPrefix.DXSCR_BLOCK}_${id}`);
+    } catch (e) {}
+    return;
   }
 }
 

@@ -8,6 +8,15 @@ export class BaseConsumerHelper {
 
   protected constructor(protected readonly appConfig: AppConfig) {}
 
+  static getErrorResponsePayload(error: string, statusCode?: number) {
+    return {
+      success: false,
+      timestamp: new Date().toISOString(),
+      error,
+      statusCode,
+    };
+  }
+
   // Common utility methods
   protected createSuccessResponse(data: any) {
     return {
@@ -18,12 +27,7 @@ export class BaseConsumerHelper {
   }
 
   protected createErrorResponse(error: string, statusCode?: number) {
-    return {
-      success: false,
-      timestamp: new Date().toISOString(),
-      error,
-      statusCode,
-    };
+    return BaseConsumerHelper.getErrorResponsePayload(error, statusCode);
   }
 
   protected logRequest(consumer: ConsumerType, endpoint: string, params?: any) {

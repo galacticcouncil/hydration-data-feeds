@@ -1,5 +1,11 @@
 // DEX Screener specific interfaces based on the specification
 
+export enum DexScreenerEventType {
+  SWAP = 'swap',
+  JOIN = 'join',
+  EXIT = 'exit',
+}
+
 export interface DexScreenerBlock {
   blockNumber: number;
   blockTimestamp: number;
@@ -38,7 +44,7 @@ export interface DexScreenerPair {
 }
 
 export interface DexScreenerSwapEvent {
-  eventType: 'swap';
+  eventType: DexScreenerEventType;
   txnId: string;
   txnIndex: number;
   eventIndex: number;
@@ -57,7 +63,7 @@ export interface DexScreenerSwapEvent {
 }
 
 export interface DexScreenerJoinExitEvent {
-  eventType: 'join' | 'exit';
+  eventType: DexScreenerEventType;
   txnId: string;
   txnIndex: number;
   eventIndex: number;
@@ -74,6 +80,8 @@ export interface DexScreenerJoinExitEvent {
 
 export type DexScreenerEvent = DexScreenerSwapEvent | DexScreenerJoinExitEvent;
 
+export type DexScreenerEventWithBlock = { block: DexScreenerBlock } & DexScreenerEvent;
+
 // Response interfaces
 export interface DexScreenerLatestBlockResponse {
   block: DexScreenerBlock;
@@ -88,5 +96,5 @@ export interface DexScreenerPairResponse {
 }
 
 export interface DexScreenerEventsResponse {
-  events: Array<{ block: DexScreenerBlock } & DexScreenerEvent>;
+  events: Array<DexScreenerEventWithBlock>;
 }

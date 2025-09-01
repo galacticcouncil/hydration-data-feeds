@@ -11,7 +11,7 @@ dotenv.config({
 const config: CodegenConfig = {
   overwrite: true,
   schema: process.env.MAIN_INDEXER_GRAPHQL_ENDPOINT,
-  documents: 'src/modules/dataSource/graphqlSupport/main/queries/*.ts',
+  documents: 'src/modules/dataSource/graphqlSupport/mainIndexer/queries/*.ts',
   // ignoreNoDocuments: true,
   silent: false,
   verbose: true,
@@ -20,7 +20,7 @@ const config: CodegenConfig = {
     onError: (e) => console.log(e),
   },
   generates: {
-    ['src/modules/dataSource/graphqlSupport/main/apiTypes.ts']: {
+    ['src/modules/dataSource/graphqlSupport/mainIndexer/apiTypes.ts']: {
       plugins: ['typescript', 'typescript-operations', 'typescript-document-nodes'],
     },
   },

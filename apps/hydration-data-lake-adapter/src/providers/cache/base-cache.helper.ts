@@ -1,4 +1,3 @@
-import { Injectable, Logger, Provider } from '@nestjs/common';
 const Keyv = require('keyv'); // IMPORTANT: don't use "import()" instead of "require()"
 import { createCache, Cache } from 'cache-manager';
 import { CacheableMemory } from 'cacheable';

@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AppConfig } from '../config';
 import { GraphqlClientProvider } from '../../providers/graphql-client.provider';
 import { GraphQlClientProviderToken } from '../../providers';
-import { ApiEndpoint } from './types';
+import { ApiEndpoint, PaginationConfig } from './types';
 import {
   GetLatestStableswapLiquidityEventWithBlock,
   GetLatestStableswapLiquidityEventWithBlockQuery,
@@ -15,8 +15,16 @@ import {
   GetAssetById,
   GetAssetByIdQuery,
   GetAssetByIdQueryVariables,
-} from './graphqlSupport/main/apiTypes';
-import { DatasourceAsset, DatasourceBlock } from './graphqlSupport/types';
+  GetBlockByHeight,
+  GetBlockByHeightQuery,
+  GetBlockByHeightQueryVariables,
+} from './graphqlSupport/mainIndexer/apiTypes';
+import { DatasourceAsset, DatasourceBlock, DatasourceSwap } from './graphqlSupport/types';
+import {
+  GetSwapsInBlocksRange,
+  GetSwapsInBlocksRangeQuery,
+  GetSwapsInBlocksRangeQueryVariables,
+} from './graphqlSupport/mainIndexer/apiTypes';
 
 @Injectable()
 export class DataSourceService {
@@ -28,6 +36,32 @@ export class DataSourceService {
     @Inject(GraphQlClientProviderToken)
     private graphqlClientProvider: GraphqlClientProvider
   ) {}
+
+  async getBlocksByHeightsList({
+    heightsList,
+    endpoint = ApiEndpoint.MAIN_INDEXER_API,
+  }: {
+    heightsList: number[];
+    endpoint?: ApiEndpoint;
+  }): Promise<DatasourceBlock[]> {
+    const { data, error } = await this.graphqlClientProvider.gqlRequest<
+      GetBlockByHeightQuery,
+      GetBlockByHeightQueryVariables
+    >({
+      query: GetBlockByHeight,
+      variables: {
+        filter: { height: { in: heightsList } },
+      },
+      endpoint,
+    });
+
+    if (error) {
+      this.logger.error(`Failed to fetch block with heights ${heightsList}:`, error);
+      return null;
+    }
+
+    return data.blocks.nodes || null;
+  }
 
   async getLatestProcessedBlock({
     ensuredByEvents = true,
@@ -110,5 +144,63 @@ export class DataSourceService {
     }
 
     return data.asset || null;
+  }
+
+  async getSwapsInBlocksRange({
+    fromBlock,
+    toBlock,
+    endpoint = ApiEndpoint.MAIN_INDEXER_API,
+  }: {
+    fromBlock: number;
+    toBlock: number;
+    endpoint?: ApiEndpoint;
+  }): Promise<DatasourceSwap[] | null> {
+    const allPagesRaw: DatasourceSwap[][] = [];
+
+    const fetchSwapsPaginated = async ({
+      pageSize,
+      offset,
+      endpoint,
+    }: PaginationConfig): Promise<{ data: DatasourceSwap[]; totalCount: number }> => {
+      const { data, error } = await this.graphqlClientProvider.gqlRequest<
+        GetSwapsInBlocksRangeQuery,
+        GetSwapsInBlocksRangeQueryVariables
+      >({
+        query: GetSwapsInBlocksRange,
+        variables: {
+          first: pageSize,
+          offset,
+          orderBy: [SwapsOrderBy.ParaBlockHeightAsc],
+          filter: {
+            paraBlockHeight: { greaterThanOrEqualTo: fromBlock },
+            and: [{ paraBlockHeight: { lessThanOrEqualTo: toBlock } }],
+          },
+        },
+        endpoint,
+      });
+
+      if (error) {
+        this.logger.error(`Failed to fetch pairs:`, error);
+        return null;
+      }
+
+      return {
+        // TODO fix types
+        // @ts-ignore
+        data: data.swaps.nodes || [],
+        totalCount: data.swaps.totalCount,
+      };
+    };
+
+    for await (const page of this.graphqlClientProvider.fetchAllPages({
+      limit: this.appConfig.MAX_BLOCKS_RANGE_FETCH_BATCH,
+      requestPromise: fetchSwapsPaginated,
+      endpoint,
+    })) {
+      if (!page) continue;
+      allPagesRaw.push(page);
+    }
+
+    return allPagesRaw.flat() || null;
   }
 }

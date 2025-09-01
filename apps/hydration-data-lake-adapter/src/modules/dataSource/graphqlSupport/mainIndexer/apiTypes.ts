@@ -39945,6 +39945,261 @@ export type AssetsPairVolumeHistoricalDatumVarianceSampleAggregates = {
   relayBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
 };
 
+export type BatchHsmpoolAssetHistVolsList = {
+  __typename?: 'BatchHsmpoolAssetHistVolsList';
+  assetIds?: Maybe<Array<Maybe<Scalars['String']['output']>>>;
+  batchEndParaBlockHeight: Scalars['Int']['output'];
+  batchStartParaBlockHeight: Scalars['Int']['output'];
+  id: Scalars['String']['output'];
+};
+
+export type BatchHsmpoolAssetHistVolsListAggregates = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListAggregates';
+  /** Mean average aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  average?: Maybe<BatchHsmpoolAssetHistVolsListAverageAggregates>;
+  /** Distinct count aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  distinctCount?: Maybe<BatchHsmpoolAssetHistVolsListDistinctCountAggregates>;
+  keys?: Maybe<Array<Scalars['String']['output']>>;
+  /** Maximum aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  max?: Maybe<BatchHsmpoolAssetHistVolsListMaxAggregates>;
+  /** Minimum aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  min?: Maybe<BatchHsmpoolAssetHistVolsListMinAggregates>;
+  /** Population standard deviation aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  stddevPopulation?: Maybe<BatchHsmpoolAssetHistVolsListStddevPopulationAggregates>;
+  /** Sample standard deviation aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  stddevSample?: Maybe<BatchHsmpoolAssetHistVolsListStddevSampleAggregates>;
+  /** Sum aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  sum?: Maybe<BatchHsmpoolAssetHistVolsListSumAggregates>;
+  /** Population variance aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  variancePopulation?: Maybe<BatchHsmpoolAssetHistVolsListVariancePopulationAggregates>;
+  /** Sample variance aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  varianceSample?: Maybe<BatchHsmpoolAssetHistVolsListVarianceSampleAggregates>;
+};
+
+export type BatchHsmpoolAssetHistVolsListAverageAggregates = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListAverageAggregates';
+  /** Mean average of batchEndParaBlockHeight across the matching connection */
+  batchEndParaBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
+  /** Mean average of batchStartParaBlockHeight across the matching connection */
+  batchStartParaBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
+};
+
+/**
+ * A condition to be used against `BatchHsmpoolAssetHistVolsList` object types. All
+ * fields are tested for equality and combined with a logical ‘and.’
+ */
+export type BatchHsmpoolAssetHistVolsListCondition = {
+  /** Checks for equality with the object’s `assetIds` field. */
+  assetIds?: InputMaybe<Array<InputMaybe<Scalars['String']['input']>>>;
+  /** Checks for equality with the object’s `batchEndParaBlockHeight` field. */
+  batchEndParaBlockHeight?: InputMaybe<Scalars['Int']['input']>;
+  /** Checks for equality with the object’s `batchStartParaBlockHeight` field. */
+  batchStartParaBlockHeight?: InputMaybe<Scalars['Int']['input']>;
+  /** Checks for equality with the object’s `id` field. */
+  id?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type BatchHsmpoolAssetHistVolsListDistinctCountAggregates = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListDistinctCountAggregates';
+  /** Distinct count of assetIds across the matching connection */
+  assetIds?: Maybe<Scalars['BigInt']['output']>;
+  /** Distinct count of batchEndParaBlockHeight across the matching connection */
+  batchEndParaBlockHeight?: Maybe<Scalars['BigInt']['output']>;
+  /** Distinct count of batchStartParaBlockHeight across the matching connection */
+  batchStartParaBlockHeight?: Maybe<Scalars['BigInt']['output']>;
+  /** Distinct count of id across the matching connection */
+  id?: Maybe<Scalars['BigInt']['output']>;
+};
+
+/** A filter to be used against `BatchHsmpoolAssetHistVolsList` object types. All fields are combined with a logical ‘and.’ */
+export type BatchHsmpoolAssetHistVolsListFilter = {
+  /** Checks for all expressions in this list. */
+  and?: InputMaybe<Array<BatchHsmpoolAssetHistVolsListFilter>>;
+  /** Filter by the object’s `assetIds` field. */
+  assetIds?: InputMaybe<StringListFilter>;
+  /** Filter by the object’s `batchEndParaBlockHeight` field. */
+  batchEndParaBlockHeight?: InputMaybe<IntFilter>;
+  /** Filter by the object’s `batchStartParaBlockHeight` field. */
+  batchStartParaBlockHeight?: InputMaybe<IntFilter>;
+  /** Filter by the object’s `id` field. */
+  id?: InputMaybe<StringFilter>;
+  /** Negates the expression. */
+  not?: InputMaybe<BatchHsmpoolAssetHistVolsListFilter>;
+  /** Checks for any expressions in this list. */
+  or?: InputMaybe<Array<BatchHsmpoolAssetHistVolsListFilter>>;
+};
+
+/** Grouping methods for `BatchHsmpoolAssetHistVolsList` for usage during aggregation. */
+export enum BatchHsmpoolAssetHistVolsListGroupBy {
+  AssetIds = 'ASSET_IDS',
+  BatchEndParaBlockHeight = 'BATCH_END_PARA_BLOCK_HEIGHT',
+  BatchStartParaBlockHeight = 'BATCH_START_PARA_BLOCK_HEIGHT'
+}
+
+export type BatchHsmpoolAssetHistVolsListHavingAverageInput = {
+  batchEndParaBlockHeight?: InputMaybe<HavingIntFilter>;
+  batchStartParaBlockHeight?: InputMaybe<HavingIntFilter>;
+};
+
+export type BatchHsmpoolAssetHistVolsListHavingDistinctCountInput = {
+  batchEndParaBlockHeight?: InputMaybe<HavingIntFilter>;
+  batchStartParaBlockHeight?: InputMaybe<HavingIntFilter>;
+};
+
+/** Conditions for `BatchHsmpoolAssetHistVolsList` aggregates. */
+export type BatchHsmpoolAssetHistVolsListHavingInput = {
+  AND?: InputMaybe<Array<BatchHsmpoolAssetHistVolsListHavingInput>>;
+  OR?: InputMaybe<Array<BatchHsmpoolAssetHistVolsListHavingInput>>;
+  average?: InputMaybe<BatchHsmpoolAssetHistVolsListHavingAverageInput>;
+  distinctCount?: InputMaybe<BatchHsmpoolAssetHistVolsListHavingDistinctCountInput>;
+  max?: InputMaybe<BatchHsmpoolAssetHistVolsListHavingMaxInput>;
+  min?: InputMaybe<BatchHsmpoolAssetHistVolsListHavingMinInput>;
+  stddevPopulation?: InputMaybe<BatchHsmpoolAssetHistVolsListHavingStddevPopulationInput>;
+  stddevSample?: InputMaybe<BatchHsmpoolAssetHistVolsListHavingStddevSampleInput>;
+  sum?: InputMaybe<BatchHsmpoolAssetHistVolsListHavingSumInput>;
+  variancePopulation?: InputMaybe<BatchHsmpoolAssetHistVolsListHavingVariancePopulationInput>;
+  varianceSample?: InputMaybe<BatchHsmpoolAssetHistVolsListHavingVarianceSampleInput>;
+};
+
+export type BatchHsmpoolAssetHistVolsListHavingMaxInput = {
+  batchEndParaBlockHeight?: InputMaybe<HavingIntFilter>;
+  batchStartParaBlockHeight?: InputMaybe<HavingIntFilter>;
+};
+
+export type BatchHsmpoolAssetHistVolsListHavingMinInput = {
+  batchEndParaBlockHeight?: InputMaybe<HavingIntFilter>;
+  batchStartParaBlockHeight?: InputMaybe<HavingIntFilter>;
+};
+
+export type BatchHsmpoolAssetHistVolsListHavingStddevPopulationInput = {
+  batchEndParaBlockHeight?: InputMaybe<HavingIntFilter>;
+  batchStartParaBlockHeight?: InputMaybe<HavingIntFilter>;
+};
+
+export type BatchHsmpoolAssetHistVolsListHavingStddevSampleInput = {
+  batchEndParaBlockHeight?: InputMaybe<HavingIntFilter>;
+  batchStartParaBlockHeight?: InputMaybe<HavingIntFilter>;
+};
+
+export type BatchHsmpoolAssetHistVolsListHavingSumInput = {
+  batchEndParaBlockHeight?: InputMaybe<HavingIntFilter>;
+  batchStartParaBlockHeight?: InputMaybe<HavingIntFilter>;
+};
+
+export type BatchHsmpoolAssetHistVolsListHavingVariancePopulationInput = {
+  batchEndParaBlockHeight?: InputMaybe<HavingIntFilter>;
+  batchStartParaBlockHeight?: InputMaybe<HavingIntFilter>;
+};
+
+export type BatchHsmpoolAssetHistVolsListHavingVarianceSampleInput = {
+  batchEndParaBlockHeight?: InputMaybe<HavingIntFilter>;
+  batchStartParaBlockHeight?: InputMaybe<HavingIntFilter>;
+};
+
+export type BatchHsmpoolAssetHistVolsListMaxAggregates = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListMaxAggregates';
+  /** Maximum of batchEndParaBlockHeight across the matching connection */
+  batchEndParaBlockHeight?: Maybe<Scalars['Int']['output']>;
+  /** Maximum of batchStartParaBlockHeight across the matching connection */
+  batchStartParaBlockHeight?: Maybe<Scalars['Int']['output']>;
+};
+
+export type BatchHsmpoolAssetHistVolsListMinAggregates = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListMinAggregates';
+  /** Minimum of batchEndParaBlockHeight across the matching connection */
+  batchEndParaBlockHeight?: Maybe<Scalars['Int']['output']>;
+  /** Minimum of batchStartParaBlockHeight across the matching connection */
+  batchStartParaBlockHeight?: Maybe<Scalars['Int']['output']>;
+};
+
+export type BatchHsmpoolAssetHistVolsListStddevPopulationAggregates = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListStddevPopulationAggregates';
+  /** Population standard deviation of batchEndParaBlockHeight across the matching connection */
+  batchEndParaBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
+  /** Population standard deviation of batchStartParaBlockHeight across the matching connection */
+  batchStartParaBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
+};
+
+export type BatchHsmpoolAssetHistVolsListStddevSampleAggregates = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListStddevSampleAggregates';
+  /** Sample standard deviation of batchEndParaBlockHeight across the matching connection */
+  batchEndParaBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
+  /** Sample standard deviation of batchStartParaBlockHeight across the matching connection */
+  batchStartParaBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
+};
+
+export type BatchHsmpoolAssetHistVolsListSumAggregates = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListSumAggregates';
+  /** Sum of batchEndParaBlockHeight across the matching connection */
+  batchEndParaBlockHeight: Scalars['BigInt']['output'];
+  /** Sum of batchStartParaBlockHeight across the matching connection */
+  batchStartParaBlockHeight: Scalars['BigInt']['output'];
+};
+
+export type BatchHsmpoolAssetHistVolsListVariancePopulationAggregates = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListVariancePopulationAggregates';
+  /** Population variance of batchEndParaBlockHeight across the matching connection */
+  batchEndParaBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
+  /** Population variance of batchStartParaBlockHeight across the matching connection */
+  batchStartParaBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
+};
+
+export type BatchHsmpoolAssetHistVolsListVarianceSampleAggregates = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListVarianceSampleAggregates';
+  /** Sample variance of batchEndParaBlockHeight across the matching connection */
+  batchEndParaBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
+  /** Sample variance of batchStartParaBlockHeight across the matching connection */
+  batchStartParaBlockHeight?: Maybe<Scalars['BigFloat']['output']>;
+};
+
+/** A connection to a list of `BatchHsmpoolAssetHistVolsList` values. */
+export type BatchHsmpoolAssetHistVolsListsConnection = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListsConnection';
+  /** Aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  aggregates?: Maybe<BatchHsmpoolAssetHistVolsListAggregates>;
+  /** A list of edges which contains the `BatchHsmpoolAssetHistVolsList` and cursor to aid in pagination. */
+  edges: Array<BatchHsmpoolAssetHistVolsListsEdge>;
+  /** Grouped aggregates across the matching connection (ignoring before/after/first/last/offset) */
+  groupedAggregates?: Maybe<Array<BatchHsmpoolAssetHistVolsListAggregates>>;
+  /** A list of `BatchHsmpoolAssetHistVolsList` objects. */
+  nodes: Array<Maybe<BatchHsmpoolAssetHistVolsList>>;
+  /** Information to aid in pagination. */
+  pageInfo: PageInfo;
+  /** The count of *all* `BatchHsmpoolAssetHistVolsList` you could get from the connection. */
+  totalCount: Scalars['Int']['output'];
+};
+
+
+/** A connection to a list of `BatchHsmpoolAssetHistVolsList` values. */
+export type BatchHsmpoolAssetHistVolsListsConnectionGroupedAggregatesArgs = {
+  groupBy: Array<BatchHsmpoolAssetHistVolsListGroupBy>;
+  having?: InputMaybe<BatchHsmpoolAssetHistVolsListHavingInput>;
+};
+
+/** A `BatchHsmpoolAssetHistVolsList` edge in the connection. */
+export type BatchHsmpoolAssetHistVolsListsEdge = {
+  __typename?: 'BatchHsmpoolAssetHistVolsListsEdge';
+  /** A cursor for use in pagination. */
+  cursor?: Maybe<Scalars['Cursor']['output']>;
+  /** The `BatchHsmpoolAssetHistVolsList` at the end of the edge. */
+  node?: Maybe<BatchHsmpoolAssetHistVolsList>;
+};
+
+/** Methods to use when ordering `BatchHsmpoolAssetHistVolsList`. */
+export enum BatchHsmpoolAssetHistVolsListsOrderBy {
+  AssetIdsAsc = 'ASSET_IDS_ASC',
+  AssetIdsDesc = 'ASSET_IDS_DESC',
+  BatchEndParaBlockHeightAsc = 'BATCH_END_PARA_BLOCK_HEIGHT_ASC',
+  BatchEndParaBlockHeightDesc = 'BATCH_END_PARA_BLOCK_HEIGHT_DESC',
+  BatchStartParaBlockHeightAsc = 'BATCH_START_PARA_BLOCK_HEIGHT_ASC',
+  BatchStartParaBlockHeightDesc = 'BATCH_START_PARA_BLOCK_HEIGHT_DESC',
+  IdAsc = 'ID_ASC',
+  IdDesc = 'ID_DESC',
+  Natural = 'NATURAL',
+  PrimaryKeyAsc = 'PRIMARY_KEY_ASC',
+  PrimaryKeyDesc = 'PRIMARY_KEY_DESC'
+}
+
 export type BatchLbppoolHistoricalVolumesList = {
   __typename?: 'BatchLbppoolHistoricalVolumesList';
   batchEndParaBlockHeight: Scalars['Int']['output'];
@@ -95660,6 +95915,9 @@ export type Query = {
   /** Reads and enables pagination through a set of `AssetsPairVolumeHistoricalDatum`. */
   assetsPairVolumeHistoricalData?: Maybe<AssetsPairVolumeHistoricalDataConnection>;
   assetsPairVolumeHistoricalDatum?: Maybe<AssetsPairVolumeHistoricalDatum>;
+  batchHsmpoolAssetHistVolsList?: Maybe<BatchHsmpoolAssetHistVolsList>;
+  /** Reads and enables pagination through a set of `BatchHsmpoolAssetHistVolsList`. */
+  batchHsmpoolAssetHistVolsLists?: Maybe<BatchHsmpoolAssetHistVolsListsConnection>;
   batchLbppoolHistoricalVolumesList?: Maybe<BatchLbppoolHistoricalVolumesList>;
   /** Reads and enables pagination through a set of `BatchLbppoolHistoricalVolumesList`. */
   batchLbppoolHistoricalVolumesLists?: Maybe<BatchLbppoolHistoricalVolumesListsConnection>;
@@ -96290,6 +96548,25 @@ export type QueryAssetsPairVolumeHistoricalDataArgs = {
 /** The root query type which gives access points into the data universe. */
 export type QueryAssetsPairVolumeHistoricalDatumArgs = {
   id: Scalars['String']['input'];
+};
+
+
+/** The root query type which gives access points into the data universe. */
+export type QueryBatchHsmpoolAssetHistVolsListArgs = {
+  id: Scalars['String']['input'];
+};
+
+
+/** The root query type which gives access points into the data universe. */
+export type QueryBatchHsmpoolAssetHistVolsListsArgs = {
+  after?: InputMaybe<Scalars['Cursor']['input']>;
+  before?: InputMaybe<Scalars['Cursor']['input']>;
+  condition?: InputMaybe<BatchHsmpoolAssetHistVolsListCondition>;
+  filter?: InputMaybe<BatchHsmpoolAssetHistVolsListFilter>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Array<BatchHsmpoolAssetHistVolsListsOrderBy>>;
 };
 
 
@@ -116125,6 +116402,13 @@ export type GetLatestProcessedBlockEnsuredByEventsQueryVariables = Exact<{
 
 export type GetLatestProcessedBlockEnsuredByEventsQuery = { __typename?: 'Query', events?: { __typename?: 'EventsConnection', nodes: Array<{ __typename?: 'Event', block?: { __typename?: 'Block', id: string, height: number, hash: string, timestamp: any } | null } | null> } | null };
 
+export type GetBlockByHeightQueryVariables = Exact<{
+  filter?: InputMaybe<BlockFilter>;
+}>;
+
+
+export type GetBlockByHeightQuery = { __typename?: 'Query', blocks?: { __typename?: 'BlocksConnection', nodes: Array<{ __typename?: 'Block', id: string, height: number, hash: string, timestamp: any } | null> } | null };
+
 export type GetLatestStableswapLiquidityEventWithBlockQueryVariables = Exact<{
   first: Scalars['Int']['input'];
   orderBy?: InputMaybe<Array<StableswapLiquidityEventsOrderBy> | StableswapLiquidityEventsOrderBy>;
@@ -116140,6 +116424,16 @@ export type GetLatestSwapWithBlockQueryVariables = Exact<{
 
 
 export type GetLatestSwapWithBlockQuery = { __typename?: 'Query', swaps?: { __typename?: 'SwapsConnection', nodes: Array<{ __typename?: 'Swap', id: string, event?: { __typename?: 'Event', block?: { __typename?: 'Block', id: string, height: number, hash: string, timestamp: any } | null } | null } | null> } | null };
+
+export type GetSwapsInBlocksRangeQueryVariables = Exact<{
+  first: Scalars['Int']['input'];
+  offset: Scalars['Int']['input'];
+  filter?: InputMaybe<SwapFilter>;
+  orderBy?: InputMaybe<Array<SwapsOrderBy> | SwapsOrderBy>;
+}>;
+
+
+export type GetSwapsInBlocksRangeQuery = { __typename?: 'Query', swaps?: { __typename?: 'SwapsConnection', totalCount: number, nodes: Array<{ __typename?: 'Swap', id: string, paraBlockHeight: number, routedTradeId?: string | null, swapIndex?: number | null, fillerId?: string | null, swapperId?: string | null, dcaScheduleExecutionEventId?: string | null, otcOrderFulfillmentId?: string | null, event?: { __typename?: 'Event', indexInBlock: number, traceId: string, call?: { __typename?: 'Call', originValue?: string | null, originValueKind?: string | null } | null } | null, dcaScheduleExecutionEvent?: { __typename?: 'DcaScheduleExecutionEvent', scheduleExecution?: { __typename?: 'DcaScheduleExecution', schedule?: { __typename?: 'DcaSchedule', ownerId?: string | null } | null } | null } | null, otcOrderFulfillment?: { __typename?: 'OtcOrderEvent', order?: { __typename?: 'OtcOrder', ownerId?: string | null } | null } | null, swapInputs: { __typename?: 'SwapInputRecordsConnection', nodes: Array<{ __typename?: 'SwapInputRecord', amount?: any | null, asset?: { __typename?: 'Asset', id: string, decimals?: number | null } | null } | null> }, swapOutputs: { __typename?: 'SwapOutputsConnection', nodes: Array<{ __typename?: 'SwapOutput', amount?: any | null, asset?: { __typename?: 'Asset', id: string, decimals?: number | null } | null } | null> } } | null> } | null };
 
 
 export const GetAssetById = gql`
@@ -116162,6 +116456,18 @@ export const GetLatestProcessedBlockEnsuredByEvents = gql`
         hash
         timestamp
       }
+    }
+  }
+}
+    `;
+export const GetBlockByHeight = gql`
+    query GetBlockByHeight($filter: BlockFilter) {
+  blocks(filter: $filter) {
+    nodes {
+      id
+      height
+      hash
+      timestamp
     }
   }
 }
@@ -116194,6 +116500,61 @@ export const GetLatestSwapWithBlock = gql`
           height
           hash
           timestamp
+        }
+      }
+    }
+  }
+}
+    `;
+export const GetSwapsInBlocksRange = gql`
+    query GetSwapsInBlocksRange($first: Int!, $offset: Int!, $filter: SwapFilter, $orderBy: [SwapsOrderBy!]) {
+  swaps(first: $first, orderBy: $orderBy, filter: $filter, offset: $offset) {
+    totalCount
+    nodes {
+      id
+      paraBlockHeight
+      routedTradeId
+      swapIndex
+      event {
+        indexInBlock
+        traceId
+        call {
+          originValue
+          originValueKind
+        }
+      }
+      fillerId
+      swapperId
+      dcaScheduleExecutionEventId
+      otcOrderFulfillmentId
+      dcaScheduleExecutionEvent {
+        scheduleExecution {
+          schedule {
+            ownerId
+          }
+        }
+      }
+      otcOrderFulfillment {
+        order {
+          ownerId
+        }
+      }
+      swapInputs {
+        nodes {
+          amount
+          asset {
+            id
+            decimals
+          }
+        }
+      }
+      swapOutputs {
+        nodes {
+          amount
+          asset {
+            id
+            decimals
+          }
         }
       }
     }

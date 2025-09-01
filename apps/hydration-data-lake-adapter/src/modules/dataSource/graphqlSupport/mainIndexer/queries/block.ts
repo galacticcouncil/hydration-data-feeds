@@ -1,5 +1,5 @@
 import gql from 'graphql-tag';
-import { EventFilter, EventsOrderBy } from '../apiTypes';
+import { EventFilter, EventsOrderBy, BlockFilter } from '../apiTypes';
 
 export const GET_LATEST_PROCESSED_BLOCK_ENSURED_BY_EVENTS = gql`
   query GetLatestProcessedBlockEnsuredByEvents(
@@ -15,6 +15,19 @@ export const GET_LATEST_PROCESSED_BLOCK_ENSURED_BY_EVENTS = gql`
           hash
           timestamp
         }
+      }
+    }
+  }
+`;
+
+export const GET_BLOCK_BY_HEIGHT = gql`
+  query GetBlockByHeight($filter: BlockFilter) {
+    blocks(filter: $filter) {
+      nodes {
+        id
+        height
+        hash
+        timestamp
       }
     }
   }

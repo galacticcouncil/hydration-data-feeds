@@ -25,7 +25,7 @@ export class DexScreenerTransformer extends BaseTransformer {
     super();
   }
 
-  transformBlock(blockData: DatasourceBlock): DexScreenerLatestBlockResponse {
+  transformBlock(blockData: DatasourceBlock): DexScreenerBlock {
     this.logger.debug('Transforming latest block data for DEX Screener');
 
     const block: DexScreenerBlock = {
@@ -33,7 +33,7 @@ export class DexScreenerTransformer extends BaseTransformer {
       blockTimestamp: Math.floor(new Date(blockData.timestamp).getTime() / 1000),
     };
 
-    return { block };
+    return block;
   }
 
   transformAsset({ id, name, symbol, decimals }: DatasourceAsset): DexScreenerAssetResponse {
