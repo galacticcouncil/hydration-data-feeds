@@ -116450,6 +116450,13 @@ export type GetAavepoolHistDataAtBlockQueryVariables = Exact<{
 
 export type GetAavepoolHistDataAtBlockQuery = { __typename?: 'Query', aavepoolHistoricalData?: { __typename?: 'AavepoolHistoricalDataConnection', nodes: Array<{ __typename?: 'AavepoolHistoricalDatum', id: string, liquidityIn: any, paraBlockHeight: number, aTokenTotalSupply?: any | null } | null> } | null };
 
+export type GetPoolByAccountQueryVariables = Exact<{
+  filter?: InputMaybe<AccountFilter>;
+}>;
+
+
+export type GetPoolByAccountQuery = { __typename?: 'Query', accounts?: { __typename?: 'AccountsConnection', nodes: Array<{ __typename?: 'Account', id: string, accountType: string, stableswap?: { __typename?: 'Stableswap', id: string, stableswapAssetsByPoolId: { __typename?: 'StableswapAssetsConnection', nodes: Array<{ __typename?: 'StableswapAsset', assetId?: string | null } | null> } } | null, xykpool?: { __typename?: 'Xykpool', id: string, assetAId?: string | null, assetBId?: string | null } | null, lbppool?: { __typename?: 'Lbppool', id: string, assetAId?: string | null, assetBId?: string | null } | null } | null> } | null };
+
 export type GetLatestStableswapLiquidityEventWithBlockQueryVariables = Exact<{
   first: Scalars['Int']['input'];
   orderBy?: InputMaybe<Array<StableswapLiquidityEventsOrderBy> | StableswapLiquidityEventsOrderBy>;
@@ -116571,6 +116578,34 @@ export const GetAavepoolHistDataAtBlock = gql`
       liquidityIn
       paraBlockHeight
       aTokenTotalSupply
+    }
+  }
+}
+    `;
+export const GetPoolByAccount = gql`
+    query GetPoolByAccount($filter: AccountFilter) {
+  accounts(filter: $filter) {
+    nodes {
+      id
+      accountType
+      stableswap {
+        id
+        stableswapAssetsByPoolId {
+          nodes {
+            assetId
+          }
+        }
+      }
+      xykpool {
+        id
+        assetAId
+        assetBId
+      }
+      lbppool {
+        id
+        assetAId
+        assetBId
+      }
     }
   }
 }

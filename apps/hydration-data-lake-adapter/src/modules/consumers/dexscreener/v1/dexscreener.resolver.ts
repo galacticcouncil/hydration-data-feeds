@@ -24,6 +24,7 @@ import { DexScreenerGetEventsQueryDto, DexScreenerGetPairParamsDto } from './dex
 import { DexScreenerEntitiesService } from '../../../entities/dexscreener-entities.service';
 import { fromExpToDecimalNotation, publicKeyToSs58 } from '../../../../utils';
 import pMap from 'p-map';
+import { BigNumber } from 'bignumber.js';
 
 @Injectable()
 export class DexscreenerResolver extends BaseConsumerHelper {
@@ -102,17 +103,31 @@ export class DexscreenerResolver extends BaseConsumerHelper {
         );
       }
 
-      const pairAssetIds = id.split('-');
+      const pairIdParts = id.split('-');
 
-      if (pairAssetIds.length !== 2) {
+      if (pairIdParts.length !== 1 && pairIdParts.length !== 3) {
         throw new HttpException(
           this.createErrorResponse('Pair ID is invalid', HttpStatus.BAD_REQUEST),
           HttpStatus.BAD_REQUEST
         );
       }
 
+      let poolId = null;
+      let pairAssetIds = [];
+
+      if (pairIdParts.length === 1) {
+        poolId = pairIdParts[0];
+      } else if (pairIdParts.length === 3) {
+        poolId = pairIdParts[0];
+        pairAssetIds = [pairIdParts[1], pairIdParts[2]];
+      }
+
       const response: DexScreenerPairResponse = {
-        pair: await this.dexScreenerEntitiesService.getOrCreatePair({ assetIds: pairAssetIds }),
+        pair: await this.dexScreenerEntitiesService.getOrCreatePair({
+          id,
+          assetIds: pairAssetIds,
+          poolAddress: poolId,
+        }),
       };
 
       return response;
@@ -121,9 +136,9 @@ export class DexscreenerResolver extends BaseConsumerHelper {
         throw error;
       }
 
-      this.logger.error(`Failed to fetch asset: ${error.message}`, error.stack);
+      this.logger.error(`Failed to fetch pair: ${error.message}`, error.stack);
       throw new HttpException(
-        this.createErrorResponse('Failed to fetch asset', HttpStatus.INTERNAL_SERVER_ERROR),
+        this.createErrorResponse('Failed to fetch pair', HttpStatus.INTERNAL_SERVER_ERROR),
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
@@ -186,15 +201,34 @@ export class DexscreenerResolver extends BaseConsumerHelper {
             swapOutput.asset.decimals
           ).toFixed();
 
+          const genericPool = await this.dexScreenerEntitiesService.getOrCreateGenericPool({
+            id: swappedEvent.fillerId,
+            data: {
+              id: swappedEvent.fillerId,
+              poolType: swappedEvent.fillerType as PoolType,
+              assets: [],
+            },
+          });
+
           const eventPair = await this.dexScreenerEntitiesService.getOrCreatePair({
             assetIds: [swapInput.asset.id, swapOutput.asset.id],
+            poolAddress: genericPool.id,
           });
+
+          const asset0Decimals =
+            swapInput.asset.id === eventPair.asset0Id
+              ? swapInput.asset.decimals
+              : swapOutput.asset.decimals;
+
+          const asset1Decimals =
+            swapInput.asset.id === eventPair.asset1Id
+              ? swapInput.asset.decimals
+              : swapOutput.asset.decimals;
 
           let asset0Reserve = '0';
           let asset1Reserve = '0';
 
           if (swappedEvent.fillerType === PoolType.AAVE) {
-            // TODO check implementation
             const aTokenId =
               swapInput.asset.assetType === AssetType.Erc20
                 ? swapInput.asset.id
@@ -230,12 +264,12 @@ export class DexscreenerResolver extends BaseConsumerHelper {
             txnId: swappedEvent.routedTradeId,
             txnIndex: swappedEvent.swapIndex,
             eventIndex: swappedEvent.event.indexInBlock,
-            maker: publicKeyToSs58(swappedEvent.swapperId, this.appConfig.HYDRADX_SS58_PREFIX),
+            maker: swappedEvent.swapperId,
             pairId: eventPair.id,
-            priceNative: '0', // TODO add implementation
+            priceNative: '0',
             reserves: {
-              asset0: asset0Reserve,
-              asset1: asset1Reserve,
+              asset0: fromExpToDecimalNotation(asset0Reserve, asset0Decimals).toFixed(),
+              asset1: fromExpToDecimalNotation(asset1Reserve, asset1Decimals).toFixed(),
             },
             ...(eventPair.asset0Id === swapInput.asset.id && {
               asset0In: swapInputAmountDecorated,
@@ -251,15 +285,24 @@ export class DexscreenerResolver extends BaseConsumerHelper {
             }),
           };
 
+          newEvent.priceNative = this.getEventPairNativePrice({ event: newEvent });
+
           events.push(newEvent);
         },
         { concurrency: 10 }
       );
 
+      const eventsSorted = events.sort((a, b) => {
+        if (a.block.blockNumber !== b.block.blockNumber) {
+          return a.block.blockNumber - b.block.blockNumber;
+        }
+        return a.eventIndex - b.eventIndex;
+      });
+
       this.logger.log(
         `Events fetched: ${events.length} events from blocks ${fromBlock}-${toBlock}`
       );
-      return { events };
+      return { events: eventsSorted };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -271,6 +314,13 @@ export class DexscreenerResolver extends BaseConsumerHelper {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
+  }
+
+  // TODO test it!
+  private getEventPairNativePrice({ event }: { event: DexScreenerEventWithBlock }) {
+    if ('asset0Out' in event) return BigNumber(event.asset1In).dividedBy(event.asset0Out).toFixed();
+    if ('asset0In' in event) return BigNumber(event.asset1Out).dividedBy(event.asset0In).toFixed();
+    return '0';
   }
 
   private async getEventAssetReserve({
@@ -305,8 +355,6 @@ export class DexscreenerResolver extends BaseConsumerHelper {
     }
 
     if (poolType === PoolType.AAVE) {
-      // TODO get balance of asset in AAVE pool
-
       const aavepool = await this.dataSourceService.fetchAavepool({
         aTokenId: assetId,
       });

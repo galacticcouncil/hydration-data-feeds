@@ -1,7 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AppConfig } from '../config';
 import { GraphqlClientProvider } from '../../providers/graphql-client.provider';
-import { GraphQlClientProviderToken } from '../../providers';
+import {
+  DexScreenerCacheProviderToken,
+  GraphQlClientProviderToken,
+  MainIndexerCacheProviderToken,
+} from '../../providers';
 import { ApiEndpoint, PaginationConfig } from './types';
 import {
   GetLatestStableswapLiquidityEventWithBlock,
@@ -33,11 +37,15 @@ import {
   GetAavepoolHistDataAtBlockQuery,
   GetAavepoolHistDataAtBlock,
   AavepoolHistoricalDataOrderBy,
+  GetPoolByAccount,
+  GetPoolByAccountQuery,
+  GetPoolByAccountQueryVariables,
 } from './graphqlSupport/mainIndexer/apiTypes';
 import {
   DatasourceAavepool,
   DatasourceAavepoolHistoricalData,
   DatasourceAccountAssetBalanceHistoricalData,
+  DatasourceAccountData,
   DatasourceAsset,
   DatasourceAssetHistoricalData,
   DatasourceBlock,
@@ -48,6 +56,7 @@ import {
   GetSwapsInBlocksRangeQuery,
   GetSwapsInBlocksRangeQueryVariables,
 } from './graphqlSupport/mainIndexer/apiTypes';
+import { MainIndexerCacheProvider } from '../../providers/cache/main-indexer-cache.provider';
 
 @Injectable()
 export class DataSourceService {
@@ -57,7 +66,10 @@ export class DataSourceService {
     private appConfig: AppConfig,
 
     @Inject(GraphQlClientProviderToken)
-    private graphqlClientProvider: GraphqlClientProvider
+    private graphqlClientProvider: GraphqlClientProvider,
+
+    @Inject(MainIndexerCacheProviderToken)
+    private mainIndexerCacheProvider: MainIndexerCacheProvider
   ) {}
 
   async fetchBlocksByHeightsList({
@@ -208,8 +220,6 @@ export class DataSourceService {
       }
 
       return {
-        // TODO fix types
-        // @ts-ignore
         data: data.swaps.nodes || [],
         totalCount: data.swaps.totalCount,
       };
@@ -227,7 +237,6 @@ export class DataSourceService {
     return allPagesRaw.flat() || null;
   }
 
-  // TODO refactor method to use cached data
   async fetchAssetHistDataByBlockHeight({
     assetId,
     blockHeight,
@@ -237,6 +246,12 @@ export class DataSourceService {
     blockHeight: number;
     endpoint?: ApiEndpoint;
   }): Promise<DatasourceAssetHistoricalData | null> {
+    const cachedData = await this.mainIndexerCacheProvider.getAssetHistDataAtBlock({
+      assetId,
+      blockHeight,
+    });
+    if (cachedData) return cachedData;
+
     const { data, error } = await this.graphqlClientProvider.gqlRequest<
       GetAssetHistDataAtBlockQuery,
       GetAssetHistDataAtBlockQueryVariables
@@ -261,6 +276,14 @@ export class DataSourceService {
       return null;
     }
 
+    const response = data.assetHistoricalData.nodes[0];
+    if (response)
+      await this.mainIndexerCacheProvider.setAssetHistDataAtBlock({
+        assetId,
+        blockHeight,
+        entity: response,
+      });
+
     return data.assetHistoricalData.nodes[0] || null;
   }
 
@@ -275,6 +298,13 @@ export class DataSourceService {
     blockHeight: number;
     endpoint?: ApiEndpoint;
   }): Promise<DatasourceAccountAssetBalanceHistoricalData | null> {
+    const cachedData = await this.mainIndexerCacheProvider.getAccountAssetBalanceHistDataAtBlock({
+      address: accountPubKey,
+      assetId,
+      blockHeight,
+    });
+    if (cachedData) return cachedData;
+
     const { data, error } = await this.graphqlClientProvider.gqlRequest<
       GetAccountAssetBalanceHistDataAtBlockQuery,
       GetAccountAssetBalanceHistDataAtBlockQueryVariables
@@ -300,7 +330,16 @@ export class DataSourceService {
       return null;
     }
 
-    return data.accountAssetBalanceHistoricalData.nodes[0] || null;
+    const response = data.accountAssetBalanceHistoricalData.nodes[0];
+    if (response)
+      await this.mainIndexerCacheProvider.setAccountAssetBalanceHistDataAtBlock({
+        address: accountPubKey,
+        assetId,
+        blockHeight,
+        entity: response,
+      });
+
+    return response || null;
   }
 
   async fetchAavepool({
@@ -318,6 +357,12 @@ export class DataSourceService {
       this.logger.error(`Failed to fetch aavepool due to invalid params`);
       return null;
     }
+
+    const cachedData =
+      (await this.mainIndexerCacheProvider.getAavepool(id)) ||
+      (await this.mainIndexerCacheProvider.getAavepool(aTokenId)) ||
+      (await this.mainIndexerCacheProvider.getAavepool(reserveAssetId));
+    if (cachedData) return cachedData;
 
     const { data, error } = await this.graphqlClientProvider.gqlRequest<
       GetAavepoolQuery,
@@ -339,7 +384,15 @@ export class DataSourceService {
       return null;
     }
 
-    return data.aavepools.nodes[0] || null;
+    const response = data.aavepools.nodes[0];
+
+    if (response) {
+      await this.mainIndexerCacheProvider.setAavepool(response.id, response);
+      await this.mainIndexerCacheProvider.setAavepool(response.aTokenId, response);
+      await this.mainIndexerCacheProvider.setAavepool(response.reserveAssetId, response);
+    }
+
+    return response || null;
   }
 
   async fetchAavepoolHistoricalDataAtBlock({
@@ -373,5 +426,39 @@ export class DataSourceService {
     }
 
     return data.aavepoolHistoricalData.nodes[0] || null;
+  }
+
+  async fetchPoolByAccount({
+    accountPubKey,
+    endpoint = ApiEndpoint.MAIN_INDEXER_API,
+  }: {
+    accountPubKey: string;
+    endpoint?: ApiEndpoint;
+  }): Promise<DatasourceAccountData | null> {
+    const cachedData = await this.mainIndexerCacheProvider.getAccount(accountPubKey);
+    if (cachedData) return cachedData;
+
+    const { data, error } = await this.graphqlClientProvider.gqlRequest<
+      GetPoolByAccountQuery,
+      GetPoolByAccountQueryVariables
+    >({
+      query: GetPoolByAccount,
+      variables: {
+        filter: {
+          id: { equalTo: accountPubKey },
+        },
+      },
+      endpoint,
+    });
+
+    if (error) {
+      this.logger.error(`Failed to fetch pool by account:`, error);
+      return null;
+    }
+
+    const response = data.accounts.nodes[0];
+    if (response) await this.mainIndexerCacheProvider.setAccount(accountPubKey, response);
+
+    return response || null;
   }
 }

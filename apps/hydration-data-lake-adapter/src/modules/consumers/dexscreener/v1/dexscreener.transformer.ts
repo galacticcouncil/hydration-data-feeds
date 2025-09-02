@@ -51,7 +51,6 @@ export class DexScreenerTransformer extends BaseTransformer {
     // Get enhancement data for this asset
     const enhancement = this.assetEnhancementService.getAssetEnhancement(id);
 
-    // TODO check if we need convert this value
     const totalIssuanceDecorated = fromExpToDecimalNotation(totalIssuance, decimals).toFixed();
 
     const asset: DexScreenerAsset = {

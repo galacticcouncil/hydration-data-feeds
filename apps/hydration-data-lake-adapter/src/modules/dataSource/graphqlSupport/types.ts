@@ -6,46 +6,32 @@ import {
   AccountAssetBalanceHistoricalDatum,
   Aavepool,
   AavepoolHistoricalDatum,
+  Account,
+  GetAavepoolHistDataAtBlockQuery,
+  GetSwapsInBlocksRangeQuery,
+  GetAssetByIdQuery,
+  GetBlockByHeightQuery,
+  GetAssetHistDataAtBlockQuery,
+  GetAccountAssetBalanceHistDataAtBlockQuery,
+  GetAavepoolQuery,
+  GetPoolByAccountQuery
 } from './mainIndexer/apiTypes';
 
-export type DatasourceBlock = Pick<Block, 'id' | 'height' | 'hash' | 'timestamp'>;
+export type DatasourceBlock = GetBlockByHeightQuery['blocks']['nodes'][number];
 
-export type DatasourceAsset = Pick<Asset, 'id' | 'symbol' | 'name' | 'decimals' | 'assetType'>;
+export type DatasourceAsset = GetAssetByIdQuery['asset'];
 
-export type DatasourceAssetHistoricalData = Pick<
-  AssetHistoricalDatum,
-  'assetId' | 'totalIssuance' | 'paraBlockHeight'
->;
+export type DatasourceAssetHistoricalData =
+  GetAssetHistDataAtBlockQuery['assetHistoricalData']['nodes'][number];
 
-export type DatasourceAccountAssetBalanceHistoricalData = Pick<
-  AccountAssetBalanceHistoricalDatum,
-  'id' | 'assetId' | 'paraBlockHeight' | 'transferable'
->;
+export type DatasourceAccountAssetBalanceHistoricalData =
+  GetAccountAssetBalanceHistDataAtBlockQuery['accountAssetBalanceHistoricalData']['nodes'][number];
 
-export type DatasourceSwap = Pick<
-  Swap,
-  | 'id'
-  | 'routedTradeId'
-  | 'swapIndex'
-  | 'event'
-  | 'fillerType'
-  | 'fillerId'
-  | 'swapperId'
-  | 'dcaScheduleExecutionEventId'
-  | 'otcOrderFulfillmentId'
-  | 'dcaScheduleExecutionEvent'
-  | 'otcOrderFulfillment'
-  | 'swapInputs'
-  | 'swapOutputs'
-  | 'paraBlockHeight'
->;
+export type DatasourceSwap = GetSwapsInBlocksRangeQuery['swaps']['nodes'][number];
 
-export type DatasourceAavepool = Pick<
-  Aavepool,
-  'id' | 'aTokenId' | 'reserveAssetId' | 'moneyMarketReserveId'
->;
+export type DatasourceAavepool = GetAavepoolQuery['aavepools']['nodes'][number];
 
-export type DatasourceAavepoolHistoricalData = Pick<
-  AavepoolHistoricalDatum,
-  'id' | 'liquidityIn' | 'aTokenTotalSupply' | 'paraBlockHeight'
->;
+export type DatasourceAavepoolHistoricalData =
+  GetAavepoolHistDataAtBlockQuery['aavepoolHistoricalData']['nodes'][number];
+
+export type DatasourceAccountData = GetPoolByAccountQuery['accounts']['nodes'][number];

@@ -1,6 +1,6 @@
 // DEX Screener specific interfaces based on the specification
 
-import { AssetType } from '../../../dataSource/types';
+import { AssetType, PoolType } from '../../../dataSource/types';
 
 export enum DexScreenerEventType {
   SWAP = 'swap',
@@ -83,7 +83,25 @@ export interface DexScreenerJoinExitEvent {
   metadata?: Record<string, string>;
 }
 
-export type DexScreenerEvent = DexScreenerSwapEvent | DexScreenerJoinExitEvent;
+// export interface DexScreenerGenericPool {
+//   id: string;
+//   name: string;
+//   assetIds?: string[];
+//   pairIds?: string[];
+//   assets: DexScreenerAsset[];
+//   metadata?: Record<string, string> & {
+//     poolType: PoolType;
+//     shareAssetId: string;
+//   };
+// }
+export interface DexScreenerGenericPool {
+  id: string; // account public key
+  poolType: PoolType;
+  assets: DexScreenerAsset[];
+}
+
+// export type DexScreenerEvent = DexScreenerSwapEvent | DexScreenerJoinExitEvent;
+export type DexScreenerEvent = DexScreenerSwapEvent;
 
 export type DexScreenerEventWithBlock = { block: DexScreenerBlock } & DexScreenerEvent;
 

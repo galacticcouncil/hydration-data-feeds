@@ -1,17 +1,18 @@
 import { HttpException, HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { AppConfig } from '../config';
-import { DexScreenerCacheProviderToken, GraphQlClientProviderToken } from '../../providers';
+import { DexScreenerCacheProviderToken } from '../../providers';
 import { DexScreenerCacheProvider } from '../../providers/cache/dexscreener-cache.provider';
 import {
   DexScreenerAsset,
   DexScreenerBlock,
+  DexScreenerGenericPool,
   DexScreenerPair,
 } from '../consumers/dexscreener/v1/dexscreener.interfaces';
 import { DataSourceService } from '../dataSource/data-source.service';
 import { BaseConsumerHelper } from '../consumers/base/base.helper';
 import { DexScreenerTransformer } from '../consumers/dexscreener/v1/dexscreener.transformer';
 import { DatasourceBlock } from '../dataSource/graphqlSupport/types';
-import { ApiEndpoint } from '../dataSource/types';
+import { ApiEndpoint, PoolType } from '../dataSource/types';
 
 @Injectable()
 export class DexScreenerEntitiesService {
@@ -76,9 +77,29 @@ export class DexScreenerEntitiesService {
     return assetIds.sort();
   }
 
-  static getPairId(assetIds: string[], skipOrdering = false) {
-    if (skipOrdering) return assetIds.join('-');
-    return DexScreenerEntitiesService.getPairAssetsOrdered(assetIds).join('-');
+  static getPairId({
+    pool,
+    assetIds,
+    skipOrdering = false,
+  }: {
+    pool: DexScreenerGenericPool;
+    assetIds: string[];
+    skipOrdering?: boolean;
+  }) {
+    const assetsToProcess = skipOrdering
+      ? assetIds
+      : DexScreenerEntitiesService.getPairAssetsOrdered(assetIds);
+
+    switch (pool.poolType) {
+      case PoolType.Stableswap:
+      case PoolType.Omnipool:
+      case PoolType.AAVE:
+        return `${pool.id}-${assetsToProcess.join('-')}`;
+      case PoolType.Xykpool:
+        return pool.id;
+      default:
+        return `${assetsToProcess.join('-')}`;
+    }
   }
 
   async getOrCreateLatestProcessedBlock({ data }: { data?: DatasourceBlock } = {}) {
@@ -146,13 +167,48 @@ export class DexScreenerEntitiesService {
     return blockEntity;
   }
 
-  // TODO complete implementation - feeBps and other
-  async getOrCreatePair({ assetIds }: { assetIds: string[] }) {
-    const pairIdsOrdered = DexScreenerEntitiesService.getPairAssetsOrdered(assetIds);
-    const pairId = DexScreenerEntitiesService.getPairId(pairIdsOrdered, true);
+  async getOrCreatePair({
+    id,
+    assetIds,
+    poolAddress,
+  }: {
+    id?: string;
+    assetIds?: string[];
+    poolAddress: string;
+  }) {
+    let pairEntity: DexScreenerPair | undefined;
 
-    let pairEntity: DexScreenerPair | undefined =
-      await this.dexScreenerCacheProvider.getPair(pairId);
+    if (id) pairEntity = await this.dexScreenerCacheProvider.getPair(id);
+
+    if (pairEntity) return pairEntity;
+
+    let assetIdsToProcess = assetIds;
+
+    const poolData = await this.dataSourceService.fetchPoolByAccount({
+      accountPubKey: poolAddress,
+    });
+
+    if (
+      (!assetIdsToProcess || !assetIdsToProcess.length) &&
+      poolData.accountType === PoolType.Xykpool
+    ) {
+      assetIdsToProcess = [poolData.xykpool.assetAId, poolData.xykpool.assetBId];
+    }
+
+    const genericPool = await this.getOrCreateGenericPool({
+      id: poolAddress,
+      data: { id: poolAddress, poolType: poolData.accountType as PoolType, assets: [] },
+    });
+
+    const pairIdsOrdered = DexScreenerEntitiesService.getPairAssetsOrdered(assetIdsToProcess);
+
+    const pairId = DexScreenerEntitiesService.getPairId({
+      pool: genericPool,
+      assetIds: pairIdsOrdered,
+      skipOrdering: true,
+    });
+
+    pairEntity = await this.dexScreenerCacheProvider.getPair(pairId);
 
     if (pairEntity) return pairEntity;
 
@@ -211,5 +267,35 @@ export class DexScreenerEntitiesService {
     await this.dexScreenerCacheProvider.setAsset(`${assetEntity.id}`, assetEntity);
 
     return assetEntity;
+  }
+
+  async getOrCreateGenericPool({
+    id,
+    data,
+  }: {
+    id: string;
+    data?: DexScreenerGenericPool;
+  }): Promise<DexScreenerGenericPool> {
+    let poolEntity: DexScreenerGenericPool | undefined =
+      await this.dexScreenerCacheProvider.getGenericPool(id);
+
+    if (poolEntity) return poolEntity;
+
+    if (!data) {
+      throw new HttpException(
+        BaseConsumerHelper.getErrorResponsePayload('Generic pool not found'),
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    poolEntity = {
+      id: data.id,
+      poolType: data.poolType,
+      assets: data.assets,
+    };
+
+    await this.dexScreenerCacheProvider.setGenericPool(poolEntity.id, poolEntity);
+
+    return poolEntity;
   }
 }
