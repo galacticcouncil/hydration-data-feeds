@@ -18,8 +18,31 @@ import {
   GetBlockByHeight,
   GetBlockByHeightQuery,
   GetBlockByHeightQueryVariables,
+  GetAssetHistDataAtBlock,
+  GetAssetHistDataAtBlockQuery,
+  GetAssetHistDataAtBlockQueryVariables,
+  AssetHistoricalDataOrderBy,
+  GetAccountAssetBalanceHistDataAtBlock,
+  GetAccountAssetBalanceHistDataAtBlockQuery,
+  GetAccountAssetBalanceHistDataAtBlockQueryVariables,
+  AccountAssetBalanceHistoricalDataOrderBy,
+  GetAavepool,
+  GetAavepoolQuery,
+  GetAavepoolQueryVariables,
+  GetAavepoolHistDataAtBlockQueryVariables,
+  GetAavepoolHistDataAtBlockQuery,
+  GetAavepoolHistDataAtBlock,
+  AavepoolHistoricalDataOrderBy,
 } from './graphqlSupport/mainIndexer/apiTypes';
-import { DatasourceAsset, DatasourceBlock, DatasourceSwap } from './graphqlSupport/types';
+import {
+  DatasourceAavepool,
+  DatasourceAavepoolHistoricalData,
+  DatasourceAccountAssetBalanceHistoricalData,
+  DatasourceAsset,
+  DatasourceAssetHistoricalData,
+  DatasourceBlock,
+  DatasourceSwap,
+} from './graphqlSupport/types';
 import {
   GetSwapsInBlocksRange,
   GetSwapsInBlocksRangeQuery,
@@ -37,7 +60,7 @@ export class DataSourceService {
     private graphqlClientProvider: GraphqlClientProvider
   ) {}
 
-  async getBlocksByHeightsList({
+  async fetchBlocksByHeightsList({
     heightsList,
     endpoint = ApiEndpoint.MAIN_INDEXER_API,
   }: {
@@ -63,7 +86,7 @@ export class DataSourceService {
     return data.blocks.nodes || null;
   }
 
-  async getLatestProcessedBlock({
+  async fetchLatestProcessedBlock({
     ensuredByEvents = true,
     endpoint = ApiEndpoint.MAIN_INDEXER_API,
   }: {
@@ -120,7 +143,7 @@ export class DataSourceService {
     return blocksMap.get(highestBlockHeight) || null;
   }
 
-  async getAssetById({
+  async fetchAssetById({
     id,
     endpoint = ApiEndpoint.MAIN_INDEXER_API,
   }: {
@@ -146,7 +169,7 @@ export class DataSourceService {
     return data.asset || null;
   }
 
-  async getSwapsInBlocksRange({
+  async fetchSwapsInBlocksRange({
     fromBlock,
     toBlock,
     endpoint = ApiEndpoint.MAIN_INDEXER_API,
@@ -202,5 +225,153 @@ export class DataSourceService {
     }
 
     return allPagesRaw.flat() || null;
+  }
+
+  // TODO refactor method to use cached data
+  async fetchAssetHistDataByBlockHeight({
+    assetId,
+    blockHeight,
+    endpoint = ApiEndpoint.MAIN_INDEXER_API,
+  }: {
+    assetId: string;
+    blockHeight: number;
+    endpoint?: ApiEndpoint;
+  }): Promise<DatasourceAssetHistoricalData | null> {
+    const { data, error } = await this.graphqlClientProvider.gqlRequest<
+      GetAssetHistDataAtBlockQuery,
+      GetAssetHistDataAtBlockQueryVariables
+    >({
+      query: GetAssetHistDataAtBlock,
+      variables: {
+        first: 1,
+        orderBy: AssetHistoricalDataOrderBy.ParaBlockHeightDesc,
+        filter: {
+          assetId: { equalTo: assetId },
+          paraBlockHeight: { lessThanOrEqualTo: blockHeight },
+        },
+      },
+      endpoint,
+    });
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch asset historical data for asset ${assetId} as block ${blockHeight}:`,
+        error
+      );
+      return null;
+    }
+
+    return data.assetHistoricalData.nodes[0] || null;
+  }
+
+  async fetchAccountAssetBalanceHistDataByBlockHeight({
+    accountPubKey,
+    assetId,
+    blockHeight,
+    endpoint = ApiEndpoint.MAIN_INDEXER_API,
+  }: {
+    accountPubKey: string;
+    assetId: string;
+    blockHeight: number;
+    endpoint?: ApiEndpoint;
+  }): Promise<DatasourceAccountAssetBalanceHistoricalData | null> {
+    const { data, error } = await this.graphqlClientProvider.gqlRequest<
+      GetAccountAssetBalanceHistDataAtBlockQuery,
+      GetAccountAssetBalanceHistDataAtBlockQueryVariables
+    >({
+      query: GetAccountAssetBalanceHistDataAtBlock,
+      variables: {
+        first: 1,
+        orderBy: AccountAssetBalanceHistoricalDataOrderBy.ParaBlockHeightDesc,
+        filter: {
+          accountId: { equalTo: accountPubKey },
+          assetId: { equalTo: assetId },
+          paraBlockHeight: { lessThanOrEqualTo: blockHeight },
+        },
+      },
+      endpoint,
+    });
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch account asset balance historical data for account ${accountPubKey}, asset ${assetId} as block ${blockHeight}:`,
+        error
+      );
+      return null;
+    }
+
+    return data.accountAssetBalanceHistoricalData.nodes[0] || null;
+  }
+
+  async fetchAavepool({
+    id,
+    aTokenId,
+    reserveAssetId,
+    endpoint = ApiEndpoint.MAIN_INDEXER_API,
+  }: {
+    id?: string;
+    aTokenId?: string;
+    reserveAssetId?: string;
+    endpoint?: ApiEndpoint;
+  }): Promise<DatasourceAavepool | null> {
+    if (!id && !aTokenId && !reserveAssetId) {
+      this.logger.error(`Failed to fetch aavepool due to invalid params`);
+      return null;
+    }
+
+    const { data, error } = await this.graphqlClientProvider.gqlRequest<
+      GetAavepoolQuery,
+      GetAavepoolQueryVariables
+    >({
+      query: GetAavepool,
+      variables: {
+        filter: {
+          ...(id && { id: { equalTo: id } }),
+          ...(aTokenId && { aTokenId: { equalTo: aTokenId } }),
+          ...(reserveAssetId && { reserveAssetId: { equalTo: reserveAssetId } }),
+        },
+      },
+      endpoint,
+    });
+
+    if (error) {
+      this.logger.error(`Failed to fetch aavepool:`, error);
+      return null;
+    }
+
+    return data.aavepools.nodes[0] || null;
+  }
+
+  async fetchAavepoolHistoricalDataAtBlock({
+    poolId,
+    blockHeight,
+    endpoint = ApiEndpoint.MAIN_INDEXER_API,
+  }: {
+    poolId: string;
+    blockHeight: number;
+    endpoint?: ApiEndpoint;
+  }): Promise<DatasourceAavepoolHistoricalData | null> {
+    const { data, error } = await this.graphqlClientProvider.gqlRequest<
+      GetAavepoolHistDataAtBlockQuery,
+      GetAavepoolHistDataAtBlockQueryVariables
+    >({
+      query: GetAavepoolHistDataAtBlock,
+      variables: {
+        first: 1,
+        orderBy: AavepoolHistoricalDataOrderBy.ParaBlockHeightDesc,
+        filter: {
+          poolId: { equalTo: poolId },
+          paraBlockHeight: { lessThanOrEqualTo: blockHeight },
+        },
+      },
+      endpoint,
+    });
+
+    if (error) {
+      this.logger.error(`Failed to fetch aavepool historical data:`, error);
+      return null;
+    }
+
+    return data.aavepoolHistoricalData.nodes[0] || null;
   }
 }

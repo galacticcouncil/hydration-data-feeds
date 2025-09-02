@@ -13,6 +13,7 @@ import {
   DexScreenerLatestBlockResponse,
   DexScreenerAssetResponse,
   DexScreenerEventsResponse,
+  DexScreenerPairResponse,
 } from './dexscreener.interfaces';
 import { BaseConsumerController } from '../../base/base.controller';
 import { DexscreenerResolver } from './dexscreener.resolver';
@@ -54,48 +55,13 @@ export class DexScreenerV1Controller extends BaseConsumerController {
     const { id } = query;
     return this.dexscreenerResolver.resolveGetAssetById(id);
   }
-  //
-  // @Get('pair')
-  // async getPair(@Query() query: DexScreenerGetPairParamsDto): Promise<DexScreenerPairResponse> {
-  //   try {
-  //     const { id } = query;
-  //     this.logRequest('pair', { id });
-  //
-  //     if (!id) {
-  //       throw new HttpException(
-  //         this.createErrorResponse('Pair ID is required', HttpStatus.BAD_REQUEST),
-  //         HttpStatus.BAD_REQUEST
-  //       );
-  //     }
-  //
-  //     // Fetch data from GraphQL API
-  //     const graphqlData = await this.typedGraphqlService.getPair(id, ApiEndpoint.PAIRS);
-  //
-  //     if (!graphqlData?.pair) {
-  //       throw new HttpException(
-  //         this.createErrorResponse(`Pair with ID ${id} was not found`, HttpStatus.NOT_FOUND),
-  //         HttpStatus.NOT_FOUND
-  //       );
-  //     }
-  //
-  //     // Transform using DEX Screener specific transformer
-  //     const response = this.dexScreenerTransformer.transformPair(graphqlData);
-  //
-  //     this.logger.log(`Pair fetched: ${id}`);
-  //     return response;
-  //   } catch (error) {
-  //     if (error instanceof HttpException) {
-  //       throw error;
-  //     }
-  //
-  //     this.logger.error(`Failed to fetch pair: ${error.message}`, error.stack);
-  //     throw new HttpException(
-  //       this.createErrorResponse('Failed to fetch pair', HttpStatus.INTERNAL_SERVER_ERROR),
-  //       HttpStatus.INTERNAL_SERVER_ERROR
-  //     );
-  //   }
-  // }
-  //
+
+  @Get('pair')
+  @DexScreenerSwagger.getPair()
+  async getPair(@Query() query: DexScreenerGetPairParamsDto): Promise<DexScreenerPairResponse> {
+    return this.dexscreenerResolver.resolveGetPairById(query);
+  }
+
   @Get('events')
   @DexScreenerSwagger.getEvents()
   async getEvents(

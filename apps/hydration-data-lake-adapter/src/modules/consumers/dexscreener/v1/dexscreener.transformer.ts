@@ -15,6 +15,8 @@ import {
 } from './dexscreener.interfaces';
 import { DatasourceAsset, DatasourceBlock } from '../../../dataSource/graphqlSupport/types';
 import { AssetEnhancementService } from '../../../dataSource/dataEnhancement/assets';
+import { AssetType } from '../../../dataSource/types';
+import { fromExpToDecimalNotation } from '../../../../utils';
 
 @Injectable()
 export class DexScreenerTransformer extends BaseTransformer {
@@ -36,23 +38,37 @@ export class DexScreenerTransformer extends BaseTransformer {
     return block;
   }
 
-  transformAsset({ id, name, symbol, decimals }: DatasourceAsset): DexScreenerAssetResponse {
+  transformAsset({
+    id,
+    name,
+    symbol,
+    decimals,
+    assetType,
+    totalIssuance,
+  }: DatasourceAsset & { totalIssuance: string }): DexScreenerAsset {
     this.logger.debug('Transforming asset data for DEX Screener');
 
     // Get enhancement data for this asset
     const enhancement = this.assetEnhancementService.getAssetEnhancement(id);
 
+    // TODO check if we need convert this value
+    const totalIssuanceDecorated = fromExpToDecimalNotation(totalIssuance, decimals).toFixed();
+
     const asset: DexScreenerAsset = {
       id,
       name,
       symbol,
-      totalSupply: '0',
-      circulatingSupply: '0',
+      totalSupply: totalIssuanceDecorated,
+      circulatingSupply: totalIssuanceDecorated,
       ...(enhancement?.coinGeckoId && { coinGeckoId: enhancement.coinGeckoId }),
       ...(enhancement?.coinMarketCapId && { coinMarketCapId: enhancement.coinMarketCapId }),
+      metadata: {
+        assetType: assetType as AssetType,
+        ...(decimals && { decimals: `${decimals}` }),
+      },
     };
 
-    return { asset };
+    return asset;
   }
 
   //

@@ -116386,12 +116386,30 @@ export type _ProcessorStatus = {
   name: Scalars['String']['output'];
 };
 
+export type GetAccountAssetBalanceHistDataAtBlockQueryVariables = Exact<{
+  first: Scalars['Int']['input'];
+  filter?: InputMaybe<AccountAssetBalanceHistoricalDatumFilter>;
+  orderBy?: InputMaybe<Array<AccountAssetBalanceHistoricalDataOrderBy> | AccountAssetBalanceHistoricalDataOrderBy>;
+}>;
+
+
+export type GetAccountAssetBalanceHistDataAtBlockQuery = { __typename?: 'Query', accountAssetBalanceHistoricalData?: { __typename?: 'AccountAssetBalanceHistoricalDataConnection', nodes: Array<{ __typename?: 'AccountAssetBalanceHistoricalDatum', id: string, assetId?: string | null, transferable: any, paraBlockHeight: number } | null> } | null };
+
 export type GetAssetByIdQueryVariables = Exact<{
   id: Scalars['String']['input'];
 }>;
 
 
-export type GetAssetByIdQuery = { __typename?: 'Query', asset?: { __typename?: 'Asset', id: string, name?: string | null, symbol?: string | null, decimals?: number | null } | null };
+export type GetAssetByIdQuery = { __typename?: 'Query', asset?: { __typename?: 'Asset', id: string, name?: string | null, symbol?: string | null, decimals?: number | null, assetType: string } | null };
+
+export type GetAssetHistDataAtBlockQueryVariables = Exact<{
+  first: Scalars['Int']['input'];
+  filter?: InputMaybe<AssetHistoricalDatumFilter>;
+  orderBy?: InputMaybe<Array<AssetHistoricalDataOrderBy> | AssetHistoricalDataOrderBy>;
+}>;
+
+
+export type GetAssetHistDataAtBlockQuery = { __typename?: 'Query', assetHistoricalData?: { __typename?: 'AssetHistoricalDataConnection', nodes: Array<{ __typename?: 'AssetHistoricalDatum', assetId?: string | null, paraBlockHeight: number, totalIssuance: any } | null> } | null };
 
 export type GetLatestProcessedBlockEnsuredByEventsQueryVariables = Exact<{
   first: Scalars['Int']['input'];
@@ -116408,6 +116426,29 @@ export type GetBlockByHeightQueryVariables = Exact<{
 
 
 export type GetBlockByHeightQuery = { __typename?: 'Query', blocks?: { __typename?: 'BlocksConnection', nodes: Array<{ __typename?: 'Block', id: string, height: number, hash: string, timestamp: any } | null> } | null };
+
+export type GetMmReserveByAtokenIdQueryVariables = Exact<{
+  filter?: InputMaybe<MoneyMarketReserveFilter>;
+}>;
+
+
+export type GetMmReserveByAtokenIdQuery = { __typename?: 'Query', moneyMarketReserves?: { __typename?: 'MoneyMarketReservesConnection', nodes: Array<{ __typename?: 'MoneyMarketReserve', id: string, aavePoolId?: string | null } | null> } | null };
+
+export type GetAavepoolQueryVariables = Exact<{
+  filter?: InputMaybe<AavepoolFilter>;
+}>;
+
+
+export type GetAavepoolQuery = { __typename?: 'Query', aavepools?: { __typename?: 'AavepoolsConnection', nodes: Array<{ __typename?: 'Aavepool', id: string, aTokenId?: string | null, reserveAssetId?: string | null, moneyMarketReserveId?: string | null } | null> } | null };
+
+export type GetAavepoolHistDataAtBlockQueryVariables = Exact<{
+  first: Scalars['Int']['input'];
+  filter?: InputMaybe<AavepoolHistoricalDatumFilter>;
+  orderBy?: InputMaybe<Array<AavepoolHistoricalDataOrderBy> | AavepoolHistoricalDataOrderBy>;
+}>;
+
+
+export type GetAavepoolHistDataAtBlockQuery = { __typename?: 'Query', aavepoolHistoricalData?: { __typename?: 'AavepoolHistoricalDataConnection', nodes: Array<{ __typename?: 'AavepoolHistoricalDatum', id: string, liquidityIn: any, paraBlockHeight: number, aTokenTotalSupply?: any | null } | null> } | null };
 
 export type GetLatestStableswapLiquidityEventWithBlockQueryVariables = Exact<{
   first: Scalars['Int']['input'];
@@ -116433,9 +116474,25 @@ export type GetSwapsInBlocksRangeQueryVariables = Exact<{
 }>;
 
 
-export type GetSwapsInBlocksRangeQuery = { __typename?: 'Query', swaps?: { __typename?: 'SwapsConnection', totalCount: number, nodes: Array<{ __typename?: 'Swap', id: string, paraBlockHeight: number, routedTradeId?: string | null, swapIndex?: number | null, fillerId?: string | null, swapperId?: string | null, dcaScheduleExecutionEventId?: string | null, otcOrderFulfillmentId?: string | null, event?: { __typename?: 'Event', indexInBlock: number, traceId: string, call?: { __typename?: 'Call', originValue?: string | null, originValueKind?: string | null } | null } | null, dcaScheduleExecutionEvent?: { __typename?: 'DcaScheduleExecutionEvent', scheduleExecution?: { __typename?: 'DcaScheduleExecution', schedule?: { __typename?: 'DcaSchedule', ownerId?: string | null } | null } | null } | null, otcOrderFulfillment?: { __typename?: 'OtcOrderEvent', order?: { __typename?: 'OtcOrder', ownerId?: string | null } | null } | null, swapInputs: { __typename?: 'SwapInputRecordsConnection', nodes: Array<{ __typename?: 'SwapInputRecord', amount?: any | null, asset?: { __typename?: 'Asset', id: string, decimals?: number | null } | null } | null> }, swapOutputs: { __typename?: 'SwapOutputsConnection', nodes: Array<{ __typename?: 'SwapOutput', amount?: any | null, asset?: { __typename?: 'Asset', id: string, decimals?: number | null } | null } | null> } } | null> } | null };
+export type GetSwapsInBlocksRangeQuery = { __typename?: 'Query', swaps?: { __typename?: 'SwapsConnection', totalCount: number, nodes: Array<{ __typename?: 'Swap', id: string, paraBlockHeight: number, routedTradeId?: string | null, swapIndex?: number | null, fillerId?: string | null, fillerType: string, swapperId?: string | null, dcaScheduleExecutionEventId?: string | null, otcOrderFulfillmentId?: string | null, event?: { __typename?: 'Event', indexInBlock: number, traceId: string, call?: { __typename?: 'Call', originValue?: string | null, originValueKind?: string | null } | null } | null, dcaScheduleExecutionEvent?: { __typename?: 'DcaScheduleExecutionEvent', scheduleExecution?: { __typename?: 'DcaScheduleExecution', schedule?: { __typename?: 'DcaSchedule', ownerId?: string | null } | null } | null } | null, otcOrderFulfillment?: { __typename?: 'OtcOrderEvent', order?: { __typename?: 'OtcOrder', ownerId?: string | null } | null } | null, swapInputs: { __typename?: 'SwapInputRecordsConnection', nodes: Array<{ __typename?: 'SwapInputRecord', amount?: any | null, asset?: { __typename?: 'Asset', id: string, decimals?: number | null, assetType: string } | null } | null> }, swapOutputs: { __typename?: 'SwapOutputsConnection', nodes: Array<{ __typename?: 'SwapOutput', amount?: any | null, asset?: { __typename?: 'Asset', id: string, decimals?: number | null, assetType: string } | null } | null> } } | null> } | null };
 
 
+export const GetAccountAssetBalanceHistDataAtBlock = gql`
+    query GetAccountAssetBalanceHistDataAtBlock($first: Int!, $filter: AccountAssetBalanceHistoricalDatumFilter, $orderBy: [AccountAssetBalanceHistoricalDataOrderBy!]) {
+  accountAssetBalanceHistoricalData(
+    first: $first
+    orderBy: $orderBy
+    filter: $filter
+  ) {
+    nodes {
+      id
+      assetId
+      transferable
+      paraBlockHeight
+    }
+  }
+}
+    `;
 export const GetAssetById = gql`
     query GetAssetById($id: String!) {
   asset(id: $id) {
@@ -116443,6 +116500,18 @@ export const GetAssetById = gql`
     name
     symbol
     decimals
+    assetType
+  }
+}
+    `;
+export const GetAssetHistDataAtBlock = gql`
+    query GetAssetHistDataAtBlock($first: Int!, $filter: AssetHistoricalDatumFilter, $orderBy: [AssetHistoricalDataOrderBy!]) {
+  assetHistoricalData(first: $first, orderBy: $orderBy, filter: $filter) {
+    nodes {
+      assetId
+      paraBlockHeight
+      totalIssuance
+    }
   }
 }
     `;
@@ -116468,6 +116537,40 @@ export const GetBlockByHeight = gql`
       height
       hash
       timestamp
+    }
+  }
+}
+    `;
+export const GetMmReserveByAtokenId = gql`
+    query GetMmReserveByAtokenId($filter: MoneyMarketReserveFilter) {
+  moneyMarketReserves(filter: $filter) {
+    nodes {
+      id
+      aavePoolId
+    }
+  }
+}
+    `;
+export const GetAavepool = gql`
+    query GetAavepool($filter: AavepoolFilter) {
+  aavepools(filter: $filter) {
+    nodes {
+      id
+      aTokenId
+      reserveAssetId
+      moneyMarketReserveId
+    }
+  }
+}
+    `;
+export const GetAavepoolHistDataAtBlock = gql`
+    query GetAavepoolHistDataAtBlock($first: Int!, $filter: AavepoolHistoricalDatumFilter, $orderBy: [AavepoolHistoricalDataOrderBy!]) {
+  aavepoolHistoricalData(first: $first, orderBy: $orderBy, filter: $filter) {
+    nodes {
+      id
+      liquidityIn
+      paraBlockHeight
+      aTokenTotalSupply
     }
   }
 }
@@ -116524,6 +116627,7 @@ export const GetSwapsInBlocksRange = gql`
         }
       }
       fillerId
+      fillerType
       swapperId
       dcaScheduleExecutionEventId
       otcOrderFulfillmentId
@@ -116545,6 +116649,7 @@ export const GetSwapsInBlocksRange = gql`
           asset {
             id
             decimals
+            assetType
           }
         }
       }
@@ -116554,6 +116659,7 @@ export const GetSwapsInBlocksRange = gql`
           asset {
             id
             decimals
+            assetType
           }
         }
       }

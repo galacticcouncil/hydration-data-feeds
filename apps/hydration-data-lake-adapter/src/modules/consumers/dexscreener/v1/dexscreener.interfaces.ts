@@ -1,5 +1,7 @@
 // DEX Screener specific interfaces based on the specification
 
+import { AssetType } from '../../../dataSource/types';
+
 export enum DexScreenerEventType {
   SWAP = 'swap',
   JOIN = 'join',
@@ -20,7 +22,10 @@ export interface DexScreenerAsset {
   circulatingSupply?: string | number;
   coinGeckoId?: string;
   coinMarketCapId?: string;
-  metadata?: Record<string, string>;
+  metadata?: Record<string, string> & {
+    assetType: AssetType;
+    decimals: string;
+  };
 }
 
 export interface DexScreenerPair {

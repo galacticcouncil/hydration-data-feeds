@@ -3,6 +3,7 @@ import { AppConfig } from '../config';
 import { DexScreenerCacheProviderToken, GraphQlClientProviderToken } from '../../providers';
 import { DexScreenerCacheProvider } from '../../providers/cache/dexscreener-cache.provider';
 import {
+  DexScreenerAsset,
   DexScreenerBlock,
   DexScreenerPair,
 } from '../consumers/dexscreener/v1/dexscreener.interfaces';
@@ -10,6 +11,7 @@ import { DataSourceService } from '../dataSource/data-source.service';
 import { BaseConsumerHelper } from '../consumers/base/base.helper';
 import { DexScreenerTransformer } from '../consumers/dexscreener/v1/dexscreener.transformer';
 import { DatasourceBlock } from '../dataSource/graphqlSupport/types';
+import { ApiEndpoint } from '../dataSource/types';
 
 @Injectable()
 export class DexScreenerEntitiesService {
@@ -79,6 +81,33 @@ export class DexScreenerEntitiesService {
     return DexScreenerEntitiesService.getPairAssetsOrdered(assetIds).join('-');
   }
 
+  async getOrCreateLatestProcessedBlock({ data }: { data?: DatasourceBlock } = {}) {
+    let latestProcBlockEntity: DexScreenerBlock | undefined =
+      await this.dexScreenerCacheProvider.getLatestProcessedBlock();
+
+    if (latestProcBlockEntity) return latestProcBlockEntity;
+
+    const graphqlData = await this.dataSourceService.fetchLatestProcessedBlock({
+      endpoint: ApiEndpoint.MAIN_INDEXER_API,
+    });
+
+    if (!graphqlData) {
+      throw new HttpException(
+        BaseConsumerHelper.getErrorResponsePayload('Latest block not found'),
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    latestProcBlockEntity = await this.getOrCreateBlock({
+      height: graphqlData.height,
+      data: graphqlData,
+    });
+
+    await this.dexScreenerCacheProvider.setLatestProcessedBlock(latestProcBlockEntity);
+
+    return latestProcBlockEntity;
+  }
+
   /**
    * Retrieves a block by its height from the cache or creates a new block entity if it does not exist.
    * If the block is not present in the cache and the optional data parameter is not provided,
@@ -96,7 +125,7 @@ export class DexScreenerEntitiesService {
 
     const blockData = data
       ? [data]
-      : await this.dataSourceService.getBlocksByHeightsList({
+      : await this.dataSourceService.fetchBlocksByHeightsList({
           heightsList: [height],
         });
 
@@ -117,6 +146,7 @@ export class DexScreenerEntitiesService {
     return blockEntity;
   }
 
+  // TODO complete implementation - feeBps and other
   async getOrCreatePair({ assetIds }: { assetIds: string[] }) {
     const pairIdsOrdered = DexScreenerEntitiesService.getPairAssetsOrdered(assetIds);
     const pairId = DexScreenerEntitiesService.getPairId(pairIdsOrdered, true);
@@ -136,5 +166,50 @@ export class DexScreenerEntitiesService {
     await this.dexScreenerCacheProvider.setPair(`${pairEntity.id}`, pairEntity);
 
     return pairEntity;
+  }
+
+  async getOrCreateAsset(id: string, blockHeight?: number) {
+    let assetEntity: DexScreenerAsset | undefined =
+      await this.dexScreenerCacheProvider.getAsset(id);
+
+    if (assetEntity) return assetEntity;
+
+    const blockHeightEnsured =
+      blockHeight ?? (await this.getOrCreateLatestProcessedBlock()).blockNumber;
+
+    // Fetch data from GraphQL API
+    const assetData = await this.dataSourceService.fetchAssetById({
+      id,
+      endpoint: ApiEndpoint.MAIN_INDEXER_API,
+    });
+
+    if (!assetData) {
+      throw new HttpException(
+        BaseConsumerHelper.getErrorResponsePayload('Asset not found'),
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    const assetHistData = await this.dataSourceService.fetchAssetHistDataByBlockHeight({
+      assetId: id,
+      blockHeight: blockHeightEnsured,
+      endpoint: ApiEndpoint.MAIN_INDEXER_API,
+    });
+
+    if (!assetHistData) {
+      throw new HttpException(
+        BaseConsumerHelper.getErrorResponsePayload('Asset Historical Data not found'),
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    assetEntity = this.dexScreenerTransformer.transformAsset({
+      ...assetData,
+      totalIssuance: assetHistData.totalIssuance,
+    });
+
+    await this.dexScreenerCacheProvider.setAsset(`${assetEntity.id}`, assetEntity);
+
+    return assetEntity;
   }
 }

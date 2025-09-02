@@ -42,6 +42,7 @@ export const GET_SWAPS_IN_BLOCKS_RANGE = gql`
           }
         }
         fillerId
+        fillerType
         swapperId
         dcaScheduleExecutionEventId
         otcOrderFulfillmentId
@@ -63,6 +64,7 @@ export const GET_SWAPS_IN_BLOCKS_RANGE = gql`
             asset {
               id
               decimals
+              assetType
             }
           }
         }
@@ -72,6 +74,7 @@ export const GET_SWAPS_IN_BLOCKS_RANGE = gql`
             asset {
               id
               decimals
+              assetType
             }
           }
         }
