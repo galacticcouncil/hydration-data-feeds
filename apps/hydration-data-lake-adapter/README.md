@@ -48,20 +48,7 @@ The adapter implements the following DEX Screener endpoints:
    ```bash
    cp env.config.example .env
    ```
-
-4. **Configure environment variables** in `.env`:
-   ```bash
-   # Required - Update these values
-   MAIN_INDEXER_GRAPHQL_ENDPOINT=https://your-hydration-api.com/graphql
-   GRAPHQL_API_KEY=your_actual_api_key_here
    
-   # Optional - Customize as needed
-   PORT=3000
-   BASE_PATH=/api/v1
-   DEX_KEY=hydration
-   ENABLE_CORS=true
-   ```
-
 ## Development
 
 ### Running the Application Locally
@@ -77,7 +64,7 @@ The adapter implements the following DEX Screener endpoints:
    npm run start
    ```
 
-The application will start on `http://localhost:3000` (or the port specified in your `.env` file).
+The application will start on `http://localhost:8080` (or the port specified in your `.env` file).
 
 ### Code Generation
 
@@ -86,11 +73,6 @@ The project uses GraphQL Code Generator to create TypeScript types from GraphQL 
 1. **Generate types from main GraphQL API**:
    ```bash
    npm run main-indexer-api-codegen
-   ```
-
-2. **Alternative codegen command** (if `codegen.yml` exists):
-   ```bash
-   npm run codegen
    ```
 
 **Note**: Make sure your `.env` file has the correct `MAIN_INDEXER_GRAPHQL_ENDPOINT` configured before running codegen.
@@ -103,60 +85,12 @@ The project uses GraphQL Code Generator to create TypeScript types from GraphQL 
 | `npm run start` | Start in production mode |
 | `npm run build` | Build the application for production |
 | `npm run main-indexer-api-codegen` | Generate TypeScript types from GraphQL schema |
-| `npm run codegen` | Alternative codegen command |
 | `npm run lint` | Run linting (not configured yet) |
 | `npm run test` | Run tests (not configured yet) |
 
-## Project Structure
-
-```
-src/
-├── app.module.ts                    # Main application module
-├── main.ts                         # Application entry point
-├── dto/                            # Data Transfer Objects
-├── interfaces/                     # TypeScript interfaces
-├── modules/
-│   ├── config/                     # Configuration management
-│   ├── consumers/                  # API consumer implementations
-│   │   ├── base/                   # Base consumer classes
-│   │   ├── dexscreener/v1/         # DEX Screener v1 implementation
-│   │   └── consumer-info.controller.ts
-│   └── dataSource/                 # GraphQL data source
-│       ├── generated/              # Generated GraphQL types
-│       ├── graphqlSupport/         # GraphQL utilities and queries
-│       └── queries/                # GraphQL query definitions
-└── providers/                      # Application providers
-```
-
 ## Configuration
 
-### Environment Variables
-
-The application uses the following key environment variables:
-
-#### Core Configuration
-- `NODE_ENV`: Environment (development/production)
-- `PORT`: Server port (default: 3000)
-- `BASE_PATH`: API base path (default: /api/v1)
-- `DEX_KEY`: DEX identifier (default: hydration)
-
-#### GraphQL Configuration
-- `MAIN_INDEXER_GRAPHQL_ENDPOINT`: Primary GraphQL endpoint URL
-- `GRAPHQL_API_KEY`: API key for authentication
-- `GRAPHQL_REQUEST_TIMEOUT_MS`: Request timeout (default: 30000)
-- `GRAPHQL_MAX_RETRY_ATTEMPTS`: Max retry attempts (default: 3)
-
-#### Feature Flags
-- `ENABLE_CORS`: Enable CORS (default: true)
-- `ENABLE_SWAGGER`: Enable Swagger documentation (default: true)
-- `ENABLE_TYPED_GRAPHQL`: Enable typed GraphQL queries (default: true)
-
-#### Performance Settings
-- `API_CACHE_TTL_MS`: API cache TTL (default: 600000)
-- `MAX_BLOCK_RANGE`: Maximum block range per request (default: 1000)
-- `DEFAULT_PAGE_SIZE`: Default pagination size (default: 100)
-
-See `env.config.example` for the complete list of available configuration options.
+See `env.config.example` file, [AppConfig](./src/modules/config/app.config.ts) and [GraphQLConfig](./src/modules/config/graphql.config.ts) services for the complete list of available configuration options.
 
 ## API Documentation
 
@@ -164,7 +98,7 @@ See `env.config.example` for the complete list of available configuration option
 
 The application includes comprehensive API documentation powered by Swagger/OpenAPI. When `ENABLE_SWAGGER=true` in your environment configuration, you can access:
 
-**Swagger UI**: `http://localhost:3000/api/v1/docs`
+**Swagger UI**: `http://localhost:8080/docs`
 
 Features include:
 - **Interactive Interface**: Test API endpoints directly from the browser
@@ -210,47 +144,3 @@ Once the application is running, you can:
    ```bash
    npm run start
    ```
-
-### Docker Deployment
-
-The application can be containerized using Docker. Make sure to:
-
-1. Include your `.env` file or set environment variables
-2. Expose the configured port
-3. Ensure network access to the GraphQL API endpoints
-
-## Troubleshooting
-
-### Common Issues
-
-1. **GraphQL Connection Errors**:
-   - Verify `MAIN_INDEXER_GRAPHQL_ENDPOINT` is correct
-   - Check if `GRAPHQL_API_KEY` is valid
-   - Ensure network connectivity to the GraphQL endpoint
-
-2. **Code Generation Fails**:
-   - Make sure the GraphQL endpoint is accessible
-   - Verify the schema is valid
-   - Check if the endpoint requires authentication
-
-3. **Port Already in Use**:
-   - Change the `PORT` in your `.env` file
-   - Or kill the process using the port: `lsof -ti:3000 | xargs kill -9`
-
-### Logs
-
-The application provides detailed logging. Check the console output for:
-- Configuration summary on startup
-- API request logs
-- Error details and stack traces
-
-## Contributing
-
-1. Follow the existing code structure and patterns
-2. Update TypeScript types when modifying GraphQL queries
-3. Ensure proper error handling and logging
-4. Test endpoints thoroughly before submitting changes
-
-## License
-
-This project is licensed under UNLICENSED - see the LICENSE file for details.
