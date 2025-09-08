@@ -194,11 +194,11 @@ export class DexscreenerResolver extends BaseConsumerHelper {
           const swapOutput = swappedEvent.swapOutputs.nodes[0];
           const swapInputAmountDecorated = fromExpToDecimalNotation(
             swapInput.amount,
-            swapInput.asset.decimals
+            swapInput.asset.decimals ?? 18
           ).toFixed();
           const swapOutputAmountDecorated = fromExpToDecimalNotation(
             swapOutput.amount,
-            swapOutput.asset.decimals
+            swapOutput.asset.decimals ?? 18
           ).toFixed();
 
           const genericPool = await this.dexScreenerEntitiesService.getOrCreateGenericPool({
@@ -268,8 +268,8 @@ export class DexscreenerResolver extends BaseConsumerHelper {
             pairId: eventPair.id,
             priceNative: '0',
             reserves: {
-              asset0: fromExpToDecimalNotation(asset0Reserve, asset0Decimals).toFixed(),
-              asset1: fromExpToDecimalNotation(asset1Reserve, asset1Decimals).toFixed(),
+              asset0: fromExpToDecimalNotation(asset0Reserve, asset0Decimals ?? 18).toFixed(),
+              asset1: fromExpToDecimalNotation(asset1Reserve, asset1Decimals ?? 18).toFixed(),
             },
             ...(eventPair.asset0Id === swapInput.asset.id && {
               asset0In: swapInputAmountDecorated,
