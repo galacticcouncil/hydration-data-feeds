@@ -12,7 +12,7 @@ import { DataSourceService } from '../dataSource/data-source.service';
 import { BaseConsumerHelper } from '../consumers/base/base.helper';
 import { DexScreenerTransformer } from '../consumers/dexscreener/v1/dexscreener.transformer';
 import { DatasourceBlock } from '../dataSource/graphqlSupport/types';
-import { ApiEndpoint, PoolType } from '../dataSource/types';
+import { ApiEndpoint, PoolType, SwapFillerType } from '../dataSource/types';
 
 @Injectable()
 export class DexScreenerEntitiesService {
@@ -297,5 +297,24 @@ export class DexScreenerEntitiesService {
     await this.dexScreenerCacheProvider.setGenericPool(poolEntity.id, poolEntity);
 
     return poolEntity;
+  }
+
+  getPoolTypeFromSwapFillerType(fillerType: SwapFillerType): PoolType {
+    switch (fillerType) {
+      case SwapFillerType.XYK:
+        return PoolType.Xykpool;
+      case SwapFillerType.LBP:
+        return PoolType.Lbppool;
+      case SwapFillerType.Stableswap:
+        return PoolType.Stableswap;
+      case SwapFillerType.HSM:
+        return PoolType.Hsmpool;
+      case SwapFillerType.AAVE:
+        return PoolType.AAVE;
+      case SwapFillerType.Omnipool:
+        return PoolType.Omnipool;
+      default:
+        return PoolType.Omnipool;
+    }
   }
 }

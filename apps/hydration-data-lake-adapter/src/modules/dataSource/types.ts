@@ -38,6 +38,16 @@ export enum PoolType {
   AAVE = 'AAVE',
 }
 
+export enum SwapFillerType {
+  Omnipool = 'Omnipool',
+  Stableswap = 'Stableswap',
+  XYK = 'XYK',
+  LBP = 'LBP',
+  OTC = 'OTC',
+  HSM = 'HSM',
+  AAVE = 'AAVE',
+}
+
 export enum AssetType {
   Bond = 'Bond',
   External = 'External',

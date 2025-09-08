@@ -16,7 +16,7 @@ import {
   DexScreenerEventType,
 } from './dexscreener.interfaces';
 import { DataSourceService } from '../../../dataSource/data-source.service';
-import { ApiEndpoint, AssetType, PoolType } from '../../../dataSource/types';
+import { ApiEndpoint, AssetType, PoolType, SwapFillerType } from '../../../dataSource/types';
 import { BaseConsumerHelper } from '../../base/base.helper';
 import { DexScreenerTransformer } from './dexscreener.transformer';
 import { ConsumerType } from '../../types';
@@ -205,7 +205,9 @@ export class DexscreenerResolver extends BaseConsumerHelper {
             id: swappedEvent.fillerId,
             data: {
               id: swappedEvent.fillerId,
-              poolType: swappedEvent.fillerType as PoolType,
+              poolType: this.dexScreenerEntitiesService.getPoolTypeFromSwapFillerType(
+                swappedEvent.fillerType as SwapFillerType
+              ),
               assets: [],
             },
           });
@@ -393,10 +395,11 @@ export class DexscreenerResolver extends BaseConsumerHelper {
       });
 
     if (!accountAssetBalanceHistData) {
-      throw new HttpException(
-        BaseConsumerHelper.getErrorResponsePayload('Account asset historical data not found'),
-        HttpStatus.NOT_FOUND
-      );
+      // throw new HttpException(
+      //   BaseConsumerHelper.getErrorResponsePayload('Account asset historical data not found'),
+      //   HttpStatus.NOT_FOUND
+      // );
+      return '0';
     }
 
     return accountAssetBalanceHistData.transferable;
