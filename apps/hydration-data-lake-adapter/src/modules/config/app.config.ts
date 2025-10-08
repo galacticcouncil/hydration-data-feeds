@@ -95,6 +95,9 @@ export class AppConfig {
   readonly LOG_LEVEL?: string;
 
   @Transform(({ value }: { value: string }) => value === 'true')
+  readonly IGNORE_INVALID_ENTITIES?: boolean = true;
+
+  @Transform(({ value }: { value: string }) => value === 'true')
   readonly ENABLE_DEBUG_LOGGING: boolean = false;
 
   public graphql: GraphQLConfig = GraphQLConfig.getInstance();

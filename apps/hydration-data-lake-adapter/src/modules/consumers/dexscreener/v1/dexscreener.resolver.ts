@@ -1,17 +1,9 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { AppConfig } from '../../../config';
-import { BaseTransformer } from '../../base/base.transformer';
 import {
-  DexScreenerLatestBlockResponse,
   DexScreenerAssetResponse,
   DexScreenerPairResponse,
   DexScreenerEventsResponse,
-  DexScreenerBlock,
-  DexScreenerAsset,
-  DexScreenerPair,
-  DexScreenerSwapEvent,
-  DexScreenerJoinExitEvent,
-  DexScreenerEvent,
   DexScreenerEventWithBlock,
   DexScreenerEventType,
 } from './dexscreener.interfaces';
@@ -20,11 +12,12 @@ import { ApiEndpoint, AssetType, PoolType, SwapFillerType } from '../../../dataS
 import { BaseConsumerHelper } from '../../base/base.helper';
 import { DexScreenerTransformer } from './dexscreener.transformer';
 import { ConsumerType } from '../../types';
-import { DexScreenerGetEventsQueryDto, DexScreenerGetPairParamsDto } from './dexscreener.dto';
+import { DexScreenerGetEventsQueryDto, DexScreenerGetPairParamsDto } from './dto/api.dto';
 import { DexScreenerEntitiesService } from '../../../entities/dexscreener-entities.service';
-import { fromExpToDecimalNotation, publicKeyToSs58 } from '../../../../utils';
+import { fromExpToDecimalNotation } from '../../../../utils';
 import pMap from 'p-map';
 import { BigNumber } from 'bignumber.js';
+import { DexScreenerValidator } from './dexscreener.validator';
 
 @Injectable()
 export class DexscreenerResolver extends BaseConsumerHelper {
@@ -32,7 +25,8 @@ export class DexscreenerResolver extends BaseConsumerHelper {
     appConfig: AppConfig,
     private dataSourceService: DataSourceService,
     private dexScreenerTransformer: DexScreenerTransformer,
-    private dexScreenerEntitiesService: DexScreenerEntitiesService
+    private dexScreenerEntitiesService: DexScreenerEntitiesService,
+    private dexScreenerValidator: DexScreenerValidator
   ) {
     super(appConfig);
   }
@@ -74,6 +68,12 @@ export class DexscreenerResolver extends BaseConsumerHelper {
       const response: DexScreenerAssetResponse = {
         asset: await this.dexScreenerEntitiesService.getOrCreateAsset(id),
       };
+
+      if (!response)
+        throw new HttpException(
+          this.createErrorResponse(`Asset with ID: ${id} not found`, HttpStatus.NOT_FOUND),
+          HttpStatus.NOT_FOUND
+        );
 
       this.logger.log(`Asset fetched: ${response.asset.id}`);
       return response;
@@ -217,6 +217,13 @@ export class DexscreenerResolver extends BaseConsumerHelper {
             poolAddress: genericPool.id,
           });
 
+          if (!eventPair) {
+            this.logger.warn(
+              `Pair for assets ${swapInput.asset.id} and ${swapOutput.asset.id} not found. Skipping event.`
+            );
+            return;
+          }
+
           const asset0Decimals =
             swapInput.asset.id === eventPair.asset0Id
               ? swapInput.asset.decimals
@@ -289,6 +296,16 @@ export class DexscreenerResolver extends BaseConsumerHelper {
 
           newEvent.priceNative = this.getEventPairNativePrice({ event: newEvent });
 
+          const isEventValid = await this.dexScreenerValidator.isSwapEventValid(newEvent);
+          if (!isEventValid && this.appConfig.IGNORE_INVALID_ENTITIES) {
+            this.logger.warn(`Swap Event ${newEvent.txnId} is invalid`);
+            return;
+          } else if (!isEventValid && !this.appConfig.IGNORE_INVALID_ENTITIES) {
+            throw new HttpException(
+              BaseConsumerHelper.getErrorResponsePayload(`Swap Event ${newEvent.txnId} is invalid`),
+              HttpStatus.UNPROCESSABLE_ENTITY
+            );
+          }
           events.push(newEvent);
         },
         { concurrency: 10 }
@@ -338,6 +355,16 @@ export class DexscreenerResolver extends BaseConsumerHelper {
   }) {
     const assetEntity = await this.dexScreenerEntitiesService.getOrCreateAsset(assetId);
 
+    if (!assetEntity && this.appConfig.IGNORE_INVALID_ENTITIES) {
+      this.logger.warn(`Asset ${assetId} not found`);
+      return '0';
+    } else if (!assetEntity && !this.appConfig.IGNORE_INVALID_ENTITIES) {
+      throw new HttpException(
+        BaseConsumerHelper.getErrorResponsePayload(`Asset ${assetId} not found`),
+        HttpStatus.NOT_FOUND
+      );
+    }
+
     if (assetEntity.metadata.assetType === AssetType.StableSwap) {
       // get total issuance of share asset
       const assetHistData = await this.dataSourceService.fetchAssetHistDataByBlockHeight({
@@ -346,7 +373,10 @@ export class DexscreenerResolver extends BaseConsumerHelper {
         endpoint: ApiEndpoint.MAIN_INDEXER_API,
       });
 
-      if (!assetHistData) {
+      if (!assetHistData && this.appConfig.IGNORE_INVALID_ENTITIES) {
+        this.logger.warn('Asset Historical Data not found');
+        return '0';
+      } else if (!assetHistData && !this.appConfig.IGNORE_INVALID_ENTITIES) {
         throw new HttpException(
           BaseConsumerHelper.getErrorResponsePayload('Asset Historical Data not found'),
           HttpStatus.NOT_FOUND
@@ -361,7 +391,10 @@ export class DexscreenerResolver extends BaseConsumerHelper {
         aTokenId: assetId,
       });
 
-      if (!aavepool) {
+      if (!aavepool && this.appConfig.IGNORE_INVALID_ENTITIES) {
+        this.logger.warn(`Aavepool with aToken ${assetId} not found`);
+        return '0';
+      } else if (!aavepool && !this.appConfig.IGNORE_INVALID_ENTITIES) {
         throw new HttpException(
           BaseConsumerHelper.getErrorResponsePayload(`Aavepool with aToken ${assetId} not found`),
           HttpStatus.NOT_FOUND
@@ -374,7 +407,12 @@ export class DexscreenerResolver extends BaseConsumerHelper {
         endpoint: ApiEndpoint.MAIN_INDEXER_API,
       });
 
-      if (!aavepoolHistData) {
+      if (!aavepoolHistData && this.appConfig.IGNORE_INVALID_ENTITIES) {
+        this.logger.warn(
+          `Aavepool historical data for pool ${aavepool.id} at block ${blockHeight} not found`
+        );
+        return '0';
+      } else if (!aavepoolHistData && !this.appConfig.IGNORE_INVALID_ENTITIES) {
         throw new HttpException(
           BaseConsumerHelper.getErrorResponsePayload(
             `Aavepool historical data for pool ${aavepool.id} at block ${blockHeight} not found`
@@ -394,12 +432,14 @@ export class DexscreenerResolver extends BaseConsumerHelper {
         endpoint: ApiEndpoint.MAIN_INDEXER_API,
       });
 
-    if (!accountAssetBalanceHistData) {
-      // throw new HttpException(
-      //   BaseConsumerHelper.getErrorResponsePayload('Account asset historical data not found'),
-      //   HttpStatus.NOT_FOUND
-      // );
+    if (!accountAssetBalanceHistData && this.appConfig.IGNORE_INVALID_ENTITIES) {
+      this.logger.warn('Account asset historical data not found');
       return '0';
+    } else if (!accountAssetBalanceHistData && !this.appConfig.IGNORE_INVALID_ENTITIES) {
+      throw new HttpException(
+        BaseConsumerHelper.getErrorResponsePayload('Account asset historical data not found'),
+        HttpStatus.NOT_FOUND
+      );
     }
 
     return accountAssetBalanceHistData.transferable;

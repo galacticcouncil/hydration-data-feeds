@@ -8,7 +8,7 @@ import {
   DexScreenerGetEventsQueryDto,
   DexScreenerGetAssetParamsDto,
   DexScreenerGetPairParamsDto,
-} from './dexscreener.dto';
+} from './dto/api.dto';
 import {
   DexScreenerLatestBlockResponse,
   DexScreenerAssetResponse,

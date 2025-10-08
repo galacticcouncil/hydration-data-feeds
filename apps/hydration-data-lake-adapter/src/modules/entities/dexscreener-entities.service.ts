@@ -13,6 +13,7 @@ import { BaseConsumerHelper } from '../consumers/base/base.helper';
 import { DexScreenerTransformer } from '../consumers/dexscreener/v1/dexscreener.transformer';
 import { DatasourceBlock } from '../dataSource/graphqlSupport/types';
 import { ApiEndpoint, PoolType, SwapFillerType } from '../dataSource/types';
+import { DexScreenerValidator } from '../consumers/dexscreener/v1/dexscreener.validator';
 
 @Injectable()
 export class DexScreenerEntitiesService {
@@ -25,7 +26,8 @@ export class DexScreenerEntitiesService {
     private dexScreenerCacheProvider: DexScreenerCacheProvider,
 
     private dataSourceService: DataSourceService,
-    private dexScreenerTransformer: DexScreenerTransformer
+    private dexScreenerTransformer: DexScreenerTransformer,
+    private dexScreenerValidator: DexScreenerValidator
   ) {}
 
   /**
@@ -224,7 +226,7 @@ export class DexScreenerEntitiesService {
     return pairEntity;
   }
 
-  async getOrCreateAsset(id: string, blockHeight?: number) {
+  async getOrCreateAsset(id: string, blockHeight?: number): Promise<DexScreenerAsset | null> {
     let assetEntity: DexScreenerAsset | undefined =
       await this.dexScreenerCacheProvider.getAsset(id);
 
@@ -239,9 +241,12 @@ export class DexScreenerEntitiesService {
       endpoint: ApiEndpoint.MAIN_INDEXER_API,
     });
 
-    if (!assetData) {
+    if (!assetData && this.appConfig.IGNORE_INVALID_ENTITIES) {
+      this.logger.warn(`Asset ${id} not found`);
+      return null;
+    } else if (!assetData && !this.appConfig.IGNORE_INVALID_ENTITIES) {
       throw new HttpException(
-        BaseConsumerHelper.getErrorResponsePayload('Asset not found'),
+        BaseConsumerHelper.getErrorResponsePayload(`Asset ${id} not found`),
         HttpStatus.NOT_FOUND
       );
     }
@@ -252,7 +257,10 @@ export class DexScreenerEntitiesService {
       endpoint: ApiEndpoint.MAIN_INDEXER_API,
     });
 
-    if (!assetHistData) {
+    if (!assetHistData && this.appConfig.IGNORE_INVALID_ENTITIES) {
+      this.logger.warn(`Asset Historical Data for Asset ${id} not found`);
+      return null;
+    } else if (!assetHistData && !this.appConfig.IGNORE_INVALID_ENTITIES) {
       throw new HttpException(
         BaseConsumerHelper.getErrorResponsePayload('Asset Historical Data not found'),
         HttpStatus.NOT_FOUND
@@ -263,6 +271,18 @@ export class DexScreenerEntitiesService {
       ...assetData,
       totalIssuance: assetHistData.totalIssuance,
     });
+
+    const isAssetValid = await this.dexScreenerValidator.isAssetValid(assetEntity);
+
+    if (!isAssetValid && this.appConfig.IGNORE_INVALID_ENTITIES) {
+      this.logger.warn(`Asset ${id} is invalid`);
+      return null;
+    } else if (!isAssetValid && !this.appConfig.IGNORE_INVALID_ENTITIES) {
+      throw new HttpException(
+        BaseConsumerHelper.getErrorResponsePayload(`Asset ${id} is invalid`),
+        HttpStatus.UNPROCESSABLE_ENTITY
+      );
+    }
 
     await this.dexScreenerCacheProvider.setAsset(`${assetEntity.id}`, assetEntity);
 

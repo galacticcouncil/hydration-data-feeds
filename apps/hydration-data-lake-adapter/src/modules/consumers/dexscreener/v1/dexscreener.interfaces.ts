@@ -48,6 +48,11 @@ export interface DexScreenerPair {
   metadata?: Record<string, string>;
 }
 
+export interface DexScreenerEventReserves {
+  asset0: number | string;
+  asset1: number | string;
+}
+
 export interface DexScreenerSwapEvent {
   eventType: DexScreenerEventType;
   txnId: string;
@@ -60,10 +65,7 @@ export interface DexScreenerSwapEvent {
   asset0Out?: number | string;
   asset1Out?: number | string;
   priceNative: number | string;
-  reserves?: {
-    asset0: number | string;
-    asset1: number | string;
-  };
+  reserves?: DexScreenerEventReserves;
   metadata?: Record<string, string>;
 }
 
@@ -76,10 +78,7 @@ export interface DexScreenerJoinExitEvent {
   pairId: string;
   amount0: number | string;
   amount1: number | string;
-  reserves?: {
-    asset0: number | string;
-    asset1: number | string;
-  };
+  reserves?: DexScreenerEventReserves;
   metadata?: Record<string, string>;
 }
 
