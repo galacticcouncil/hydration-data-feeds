@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'hydration-data-lake'
+    environment: 'production'
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Hydration Data Lake Adapter
+  - job_name: 'hydration-data-lake-adapter'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['hdl-adapter-dev:8088']
+        labels:
+          service: 'hydration-data-lake-adapter'
+          env: 'production'
