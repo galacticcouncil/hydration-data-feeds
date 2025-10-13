@@ -222,16 +222,17 @@ Create a `.env` file in the root directory. Below is a comprehensive guide to al
 
 #### Application Configuration
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `NODE_ENV` | `development \| production \| test` | `development` | Application environment mode |
-| `PORT` | `number` | `3000` | HTTP server port |
-| `BASE_PATH` | `string` | `/api/v1` | Global API prefix path |
-| `HOST` | `string` | `localhost` | Server hostname |
-| `SERVER_URL` | `string` | Auto-generated | Full server URL (overrides auto-detection) |
-| `FORCE_HTTP` | `boolean` | `true` | Force HTTP protocol (disable HTTPS) |
-| `DEX_KEY` | `string` | `hydration` | DEX identifier key |
-| `DEFAULT_CHAIN_ID` | `number` | `1` | Default blockchain chain ID |
+| Variable | Type                                | Default        | Description                                |
+|----------|-------------------------------------|----------------|--------------------------------------------|
+| `NODE_ENV` | `development \| production \| test` | `development`  | Application environment mode               |
+| `PORT` | `number`                            | `3000`         | HTTP server port                           |
+| `BASE_PATH` | `string`                            | ``             | Global API prefix path                     |
+| `INCLUDE_API_VERSION` | `boolean`                           | `true`           | Include API version into URL                 |
+| `HOST` | `string`                            | `localhost`    | Server hostname                            |
+| `SERVER_URL` | `string`                            | Auto-generated | Full server URL (overrides auto-detection) |
+| `FORCE_HTTP` | `boolean`                           | `true`         | Force HTTP protocol (disable HTTPS)        |
+| `DEX_KEY` | `string`                            | `hydration`    | DEX identifier key                         |
+| `DEFAULT_CHAIN_ID` | `number`                            | `1`            | Default blockchain chain ID                |
 
 #### Feature Flags
 
@@ -442,7 +443,7 @@ http://localhost:3000/api/v1/docs
 
 ### API Endpoints
 
-All endpoints are prefixed with `BASE_PATH` (default: `/api/v1`).
+All endpoints are prefixed with `BASE_PATH` (default: ``).
 
 #### DEX Screener Endpoints
 

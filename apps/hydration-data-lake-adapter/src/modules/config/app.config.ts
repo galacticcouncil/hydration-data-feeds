@@ -7,6 +7,7 @@ import { IsNotEmpty, IsString, IsOptional, IsEnum, ValidationError } from 'class
 import { NodeEnv } from './types';
 import { GraphQLConfig } from './graphql.config';
 import * as dotenv from 'dotenv';
+import { ApiVersion, ConsumerType } from '../consumers/types';
 
 dotenv.config({
   path: (() => {
@@ -29,6 +30,9 @@ export class AppConfig {
   @IsOptional()
   @IsString()
   readonly BASE_PATH?: string;
+
+  @Transform(({ value }: { value: string }) => value === 'true')
+  readonly INCLUDE_API_VERSION?: boolean = true;
 
   @IsOptional()
   @IsString()

@@ -19,7 +19,8 @@ import { BaseConsumerController } from '../../base/base.controller';
 import { DexscreenerResolver } from './dexscreener.resolver';
 import { DexScreenerSwagger } from './dexscreener.swagger';
 
-const dexscrennerConsumerBasePath = `${ApiVersion.V1}/${ConsumerType.DEX_SCREENER}`;
+const appConfig = AppConfig.getInstance();
+const dexscrennerConsumerBasePath = `${appConfig.INCLUDE_API_VERSION ? `${ApiVersion.V1}/` : ''}${ConsumerType.DEX_SCREENER}`;
 
 @ApiTags('dexscreener')
 @Controller(dexscrennerConsumerBasePath)
