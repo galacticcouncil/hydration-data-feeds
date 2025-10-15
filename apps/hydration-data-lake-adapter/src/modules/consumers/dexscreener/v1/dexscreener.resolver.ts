@@ -179,10 +179,12 @@ export class DexscreenerResolver extends BaseConsumerHelper {
       }
       if (swappedEvents.length === 0) return { events: [] };
 
+      const swappedEventsMerged = this.dataSourceService.mergeSplittedSwaps(swappedEvents);
+
       const events = [];
 
       await pMap(
-        swappedEvents,
+        swappedEventsMerged,
         async (swappedEvent) => {
           // TODO implement opportunity to process Swapped events with more than one asset in input or output
 
@@ -268,9 +270,8 @@ export class DexscreenerResolver extends BaseConsumerHelper {
 
           const newEvent: DexScreenerEventWithBlock = {
             block: eventBlock,
-
             eventType: DexScreenerEventType.SWAP,
-            txnId: swappedEvent.routedTradeId,
+            txnId: swappedEvent.routedTradeId ?? swappedEvent.id,
             txnIndex: swappedEvent.swapIndex,
             eventIndex: swappedEvent.event.indexInBlock,
             maker: swappedEvent.swapperId,

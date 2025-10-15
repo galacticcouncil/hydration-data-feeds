@@ -461,4 +461,44 @@ export class DataSourceService {
 
     return response || null;
   }
+
+  mergeSplittedSwaps(rawSwapsList: DatasourceSwap[]): DatasourceSwap[] {
+    const swapsIndexedByTraceId: Map<string, DatasourceSwap[]> = new Map();
+
+    for (const rawSwap of rawSwapsList) {
+      if (!swapsIndexedByTraceId.has(rawSwap.event.traceId))
+        swapsIndexedByTraceId.set(rawSwap.event.traceId, []);
+      swapsIndexedByTraceId.get(rawSwap.event.traceId).push(rawSwap);
+    }
+
+    const mergedSwaps: DatasourceSwap[] = [];
+
+    for (const swapsBatch of swapsIndexedByTraceId.values()) {
+      if (swapsBatch.length === 1) {
+        mergedSwaps.push(swapsBatch[0]);
+        continue;
+      }
+      if (swapsBatch.length > 2) {
+        mergedSwaps.push(...swapsBatch);
+        continue;
+      }
+
+      const [swap1, swap2] = swapsBatch.sort((a, b) => a.swapIndex - b.swapIndex);
+
+      const mergedSwap = {
+        ...swap1,
+        id: swap1.id.slice(0, -3),
+        swapInputs: swap1.swapInputs,
+        swapOutputs: swap2.swapOutputs,
+      };
+      mergedSwaps.push(mergedSwap);
+    }
+
+    return mergedSwaps.sort((a, b) => {
+      if (a.paraBlockHeight !== b.paraBlockHeight) {
+        return a.paraBlockHeight - b.paraBlockHeight;
+      }
+      return a.event.indexInBlock - b.event.indexInBlock;
+    });
+  }
 }
