@@ -1,6 +1,6 @@
 // const BASE_URL = 'http://localhost:8080';
-const BASE_URL = 'https://hdl-adapter-dev.kril.hydration.cloud';
-const ENDPOINT = '/v1/dexscreener/events';
+const BASE_URL = 'https://adapters.kril.hydration.cloud';
+const ENDPOINT = '/dexscreener/events';
 const FROM_BLOCK = 9000000;
 const TO_BLOCK = 9100000;
 const BATCH_SIZE = 100;

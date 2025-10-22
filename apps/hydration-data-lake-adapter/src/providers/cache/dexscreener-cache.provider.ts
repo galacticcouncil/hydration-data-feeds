@@ -43,9 +43,9 @@ export class DexScreenerCacheProvider extends BaseCacheClient {
   /**
    * ======================= L A T E S T   P R O C E S S E D   B L O C K ===========================
    */
-  async setLatestProcessedBlock(entity: DexScreenerBlock) {
+  async setLatestProcessedBlock(entity: DexScreenerBlock, ttlMs = 2000) {
     try {
-      await this.cache.set(`${EntitiesCacheKeyPrefix.DXSCR_LAST_PROC_BLOCK}`, entity);
+      await this.cache.set(`${EntitiesCacheKeyPrefix.DXSCR_LAST_PROC_BLOCK}`, entity, ttlMs);
     } catch (e) {}
   }
   async getLatestProcessedBlock(): Promise<DexScreenerBlock | undefined> {
