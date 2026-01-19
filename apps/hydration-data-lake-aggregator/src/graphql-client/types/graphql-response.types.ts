@@ -8,9 +8,8 @@ export interface SwapFeeNode {
   assetId: string;
   destinationType: string;
   recipientId: string;
-  asset: {
-    decimals: number;
-  };
+  // REMOVED: asset field no longer available in new endpoint
+  // Decimals now fetched separately via AssetRegistryService
 }
 
 export interface SwapFeesConnection {
@@ -36,8 +35,8 @@ export interface GetSwapsResponse {
 }
 
 export interface AssetSpotPriceNode {
-  assetInAssetRegistryId: string;
-  assetOutAssetRegistryId: string;
+  assetInId: string;
+  assetOutId: string;
   paraBlockHeight: number;
   price: string; // Raw price value
   priceNormalised: string; // Normalized price (human-readable)
@@ -53,4 +52,17 @@ export interface GetAssetPricesAtBlockResponse {
 
 export interface GetLatestAssetPricesResponse {
   assetSpotPriceHistoricalData: AssetSpotPriceConnection;
+}
+
+export interface AssetNode {
+  id: string;
+  decimals: number;
+}
+
+export interface AssetsConnection {
+  nodes: AssetNode[];
+}
+
+export interface GetAllAssetsResponse {
+  assets: AssetsConnection;
 }

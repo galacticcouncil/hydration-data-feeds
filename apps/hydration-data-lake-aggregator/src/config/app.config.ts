@@ -31,6 +31,9 @@ export interface AppConfig {
     intervalSeconds: number;
     maxRetries: number;
   };
+  assetRegistry: {
+    refreshIntervalSeconds: number;
+  };
   cache: {
     ttl1Min: number;
     ttl1Hour: number;
@@ -76,6 +79,9 @@ export const configValidationSchema = Joi.object({
   ENRICHMENT_BATCH_SIZE: Joi.number().default(1000),
   ENRICHMENT_INTERVAL_SECONDS: Joi.number().default(120),
   ENRICHMENT_MAX_RETRIES: Joi.number().default(3),
+
+  // Asset Registry
+  ASSET_REGISTRY_REFRESH_INTERVAL: Joi.number().default(43200), // 12 hours
 
   // Caching
   CACHE_TTL_1MIN: Joi.number().default(60),
@@ -125,6 +131,9 @@ export const getAppConfig = (): AppConfig => ({
       10,
     ),
     maxRetries: parseInt(process.env.ENRICHMENT_MAX_RETRIES || '3', 10),
+  },
+  assetRegistry: {
+    refreshIntervalSeconds: parseInt(process.env.ASSET_REGISTRY_REFRESH_INTERVAL || '43200', 10),
   },
   cache: {
     ttl1Min: parseInt(process.env.CACHE_TTL_1MIN || '60', 10),

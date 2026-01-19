@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SwapNode, SwapFeeNode } from '../../graphql-client/types/graphql-response.types';
+import {
+  SwapNode,
+  SwapFeeNode,
+} from '../../graphql-client/types/graphql-response.types';
+import { AssetRegistryService } from '../../common/services/asset-registry.service';
 
 export type FeeType = 'asset' | 'protocol' | 'burned';
 
@@ -22,8 +26,12 @@ export class FeeCalculatorService {
   private readonly logger = new Logger(FeeCalculatorService.name);
 
   // Recipient ID constants
-  private readonly ASSET_FEES_RECIPIENT = '0x6d6f646c726566657272616c0000000000000000000000000000000000000000';
-  private readonly PROTOCOL_FEES_RECIPIENT = '0x6d6f646c70792f74727372790000000000000000000000000000000000000000';
+  private readonly ASSET_FEES_RECIPIENT =
+    '0x6d6f646c726566657272616c0000000000000000000000000000000000000000';
+  private readonly PROTOCOL_FEES_RECIPIENT =
+    '0x6d6f646c70792f74727372790000000000000000000000000000000000000000';
+
+  constructor(private readonly assetRegistry: AssetRegistryService) {}
 
   /**
    * Determine fee type based on recipient ID
@@ -46,25 +54,39 @@ export class FeeCalculatorService {
 
   /**
    * Calculate fee data for a swap
+   * NOW ASYNC - fetches decimals from asset registry
    * Aggregates all fee amounts and tracks fee distribution by recipient and fee type
    * Normalizes amounts by dividing by asset decimals to store human-readable values
    */
-  calculateSwapFees(swap: SwapNode): CalculatedFeeData {
+  async calculateSwapFees(swap: SwapNode): Promise<CalculatedFeeData> {
     const feeAmountsRaw: Record<string, string> = {};
     const feeAssetIds: string[] = [];
     const feeByRecipient: FeeByRecipient[] = [];
 
-    // Process each fee in the swap
-    swap.swapFees.nodes.forEach((fee: SwapFeeNode) => {
+    // Extract unique asset IDs first for batch lookup
+    const assetIds = [...new Set(swap.swapFees.nodes.map((fee) => fee.assetId))];
+    const decimalsMap = await this.assetRegistry.getDecimalsBatch(assetIds);
+
+    // Process each fee
+    for (const fee of swap.swapFees.nodes) {
       const assetId = fee.assetId;
       const rawAmount = fee.amount;
 
-      // Get decimals, default to 1 if not found and log warning
-      let decimals = 1;
-      if (fee.asset?.decimals) {
-        decimals = fee.asset.decimals;
-      } else {
-        this.logger.warn(`Decimals not found for asset ${assetId}, defaulting to 1`);
+      // Get decimals from registry (batch fetched above)
+      let decimals: number = decimalsMap.get(assetId) ?? 0;
+
+      if (decimals === 0) {
+        // Fallback: try individual lookup
+        const fetchedDecimals = await this.assetRegistry.getDecimals(assetId);
+
+        if (fetchedDecimals === null) {
+          this.logger.warn(
+            `Decimals not found for asset ${assetId}, defaulting to 1`,
+          );
+          decimals = 1;
+        } else {
+          decimals = fetchedDecimals;
+        }
       }
 
       // Normalize amount by dividing by 10^decimals
@@ -92,7 +114,7 @@ export class FeeCalculatorService {
         amount: normalizedAmount,
         feeType,
       });
-    });
+    }
 
     return {
       feeAssetIds,
@@ -154,17 +176,18 @@ export class FeeCalculatorService {
   /**
    * Calculate batch statistics for multiple swaps
    * Returns aggregated statistics
+   * NOW ASYNC - since calculateSwapFees is async
    */
-  calculateBatchStatistics(swaps: SwapNode[]): {
+  async calculateBatchStatistics(swaps: SwapNode[]): Promise<{
     totalSwaps: number;
     totalFeeAssets: number;
-  } {
+  }> {
     const uniqueAssets = new Set<string>();
 
-    swaps.forEach((swap) => {
-      const feeData = this.calculateSwapFees(swap);
+    for (const swap of swaps) {
+      const feeData = await this.calculateSwapFees(swap);
       feeData.feeAssetIds.forEach((assetId) => uniqueAssets.add(assetId));
-    });
+    }
 
     return {
       totalSwaps: swaps.length,

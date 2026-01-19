@@ -1,14 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import {
-  GET_SWAPS_QUERY,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+
+import {
+  GraphqlClientService,
+} from '../../graphql-client/graphql-client.service';
+import {
   GET_ASSET_PRICES_AT_BLOCK_QUERY,
+  GET_NEAREST_ASSET_PRICES_QUERY,
+  GET_SWAPS_QUERY,
 } from '../../graphql-client/queries/swaps.queries';
 import {
-  GetSwapsResponse,
-  GetAssetPricesAtBlockResponse,
-  SwapNode,
   AssetSpotPriceNode,
+  GetAssetPricesAtBlockResponse,
+  GetSwapsResponse,
+  SwapNode,
 } from '../../graphql-client/types/graphql-response.types';
 
 export interface FetchedSwapsData {
@@ -99,7 +106,7 @@ export class GraphqlFetcherService {
       const priceMap: AssetPriceMap = {};
 
       response.assetSpotPriceHistoricalData.nodes.forEach((priceNode) => {
-        const assetId = priceNode.assetInAssetRegistryId;
+        const assetId = priceNode.assetInId;
         const usdPrice = priceNode.priceNormalised;
 
         priceMap[assetId] = usdPrice;
@@ -113,6 +120,72 @@ export class GraphqlFetcherService {
     } catch (error) {
       this.logger.error(
         `Failed to fetch asset prices at block ${blockHeight}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch nearest historical asset prices for a given block height
+   * Uses lessThanOrEqualTo filter to get the most recent price at or before the target block
+   * This handles sparse price data where prices only update when they change
+   */
+  async fetchNearestAssetPrices(
+    assetIds: string[],
+    blockHeight: number,
+  ): Promise<AssetPriceMap> {
+    if (assetIds.length === 0) {
+      return {};
+    }
+
+    this.logger.debug(
+      `Fetching nearest prices for ${assetIds.length} assets at or before block ${blockHeight}`,
+    );
+
+    const variables = {
+      assetIds,
+      blockHeight,
+    };
+
+    try {
+      const response =
+        await this.graphqlClient.query<GetAssetPricesAtBlockResponse>(
+          GET_NEAREST_ASSET_PRICES_QUERY,
+          variables,
+        );
+
+      const priceMap: AssetPriceMap = {};
+
+      // Group prices by asset ID and take the most recent (highest block number)
+      const assetPricesByBlock = new Map<string, AssetSpotPriceNode>();
+
+      response.assetSpotPriceHistoricalData.nodes.forEach((priceNode) => {
+        const assetId = priceNode.assetInId;
+        const existing = assetPricesByBlock.get(assetId);
+
+        // Keep the price with the highest block number (most recent)
+        if (
+          !existing ||
+          priceNode.paraBlockHeight > existing.paraBlockHeight
+        ) {
+          assetPricesByBlock.set(assetId, priceNode);
+        }
+      });
+
+      // Convert to price map
+      assetPricesByBlock.forEach((priceNode, assetId) => {
+        priceMap[assetId] = priceNode.priceNormalised;
+      });
+
+      this.logger.debug(
+        `Fetched nearest prices for ${Object.keys(priceMap).length}/${assetIds.length} assets`,
+      );
+
+      return priceMap;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch nearest asset prices for block ${blockHeight}`,
         error.stack,
       );
       throw error;

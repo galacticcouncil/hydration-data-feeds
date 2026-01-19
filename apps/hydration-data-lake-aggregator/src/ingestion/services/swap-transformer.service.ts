@@ -12,10 +12,11 @@ export class SwapTransformerService {
 
   /**
    * Transform GraphQL SwapNode to SwapRaw entity
+   * NOW ASYNC - fetches decimals from asset registry
    */
-  transformSwap(swap: SwapNode): SwapRaw {
-    // Calculate fees (no USD conversion)
-    const feeData: CalculatedFeeData = this.feeCalculator.calculateSwapFees(swap);
+  async transformSwap(swap: SwapNode): Promise<SwapRaw> {
+    // Calculate fees (no USD conversion) - now async
+    const feeData: CalculatedFeeData = await this.feeCalculator.calculateSwapFees(swap);
 
     // Parse timestamp to Date
     const time = new Date(swap.paraTimestamp);
@@ -37,11 +38,14 @@ export class SwapTransformerService {
 
   /**
    * Transform multiple swaps in batch
+   * NOW ASYNC - since transformSwap is async
    */
-  transformSwapsBatch(swaps: SwapNode[]): SwapRaw[] {
+  async transformSwapsBatch(swaps: SwapNode[]): Promise<SwapRaw[]> {
     this.logger.debug(`Transforming ${swaps.length} swaps`);
 
-    const transformedSwaps = swaps.map((swap) => this.transformSwap(swap));
+    const transformedSwaps = await Promise.all(
+      swaps.map((swap) => this.transformSwap(swap))
+    );
 
     const validSwaps = transformedSwaps.filter((swap) => {
       // Validate required fields

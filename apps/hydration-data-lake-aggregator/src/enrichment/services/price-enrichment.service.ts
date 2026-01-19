@@ -149,6 +149,8 @@ export class PriceEnrichmentService {
 
   /**
    * Enriches all swaps for a specific block with spot prices
+   * Uses single nearest price query (lessThanOrEqualTo includes exact block)
+   * Optimized: 1 query per block instead of 2
    */
   private async enrichSwapsForBlock(
     blockHeight: number,
@@ -157,11 +159,19 @@ export class PriceEnrichmentService {
     // Extract unique asset IDs from all swaps in this block
     const assetIds = this.extractAssetIds(swaps);
 
-    // Fetch prices for all assets at this block height (single GraphQL call)
-    const priceMap = await this.graphqlFetcher.fetchAssetPricesAtBlock(
+    // Fetch nearest prices (includes exact block if available)
+    const priceMap = await this.graphqlFetcher.fetchNearestAssetPrices(
       assetIds,
       blockHeight,
     );
+
+    // Log missing prices
+    const missingAssetIds = assetIds.filter((id) => !priceMap[id]);
+    if (missingAssetIds.length > 0) {
+      this.logger.warn(
+        `Block ${blockHeight}: ${missingAssetIds.length}/${assetIds.length} assets have no historical prices: ${missingAssetIds.join(', ')}`,
+      );
+    }
 
     // Build spot prices object for each swap
     for (const swap of swaps) {

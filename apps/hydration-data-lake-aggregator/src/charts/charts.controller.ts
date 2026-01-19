@@ -6,6 +6,11 @@ import {
   SingleFeeTypeResponseDto,
   AllFeeTypesResponseDto,
 } from './dto/fees-response.dto';
+import { GetAggregatedFeesQueryDto } from './dto/aggregate-fees-query.dto';
+import {
+  AggregateFeeResponseDto,
+  AggregateAllFeesResponseDto,
+} from './dto/aggregate-fees-response.dto';
 
 @Controller('api/v1/charts')
 @ApiTags('Charts')
@@ -29,5 +34,26 @@ export class ChartsController {
     @Query() query: GetFeesQueryDto,
   ): Promise<SingleFeeTypeResponseDto | AllFeeTypesResponseDto> {
     return this.chartsService.getFees(query);
+  }
+
+  @Get('aggregate')
+  @ApiOperation({
+    summary: 'Get aggregated fee values',
+    description:
+      'Returns only aggregated fee totals without chart data points. ' +
+      'If feeType is specified, returns single aggregate value. ' +
+      'If feeType is omitted, returns breakdown of all fee types. ' +
+      'Use "period" parameter for quick time windows (e.g., period=1hour for last hour), ' +
+      'or use startTime/endTime for custom date ranges.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Aggregated fee values',
+    type: AggregateFeeResponseDto,
+  })
+  async getAggregatedFees(
+    @Query() query: GetAggregatedFeesQueryDto,
+  ): Promise<AggregateFeeResponseDto | AggregateAllFeesResponseDto> {
+    return this.chartsService.getAggregatedFees(query);
   }
 }
