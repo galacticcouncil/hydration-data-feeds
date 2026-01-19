@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: hydration-charts-timescaledb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hydration_charts
+    ports:
+      - '5432:5432'
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hydration-charts-redis
+    command: redis-server --appendonly yes --appendfsync everysec
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Optional: RedisInsight for Redis management
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: hydration-charts-redisinsight
+    ports:
+      - '5540:5540'
+    volumes:
+      - redisinsight_data:/data
+    depends_on:
+      - redis
+
+volumes:
+  timescale_data:
+  redis_data:
+  redisinsight_data:
