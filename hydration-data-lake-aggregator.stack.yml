@@ -129,7 +129,7 @@ services:
           "--quiet",
           "--tries=1",
           "--spider",
-          "http://localhost:8088/health/liveness",
+          "http://localhost:3000/health/liveness",
         ]
       interval: 30s
       timeout: 10s
@@ -137,16 +137,16 @@ services:
       start_period: 40s
     deploy:
       labels:
-        traefik.enable: "true"
-        traefik.http.routers.adapters-http.rule: Host(`hydration-aggregator.kril.hydration.cloud`)
-        traefik.http.routers.adapters-http.entrypoints: web
-        traefik.http.routers.adapters-http.middlewares: https-redirect
-        traefik.http.routers.adapters.rule: Host(`hydration-aggregator.kril.hydration.cloud`)
-        traefik.http.routers.adapters.entrypoints: websecure
-        traefik.http.routers.adapters.tls: "true"
-        traefik.http.routers.adapters.tls.certresolver: myresolver
-        traefik.http.services.adapters.loadbalancer.server.port: "8088"
         traefik.http.middlewares.https-redirect.redirectscheme.scheme: https
-        traefik.http.middlewares.https-redirect.redirectscheme.permanent: "true"
+        traefik.http.routers.hydration-aggregator-dev.tls.certresolver: myresolver
+        traefik.http.services.hydration-aggregator-dev.loadbalancer.server.port: '3000'
+        traefik.http.routers.hydration-aggregator-dev.tls: 'true'
+        traefik.http.routers.hydration-aggregator-dev-http.middlewares: https-redirect
+        traefik.http.routers.hydration-aggregator-dev-http.rule: Host(`hydration-aggregator-dev.kril.hydration.cloud`)
+        traefik.http.routers.hydration-aggregator-dev-http.entrypoints: web
+        traefik.http.middlewares.https-redirect.redirectscheme.permanent: 'true'
+        traefik.http.routers.hydration-aggregator-dev.rule: Host(`hydration-aggregator-dev.kril.hydration.cloud`)
+        traefik.enable: 'true'
+        traefik.http.routers.hydration-aggregator-dev.entrypoints: websecure
       restart_policy:
         condition: on-failure
