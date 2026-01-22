@@ -65,7 +65,7 @@ services:
       - hydration-aggregator-redis
 
   hydration-agggregator-nest-app:
-    image: ghcr.io/mckrava/hydration-data-lake-aggregator:197a8e4211f2064b60af6d5f06b603c7be92f6fe
+    image: ghcr.io/mckrava/hydration-data-lake-aggregator:83073e572c292014c351c9bd7aec21bc82bba075
     environment:
       # Application
       NODE_ENV: production
@@ -138,10 +138,10 @@ services:
     deploy:
       labels:
         traefik.enable: "true"
-        traefik.http.routers.adapters-http.rule: Host(`adapters.kril.hydration.cloud`)
+        traefik.http.routers.adapters-http.rule: Host(`hydration-aggregator.kril.hydration.cloud`)
         traefik.http.routers.adapters-http.entrypoints: web
         traefik.http.routers.adapters-http.middlewares: https-redirect
-        traefik.http.routers.adapters.rule: Host(`adapters.kril.hydration.cloud`)
+        traefik.http.routers.adapters.rule: Host(`hydration-aggregator.kril.hydration.cloud`)
         traefik.http.routers.adapters.entrypoints: websecure
         traefik.http.routers.adapters.tls: "true"
         traefik.http.routers.adapters.tls.certresolver: myresolver
