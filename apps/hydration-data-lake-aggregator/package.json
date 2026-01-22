@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:run": "npm run typeorm -- migration:run -d src/config/typeorm-cli.config.ts",
+    "migration:prod-run": "npm run typeorm -- migration:run -d dist/config/typeorm-cli.config.js",
     "migration:revert": "npm run typeorm -- migration:revert -d src/config/typeorm-cli.config.ts",
     "migration:show": "npm run typeorm -- migration:show -d src/config/typeorm-cli.config.ts",
     "refresh:aggregates": "node scripts/refresh-aggregates.js"
