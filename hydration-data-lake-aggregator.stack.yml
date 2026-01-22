@@ -1,0 +1,152 @@
+version: "3.7"
+
+# ======================================================================================================================
+# =============================================== V A R I A B L E S ====================================================
+# ======================================================================================================================
+
+x-aggregator-pg-db: &aggregator-pg-db "hydration_aggregator"
+x-aggregator-pg-user: &aggregator-pg-user "postgres"
+x-aggregator-pg-password: &aggregator-pg-password "postgres"
+x-aggregator-pg-host: &aggregator-pg-host "hydration-agggregator-timescaledb"
+
+# ======================================================================================================================
+# ================================================== C O N F I G =======================================================
+# ======================================================================================================================
+
+networks:
+  default:
+    driver: overlay
+  gateway:
+    external: true
+
+volumes:
+  timescale_data:
+  redis_data:
+  redisinsight_data:
+
+services:
+  hydration-agggregator-timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: *aggregator-pg-user
+      POSTGRES_PASSWORD: *aggregator-pg-password
+      POSTGRES_DB: *aggregator-pg-db
+    #    ports:
+    #      - "5434:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  hydration-aggregator-redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --appendfsync everysec
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Optional: RedisInsight for Redis management
+  hydration-agggregator-redisinsight:
+    image: redis/redisinsight:latest
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight_data:/data
+    depends_on:
+      - hydration-aggregator-redis
+
+  hydration-agggregator-nest-app:
+    image: ghcr.io/mckrava/hydration-data-lake-aggregator:197a8e4211f2064b60af6d5f06b603c7be92f6fe
+    environment:
+      # Application
+      NODE_ENV: production
+      PORT: 3000
+
+      # Database (TimescaleDB)
+      DB_HOST: *aggregator-pg-host
+      DB_PORT: 5432
+      DB_USERNAME: *aggregator-pg-user
+      DB_PASSWORD: *aggregator-pg-password
+      DB_DATABASE: *aggregator-pg-db
+      DB_SYNCHRONIZE: "false"
+      DB_LOGGING: "false"
+
+      # Redis
+      REDIS_HOST: hydration-aggregator-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+
+      # GraphQL Endpoint
+      GRAPHQL_ENDPOINT: https://galacticcouncil.squids.live/hydration-pools:orca-prod/api/graphql
+
+      # Ingestion Configuration
+      INGESTION_START_BLOCK: 9999990
+      INGESTION_BATCH_SIZE: 100
+      INGESTION_INTERVAL_SECONDS: 60
+      INGESTION_BACKFILL_ON_STARTUP: "true"
+
+      # Enrichment Configuration
+      ENRICHMENT_BATCH_SIZE: 1000
+      ENRICHMENT_INTERVAL_SECONDS: 120
+      ENRICHMENT_MAX_RETRIES: 3
+
+      # Asset Registry Configuration
+      ASSET_REGISTRY_REFRESH_INTERVAL: 43200
+
+      # Caching (TTL in seconds)
+      CACHE_TTL_1MIN: 60
+      CACHE_TTL_1HOUR: 300
+      CACHE_TTL_1DAY: 600
+
+      # API Configuration
+      API_PORT: 3000
+      API_PUBLIC: "true"
+      API_TIMEZONE: UTC
+
+    networks:
+      - gateway
+      - default
+    depends_on:
+      - hydration-agggregator-timescaledb
+    command:
+      - sh
+      - -c
+      - "node dist/main.js"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8088/health/liveness",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.adapters-http.rule: Host(`adapters.kril.hydration.cloud`)
+        traefik.http.routers.adapters-http.entrypoints: web
+        traefik.http.routers.adapters-http.middlewares: https-redirect
+        traefik.http.routers.adapters.rule: Host(`adapters.kril.hydration.cloud`)
+        traefik.http.routers.adapters.entrypoints: websecure
+        traefik.http.routers.adapters.tls: "true"
+        traefik.http.routers.adapters.tls.certresolver: myresolver
+        traefik.http.services.adapters.loadbalancer.server.port: "8088"
+        traefik.http.middlewares.https-redirect.redirectscheme.scheme: https
+        traefik.http.middlewares.https-redirect.redirectscheme.permanent: "true"
+      restart_policy:
+        condition: on-failure

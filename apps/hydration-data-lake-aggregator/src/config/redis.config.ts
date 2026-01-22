@@ -18,6 +18,7 @@ export const getRedisConfig = async (
     : `redis://${redisConfig.host}:${redisConfig.port}`;
 
   return {
+    // @ts-ignore
     stores: [new KeyvRedis(redisUrl)],
     ttl: 0, // No expiration by default (for persistent state management)
     isGlobal: true,
