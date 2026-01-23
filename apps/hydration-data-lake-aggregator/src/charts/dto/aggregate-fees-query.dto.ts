@@ -5,7 +5,7 @@ import {
 } from 'class-validator';
 
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { FeeType } from './get-fees-query.dto';
+import { ProductType, FeeType } from './get-fees-query.dto';
 
 export enum AggregationPeriod {
   ONE_MIN = '1min',
@@ -18,6 +18,15 @@ export enum AggregationPeriod {
 }
 
 export class GetAggregatedFeesQueryDto {
+  @ApiPropertyOptional({
+    enum: ProductType,
+    default: ProductType.OMNIPOOL,
+    description: 'Product type: omnipool (swap fees) or money-market (liquidation fees)'
+  })
+  @IsOptional()
+  @IsEnum(ProductType)
+  productType?: ProductType = ProductType.OMNIPOOL;
+
   @ApiPropertyOptional({
     enum: AggregationPeriod,
     description: 'Aggregation period (e.g., "1hour" = last 1 hour from now)',

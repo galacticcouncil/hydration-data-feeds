@@ -120,8 +120,12 @@ export class IngestionOrchestratorService implements OnModuleInit {
         return;
       }
 
-      // Step 2: Transform swaps (now async - fetches decimals from asset registry)
-      const transformedSwaps = await this.swapTransformer.transformSwapsBatch(swaps);
+      // Step 2: Transform swaps with batch price fetching
+      // Use the end block of the range for price lookups (most recent prices)
+      const transformedSwaps = await this.swapTransformer.transformSwapsBatch(
+        swaps,
+        toBlock,
+      );
 
       // Step 5: Batch insert to database
       if (transformedSwaps.length > 0) {

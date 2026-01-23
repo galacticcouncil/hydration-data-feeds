@@ -38,7 +38,7 @@ export class AggregateFeeResponseDto {
 
 export class AggregateAllFeesResponseDto {
   @ApiProperty({
-    description: 'Aggregated fee values by type',
+    description: 'Aggregated fee values by type. For omnipool: total, asset, protocol, burned. For money-market: total, liquidation_penalty',
     example: {
       total: 50000.0,
       asset: 30000.0,
@@ -46,12 +46,7 @@ export class AggregateAllFeesResponseDto {
       burned: 5000.0,
     },
   })
-  aggregate: {
-    total: number;
-    asset: number;
-    protocol: number;
-    burned: number;
-  };
+  aggregate: Record<string, number>;
 
   @ApiProperty({
     description: 'Start time of aggregation period',

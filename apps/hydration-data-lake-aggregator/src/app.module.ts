@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { ChartsModule } from './charts/charts.module';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { GraphqlClientModule } from './graphql-client/graphql-client.module';
 import { IngestionModule } from './ingestion/ingestion.module';
-import { EnrichmentModule } from './enrichment/enrichment.module';
-import { ChartsModule } from './charts/charts.module';
+import { MoneyMarketModule } from './money-market/money-market.module';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { ChartsModule } from './charts/charts.module';
     DatabaseModule,
     GraphqlClientModule,
     IngestionModule,
-    EnrichmentModule,
+    MoneyMarketModule,
     ChartsModule,
   ],
   controllers: [AppController],

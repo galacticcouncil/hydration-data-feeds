@@ -35,9 +35,9 @@ export class SwapRaw {
     feeType: 'asset' | 'protocol' | 'burned';
   }>;
 
-  // Spot prices at swap time (enriched after ingestion)
-  @Column({ type: 'jsonb', nullable: true })
-  fee_spot_prices: Record<string, string> | null; // { assetId: spotPriceUSD }
+  // Spot prices for fee assets at this block (for USD conversion)
+  @Column({ type: 'jsonb', default: {} })
+  fee_spot_prices: Record<string, string>; // { assetId: price_usd }
 
   // Metadata
   @Column({ type: 'timestamptz', default: () => 'NOW()' })

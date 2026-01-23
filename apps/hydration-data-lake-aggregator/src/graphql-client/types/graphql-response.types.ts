@@ -66,3 +66,38 @@ export interface AssetsConnection {
 export interface GetAllAssetsResponse {
   assets: AssetsConnection;
 }
+
+// Money Market Event Types
+
+export interface LiquidationEventNode {
+  eventId: string;
+  paraBlockHeight: number;
+  liquidationCallId: string;
+}
+
+export interface LiquidationEventsConnection {
+  totalCount: number;
+  nodes: LiquidationEventNode[];
+}
+
+export interface GetLiquidationEventsResponse {
+  moneyMarketEvents: LiquidationEventsConnection;
+}
+
+export interface TransferNode {
+  eventId: string;
+  paraBlockHeight: number;
+  paraTimestamp: string; // ISO8601 timestamp - exists in transfers table
+  fromId: string;
+  toId: string;
+  assetId: string;
+  amount: string;
+}
+
+export interface TransfersConnection {
+  nodes: TransferNode[];
+}
+
+export interface GetTreasuryTransfersResponse {
+  transfers: TransfersConnection;
+}

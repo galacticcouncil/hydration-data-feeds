@@ -26,6 +26,12 @@ export interface AppConfig {
     intervalSeconds: number;
     backfillOnStartup: boolean;
   };
+  moneyMarket: {
+    startBlock: number;
+    batchSize: number;
+    intervalSeconds: number;
+    backfillOnStartup: boolean;
+  };
   enrichment: {
     batchSize: number;
     intervalSeconds: number;
@@ -75,6 +81,12 @@ export const configValidationSchema = Joi.object({
   INGESTION_INTERVAL_SECONDS: Joi.number().default(60),
   INGESTION_BACKFILL_ON_STARTUP: Joi.boolean().default(true),
 
+  // Money Market
+  MONEY_MARKET_START_BLOCK: Joi.number().default(121),
+  MONEY_MARKET_BATCH_SIZE: Joi.number().default(100),
+  MONEY_MARKET_INTERVAL_SECONDS: Joi.number().default(60),
+  MONEY_MARKET_BACKFILL_ON_STARTUP: Joi.boolean().default(true),
+
   // Enrichment
   ENRICHMENT_BATCH_SIZE: Joi.number().default(1000),
   ENRICHMENT_INTERVAL_SECONDS: Joi.number().default(120),
@@ -123,6 +135,16 @@ export const getAppConfig = (): AppConfig => ({
     ),
     backfillOnStartup:
       process.env.INGESTION_BACKFILL_ON_STARTUP !== 'false',
+  },
+  moneyMarket: {
+    startBlock: parseInt(process.env.MONEY_MARKET_START_BLOCK || '121', 10),
+    batchSize: parseInt(process.env.MONEY_MARKET_BATCH_SIZE || '100', 10),
+    intervalSeconds: parseInt(
+      process.env.MONEY_MARKET_INTERVAL_SECONDS || '60',
+      10,
+    ),
+    backfillOnStartup:
+      process.env.MONEY_MARKET_BACKFILL_ON_STARTUP !== 'false',
   },
   enrichment: {
     batchSize: parseInt(process.env.ENRICHMENT_BATCH_SIZE || '1000', 10),

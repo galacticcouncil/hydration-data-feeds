@@ -63,6 +63,10 @@ export const GET_ASSET_PRICES_AT_BLOCK_QUERY = gql`
  * Query to fetch nearest historical asset spot prices for a given block height
  * Uses lessThanOrEqualTo filter to get the most recent price at or before the target block
  * This handles sparse price data where prices only update when they change
+ *
+ * Note: first: 500 ensures we get prices for all assets even when some assets
+ * have many historical price updates. With ~15 assets per query, this gives
+ * ~33 price records per asset on average, ensuring at least one price per asset.
  */
 export const GET_NEAREST_ASSET_PRICES_QUERY = gql`
   query GetNearestAssetPrices($assetIds: [String!]!, $blockHeight: Int!) {
@@ -72,7 +76,7 @@ export const GET_NEAREST_ASSET_PRICES_QUERY = gql`
         paraBlockHeight: { lessThanOrEqualTo: $blockHeight }
       }
       orderBy: PARA_BLOCK_HEIGHT_DESC
-      first: 100
+      first: 500
     ) {
       nodes {
         assetInId

@@ -23,6 +23,13 @@ async function refreshAllAggregates() {
     'fees_1hour',
     'fees_6hour',
     'fees_24hour',
+    'liquidation_fees_1min',
+    'liquidation_fees_5min',
+    'liquidation_fees_10min',
+    'liquidation_fees_30min',
+    'liquidation_fees_1hour',
+    'liquidation_fees_6hour',
+    'liquidation_fees_24hour',
   ];
 
   try {

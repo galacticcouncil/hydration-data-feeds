@@ -1,0 +1,175 @@
+import { Injectable, Logger } from '@nestjs/common';
+
+import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import {
+  GET_LIQUIDATION_EVENTS_QUERY,
+  GET_TREASURY_TRANSFERS_QUERY,
+} from '../../graphql-client/queries/money-market.queries';
+import {
+  GetLiquidationEventsResponse,
+  GetTreasuryTransfersResponse,
+  LiquidationEventNode,
+  TransferNode,
+} from '../../graphql-client/types/graphql-response.types';
+
+export interface FetchedLiquidationsData {
+  liquidations: LiquidationEventNode[];
+  totalCount: number;
+}
+
+/**
+ * Service responsible for fetching money market data from GraphQL
+ * Implements liquidation-first processing strategy:
+ * 1. Fetch liquidations directly (minimal data)
+ * 2. Fetch treasury transfers for specific blocks in batch
+ */
+@Injectable()
+export class MoneyMarketFetcherService {
+  private readonly logger = new Logger(MoneyMarketFetcherService.name);
+
+  // Treasury address to track
+  private readonly TREASURY_ADDRESS = 'e52567ff06acd6cbe7ba94dc777a3126e180b6d9';
+
+  // Zero address to exclude (transfers from zero are mints, not fees)
+  private readonly ZERO_ADDRESS =
+    '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000';
+
+  constructor(private graphqlClient: GraphqlClientService) {}
+
+  /**
+   * Fetch liquidation events from moneyMarketEvents table
+   * Only fetches minimal data needed for fee tracking:
+   * - eventId: for temporal ordering
+   * - paraBlockHeight: to query transfers
+   * - paraTimestamp: for timeseries bucketing
+   * - liquidationCallId: for reference/debugging
+   *
+   * @param fromBlock - Start block (exclusive - will fetch > fromBlock)
+   * @param batchSize - Number of liquidations to fetch (default: 100)
+   * @returns Liquidation events with minimal data
+   */
+  async fetchLiquidations(
+    fromBlock: number,
+    batchSize: number = 100,
+  ): Promise<FetchedLiquidationsData> {
+    this.logger.debug(
+      `Fetching liquidations from block ${fromBlock} (limit: ${batchSize})`,
+    );
+
+    const variables = {
+      fromBlock,
+      first: batchSize,
+    };
+
+    try {
+      const response =
+        await this.graphqlClient.query<GetLiquidationEventsResponse>(
+          GET_LIQUIDATION_EVENTS_QUERY,
+          variables,
+        );
+
+      this.logger.log(
+        `Fetched ${response.moneyMarketEvents.nodes.length} liquidations (total: ${response.moneyMarketEvents.totalCount})`,
+      );
+
+      return {
+        liquidations: response.moneyMarketEvents.nodes,
+        totalCount: response.moneyMarketEvents.totalCount,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch liquidations from block ${fromBlock}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch treasury transfers directly from transfers table
+   * Applies all filters server-side for maximum efficiency:
+   * - Block heights via IN operator (batch query)
+   * - Treasury address filter (toId includes)
+   * - Zero address exclusion (fromId not equal to)
+   *
+   * This is MUCH more efficient than:
+   * 1. Fetching all transfers and filtering client-side
+   * 2. Querying moneyMarketEvents (uses transfers table directly)
+   *
+   * @param blockHeights - Array of block heights to query
+   * @returns Treasury transfers for those blocks
+   */
+  async fetchTreasuryTransfers(
+    blockHeights: number[],
+  ): Promise<TransferNode[]> {
+    if (blockHeights.length === 0) {
+      return [];
+    }
+
+    this.logger.debug(
+      `Fetching treasury transfers for ${blockHeights.length} blocks`,
+    );
+
+    const variables = {
+      blockHeights,
+      treasuryAddress: this.TREASURY_ADDRESS,
+      zeroAddress: this.ZERO_ADDRESS,
+    };
+
+    try {
+      const response =
+        await this.graphqlClient.query<GetTreasuryTransfersResponse>(
+          GET_TREASURY_TRANSFERS_QUERY,
+          variables,
+        );
+
+      const transfers = response.transfers.nodes;
+
+      this.logger.debug(
+        `Fetched ${transfers.length} treasury transfers for ${blockHeights.length} blocks`,
+      );
+
+      return transfers;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch treasury transfers for ${blockHeights.length} blocks`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Extract unique block heights from liquidations
+   * Used to batch-fetch transfers for multiple liquidations efficiently
+   *
+   * @param liquidations - Array of liquidation events
+   * @returns Sorted array of unique block heights
+   */
+  extractUniqueBlockHeights(liquidations: LiquidationEventNode[]): number[] {
+    const blockSet = new Set<number>();
+
+    liquidations.forEach((liquidation) => {
+      blockSet.add(liquidation.paraBlockHeight);
+    });
+
+    return Array.from(blockSet).sort((a, b) => a - b);
+  }
+
+  /**
+   * Extract unique asset IDs from treasury transfers
+   * Used to fetch spot prices for fee enrichment
+   *
+   * @param transfers - Array of transfer nodes
+   * @returns Array of unique asset IDs
+   */
+  extractUniqueAssetIds(transfers: TransferNode[]): string[] {
+    const assetIdSet = new Set<string>();
+
+    transfers.forEach((transfer) => {
+      assetIdSet.add(transfer.assetId);
+    });
+
+    return Array.from(assetIdSet);
+  }
+}

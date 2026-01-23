@@ -20,34 +20,44 @@ export class AllFeeTypesDataDto {
   @ApiProperty({ type: [DataPointDto] })
   total: DataPointDto[];
 
-  @ApiProperty({ type: [DataPointDto] })
-  asset: DataPointDto[];
+  @ApiProperty({ type: [DataPointDto], required: false })
+  asset?: DataPointDto[];
 
-  @ApiProperty({ type: [DataPointDto] })
-  protocol: DataPointDto[];
+  @ApiProperty({ type: [DataPointDto], required: false })
+  protocol?: DataPointDto[];
 
-  @ApiProperty({ type: [DataPointDto] })
-  burned: DataPointDto[];
+  @ApiProperty({ type: [DataPointDto], required: false })
+  burned?: DataPointDto[];
+
+  @ApiProperty({ type: [DataPointDto], required: false })
+  liquidation_penalty?: DataPointDto[];
 }
 
 export class PeriodAggregateDto {
   @ApiProperty()
   total: number;
 
-  @ApiProperty()
-  asset: number;
+  @ApiProperty({ required: false })
+  asset?: number;
 
-  @ApiProperty()
-  protocol: number;
+  @ApiProperty({ required: false })
+  protocol?: number;
 
-  @ApiProperty()
-  burned: number;
+  @ApiProperty({ required: false })
+  burned?: number;
+
+  @ApiProperty({ required: false })
+  liquidation_penalty?: number;
 }
 
 export class AllFeeTypesResponseDto {
-  @ApiProperty({ type: AllFeeTypesDataDto })
-  data: AllFeeTypesDataDto;
+  @ApiProperty({
+    description: 'Fee data by type. For omnipool: total, asset, protocol, burned. For money-market: total, liquidation_penalty',
+  })
+  data: Record<string, DataPointDto[]>;
 
-  @ApiProperty({ type: PeriodAggregateDto })
-  periodAggregate: PeriodAggregateDto;
+  @ApiProperty({
+    description: 'Period aggregate by type. For omnipool: total, asset, protocol, burned. For money-market: total, liquidation_penalty',
+  })
+  periodAggregate: Record<string, number>;
 }

@@ -13,6 +13,7 @@ import {
 import {
   BucketSize,
   FeeType,
+  ProductType,
   GetFeesQueryDto,
 } from './dto/get-fees-query.dto';
 import {
@@ -38,21 +39,22 @@ export class ChartsService {
   ): Promise<SingleFeeTypeResponseDto | AllFeeTypesResponseDto> {
     this.logger.log(`Incoming request with query: ${JSON.stringify(query)}`);
 
-    const { bucket, startTime, endTime, feeType } =
+    const { productType, bucket, startTime, endTime, feeType } =
       this.buildQueryParams(query);
 
     this.logger.log(
-      `Processed params - bucket=${bucket}, startTime=${startTime}, endTime=${endTime}, feeType=${feeType || 'all'}`,
+      `Processed params - productType=${productType}, bucket=${bucket}, startTime=${startTime}, endTime=${endTime}, feeType=${feeType || 'all'}`,
     );
 
     if (feeType) {
-      return this.getSingleFeeType(bucket, startTime, endTime, feeType);
+      return this.getSingleFeeType(productType, bucket, startTime, endTime, feeType);
     } else {
-      return this.getAllFeeTypes(bucket, startTime, endTime);
+      return this.getAllFeeTypes(productType, bucket, startTime, endTime);
     }
   }
 
   private buildQueryParams(query: GetFeesQueryDto) {
+    const productType = query.productType || ProductType.OMNIPOOL;
     const bucket = query.bucketSize || BucketSize.ONE_HOUR;
     const endTime = query.endTime || new Date().toISOString();
     const startTime =
@@ -60,20 +62,21 @@ export class ChartsService {
       new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     this.logger.debug(
-      `Built query params - bucket: ${bucket}, startTime: ${startTime}, endTime: ${endTime}`,
+      `Built query params - productType: ${productType}, bucket: ${bucket}, startTime: ${startTime}, endTime: ${endTime}`,
     );
 
-    return { bucket, startTime, endTime, feeType: query.feeType };
+    return { productType, bucket, startTime, endTime, feeType: query.feeType };
   }
 
   private async getSingleFeeType(
+    productType: ProductType,
     bucket: BucketSize,
     startTime: string,
     endTime: string,
     feeType: FeeType,
   ): Promise<SingleFeeTypeResponseDto> {
-    const tableName = this.getTableName(bucket);
-    const valueColumn = this.getValueColumn(feeType);
+    const tableName = this.getTableName(productType, bucket);
+    const valueColumn = this.getValueColumn(productType, feeType);
 
     const sql = `
       SELECT
@@ -109,23 +112,39 @@ export class ChartsService {
   }
 
   private async getAllFeeTypes(
+    productType: ProductType,
     bucket: BucketSize,
     startTime: string,
     endTime: string,
   ): Promise<AllFeeTypesResponseDto> {
-    const tableName = this.getTableName(bucket);
+    const tableName = this.getTableName(productType, bucket);
 
-    const sql = `
-      SELECT
-        bucket as timestamp,
-        total_fee_usd as total,
-        (fees_by_type->>'asset')::numeric as asset,
-        (fees_by_type->>'protocol')::numeric as protocol,
-        (fees_by_type->>'burned')::numeric as burned
-      FROM ${tableName}
-      WHERE bucket >= $1 AND bucket <= $2
-      ORDER BY bucket ASC
-    `;
+    // Build SQL based on product type
+    let sql: string;
+    if (productType === ProductType.OMNIPOOL) {
+      sql = `
+        SELECT
+          bucket as timestamp,
+          total_fee_usd as total,
+          (fees_by_type->>'asset')::numeric as asset,
+          (fees_by_type->>'protocol')::numeric as protocol,
+          (fees_by_type->>'burned')::numeric as burned
+        FROM ${tableName}
+        WHERE bucket >= $1 AND bucket <= $2
+        ORDER BY bucket ASC
+      `;
+    } else {
+      // MONEY_MARKET
+      sql = `
+        SELECT
+          bucket as timestamp,
+          total_liquidation_fee_usd as total,
+          (fees_by_type->>'LIQUIDATION_PENALTY')::numeric as liquidation_penalty
+        FROM ${tableName}
+        WHERE bucket >= $1 AND bucket <= $2
+        ORDER BY bucket ASC
+      `;
+    }
 
     this.logger.log(
       `Executing SQL for all fee types:\nTable: ${tableName}\nQuery: ${sql}\nParams: [$1=${startTime}, $2=${endTime}]`,
@@ -137,22 +156,41 @@ export class ChartsService {
       `Raw data from DB: ${rawData.length} rows. First row: ${JSON.stringify(rawData[0])}`,
     );
 
-    const data = {
-      total: [],
-      asset: [],
-      protocol: [],
-      burned: [],
-    };
+    let data: Record<string, Array<{ timestamp: string; value: number }>>;
+    let aggregates: Record<string, number>;
 
-    const aggregates = { total: 0, asset: 0, protocol: 0, burned: 0 };
+    if (productType === ProductType.OMNIPOOL) {
+      data = {
+        total: [],
+        asset: [],
+        protocol: [],
+        burned: [],
+      };
+      aggregates = { total: 0, asset: 0, protocol: 0, burned: 0 };
 
-    rawData.forEach((row) => {
-      ['total', 'asset', 'protocol', 'burned'].forEach((type) => {
-        const value = parseFloat(row[type]) || 0;
-        data[type].push({ timestamp: row.timestamp, value });
-        aggregates[type] += value;
+      rawData.forEach((row) => {
+        ['total', 'asset', 'protocol', 'burned'].forEach((type) => {
+          const value = parseFloat(row[type]) || 0;
+          data[type].push({ timestamp: row.timestamp, value });
+          aggregates[type] += value;
+        });
       });
-    });
+    } else {
+      // MONEY_MARKET
+      data = {
+        total: [],
+        liquidation_penalty: [],
+      };
+      aggregates = { total: 0, liquidation_penalty: 0 };
+
+      rawData.forEach((row) => {
+        ['total', 'liquidation_penalty'].forEach((type) => {
+          const value = parseFloat(row[type]) || 0;
+          data[type].push({ timestamp: row.timestamp, value });
+          aggregates[type] += value;
+        });
+      });
+    }
 
     this.logger.log(
       `Processed ${rawData.length} data points. Aggregates: ${JSON.stringify(aggregates)}`,
@@ -161,15 +199,30 @@ export class ChartsService {
     return { data, periodAggregate: aggregates };
   }
 
-  private getTableName(bucket: BucketSize): string {
-    // Convert bucket enum to table name (e.g., '1hour' -> 'fees_1hour')
-    return `fees_${bucket}`;
+  private getTableName(productType: ProductType, bucket: BucketSize): string {
+    // Convert product type and bucket to table name
+    if (productType === ProductType.OMNIPOOL) {
+      return `fees_${bucket}`;
+    } else {
+      // MONEY_MARKET
+      return `liquidation_fees_${bucket}`;
+    }
   }
 
-  private getValueColumn(feeType: FeeType): string {
+  private getValueColumn(productType: ProductType, feeType: FeeType): string {
     if (feeType === FeeType.TOTAL) {
-      return 'total_fee_usd';
+      if (productType === ProductType.OMNIPOOL) {
+        return 'total_fee_usd';
+      } else {
+        return 'total_liquidation_fee_usd';
+      }
     }
+
+    // Map fee type to JSONB key (money market uses uppercase keys)
+    if (productType === ProductType.MONEY_MARKET && feeType === FeeType.LIQUIDATION_PENALTY) {
+      return `(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`;
+    }
+
     return `(fees_by_type->>'${feeType}')::numeric`;
   }
 
@@ -183,7 +236,7 @@ export class ChartsService {
       `Incoming aggregated fees request: ${JSON.stringify(query)}`,
     );
 
-    const { period, feeType } = query;
+    const { productType = ProductType.OMNIPOOL, period, feeType } = query;
 
     // Calculate time range
     let startTime: Date;
@@ -214,13 +267,14 @@ export class ChartsService {
 
     if (feeType) {
       return this.getAggregatedSingleFeeType(
+        productType,
         startTime,
         endTime,
         feeType,
         period,
       );
     } else {
-      return this.getAggregatedAllFeeTypes(startTime, endTime, period);
+      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
     }
   }
 
@@ -248,14 +302,15 @@ export class ChartsService {
    * Get aggregated value for single fee type
    */
   private async getAggregatedSingleFeeType(
+    productType: ProductType,
     startTime: Date,
     endTime: Date,
     feeType: FeeType,
     period?: AggregationPeriod,
   ): Promise<AggregateFeeResponseDto> {
     // Use any continuous aggregate table - sum is same regardless of bucket size
-    const tableName = 'fees_1hour';
-    const valueColumn = this.getValueColumn(feeType);
+    const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
+    const valueColumn = this.getValueColumn(productType, feeType);
 
     const sql = `
       SELECT
@@ -287,22 +342,35 @@ export class ChartsService {
    * Get aggregated values for all fee types
    */
   private async getAggregatedAllFeeTypes(
+    productType: ProductType,
     startTime: Date,
     endTime: Date,
     period?: AggregationPeriod,
   ): Promise<AggregateAllFeesResponseDto> {
     // Use any continuous aggregate table - sum is same regardless of bucket size
-    const tableName = 'fees_1hour';
+    const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
 
-    const sql = `
-      SELECT
-        SUM(total_fee_usd) as total,
-        SUM((fees_by_type->>'asset')::numeric) as asset,
-        SUM((fees_by_type->>'protocol')::numeric) as protocol,
-        SUM((fees_by_type->>'burned')::numeric) as burned
-      FROM ${tableName}
-      WHERE bucket >= $1 AND bucket <= $2
-    `;
+    let sql: string;
+    if (productType === ProductType.OMNIPOOL) {
+      sql = `
+        SELECT
+          SUM(total_fee_usd) as total,
+          SUM((fees_by_type->>'asset')::numeric) as asset,
+          SUM((fees_by_type->>'protocol')::numeric) as protocol,
+          SUM((fees_by_type->>'burned')::numeric) as burned
+        FROM ${tableName}
+        WHERE bucket >= $1 AND bucket <= $2
+      `;
+    } else {
+      // MONEY_MARKET
+      sql = `
+        SELECT
+          SUM(total_liquidation_fee_usd) as total,
+          SUM((fees_by_type->>'LIQUIDATION_PENALTY')::numeric) as liquidation_penalty
+        FROM ${tableName}
+        WHERE bucket >= $1 AND bucket <= $2
+      `;
+    }
 
     this.logger.log(
       `Executing aggregated query for all fee types:\nTable: ${tableName}\nParams: [${startTime.toISOString()}, ${endTime.toISOString()}]`,
@@ -310,12 +378,21 @@ export class ChartsService {
 
     const result = await this.dataSource.query(sql, [startTime, endTime]);
 
-    const aggregate = {
-      total: parseFloat(result[0]?.total || '0'),
-      asset: parseFloat(result[0]?.asset || '0'),
-      protocol: parseFloat(result[0]?.protocol || '0'),
-      burned: parseFloat(result[0]?.burned || '0'),
-    };
+    let aggregate: Record<string, number>;
+    if (productType === ProductType.OMNIPOOL) {
+      aggregate = {
+        total: parseFloat(result[0]?.total || '0'),
+        asset: parseFloat(result[0]?.asset || '0'),
+        protocol: parseFloat(result[0]?.protocol || '0'),
+        burned: parseFloat(result[0]?.burned || '0'),
+      };
+    } else {
+      // MONEY_MARKET
+      aggregate = {
+        total: parseFloat(result[0]?.total || '0'),
+        liquidation_penalty: parseFloat(result[0]?.liquidation_penalty || '0'),
+      };
+    }
 
     this.logger.log(`Aggregated all fees: ${JSON.stringify(aggregate)}`);
 
