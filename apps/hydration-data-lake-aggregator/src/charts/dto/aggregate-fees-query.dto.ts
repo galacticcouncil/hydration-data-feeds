@@ -2,10 +2,12 @@ import {
   IsEnum,
   IsISO8601,
   IsOptional,
+  Validate,
 } from 'class-validator';
 
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ProductType, FeeType } from './get-fees-query.dto';
+import { ProductType, FeeDestination, StreamType } from './get-fees-query.dto';
+import { IsValidFeeCombinationConstraint } from '../validators/fee-combination.validator';
 
 export enum AggregationPeriod {
   ONE_MIN = '1min',
@@ -25,6 +27,7 @@ export class GetAggregatedFeesQueryDto {
   })
   @IsOptional()
   @IsEnum(ProductType)
+  @Validate(IsValidFeeCombinationConstraint)
   productType?: ProductType = ProductType.OMNIPOOL;
 
   @ApiPropertyOptional({
@@ -53,11 +56,18 @@ export class GetAggregatedFeesQueryDto {
   endTime?: string;
 
   @ApiPropertyOptional({
-    enum: FeeType,
-    description: 'Fee type to aggregate. If omitted, returns all types.',
-    example: 'asset',
+    enum: FeeDestination,
+    description: 'Fee destination: protocol or total'
   })
   @IsOptional()
-  @IsEnum(FeeType)
-  feeType?: FeeType;
+  @IsEnum(FeeDestination)
+  feeDestination?: FeeDestination;
+
+  @ApiPropertyOptional({
+    enum: StreamType,
+    description: 'Stream type: asset, protocol, burned, or liquidation_penalty'
+  })
+  @IsOptional()
+  @IsEnum(StreamType)
+  streamType?: StreamType;
 }

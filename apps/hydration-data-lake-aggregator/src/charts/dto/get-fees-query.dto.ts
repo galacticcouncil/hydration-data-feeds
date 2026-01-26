@@ -2,9 +2,11 @@ import {
   IsEnum,
   IsISO8601,
   IsOptional,
+  Validate,
 } from 'class-validator';
 
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsValidFeeCombinationConstraint } from '../validators/fee-combination.validator';
 
 export enum BucketSize {
   ONE_MIN = '1min',
@@ -21,15 +23,16 @@ export enum ProductType {
   MONEY_MARKET = 'money-market',
 }
 
-export enum FeeType {
-  // Omnipool fee types
+export enum FeeDestination {
+  PROTOCOL = 'protocol',
+  TOTAL = 'total',
+}
+
+export enum StreamType {
   ASSET = 'asset',
   PROTOCOL = 'protocol',
   BURNED = 'burned',
-  // Money Market fee type
   LIQUIDATION_PENALTY = 'liquidation_penalty',
-  // Universal
-  TOTAL = 'total',
 }
 
 export class GetFeesQueryDto {
@@ -40,6 +43,7 @@ export class GetFeesQueryDto {
   })
   @IsOptional()
   @IsEnum(ProductType)
+  @Validate(IsValidFeeCombinationConstraint)
   productType?: ProductType = ProductType.OMNIPOOL;
 
   @ApiPropertyOptional({ enum: BucketSize, default: BucketSize.ONE_HOUR })
@@ -58,10 +62,18 @@ export class GetFeesQueryDto {
   endTime?: string;
 
   @ApiPropertyOptional({
-    enum: FeeType,
-    description: 'Fee type filter. For omnipool: asset/protocol/burned. For money-market: liquidation_penalty. Use "total" for combined fees.'
+    enum: FeeDestination,
+    description: 'Fee destination: protocol or total'
   })
   @IsOptional()
-  @IsEnum(FeeType)
-  feeType?: FeeType;
+  @IsEnum(FeeDestination)
+  feeDestination?: FeeDestination;
+
+  @ApiPropertyOptional({
+    enum: StreamType,
+    description: 'Stream type: asset, protocol, burned, or liquidation_penalty'
+  })
+  @IsOptional()
+  @IsEnum(StreamType)
+  streamType?: StreamType;
 }

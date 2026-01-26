@@ -12,7 +12,8 @@ import {
 } from './dto/fees-response.dto';
 import {
   BucketSize,
-  FeeType,
+  FeeDestination,
+  StreamType,
   ProductType,
   GetFeesQueryDto,
 } from './dto/get-fees-query.dto';
@@ -39,17 +40,19 @@ export class ChartsService {
   ): Promise<SingleFeeTypeResponseDto | AllFeeTypesResponseDto> {
     this.logger.log(`Incoming request with query: ${JSON.stringify(query)}`);
 
-    const { productType, bucket, startTime, endTime, feeType } =
+    const { productType, bucket, startTime, endTime, feeDestination, streamType } =
       this.buildQueryParams(query);
 
     this.logger.log(
-      `Processed params - productType=${productType}, bucket=${bucket}, startTime=${startTime}, endTime=${endTime}, feeType=${feeType || 'all'}`,
+      `Processed params - productType=${productType}, bucket=${bucket}, startTime=${startTime}, endTime=${endTime}, feeDestination=${feeDestination}, streamType=${streamType}`,
     );
 
-    if (feeType) {
-      return this.getSingleFeeType(productType, bucket, startTime, endTime, feeType);
-    } else {
+    // Route based on feeDestination
+    if (feeDestination === FeeDestination.TOTAL) {
       return this.getAllFeeTypes(productType, bucket, startTime, endTime);
+    } else {
+      // feeDestination === 'protocol', streamType will be present (validated by decorator)
+      return this.getSingleStreamType(productType, bucket, startTime, endTime, streamType!);
     }
   }
 
@@ -65,18 +68,25 @@ export class ChartsService {
       `Built query params - productType: ${productType}, bucket: ${bucket}, startTime: ${startTime}, endTime: ${endTime}`,
     );
 
-    return { productType, bucket, startTime, endTime, feeType: query.feeType };
+    return {
+      productType,
+      bucket,
+      startTime,
+      endTime,
+      feeDestination: query.feeDestination,
+      streamType: query.streamType
+    };
   }
 
-  private async getSingleFeeType(
+  private async getSingleStreamType(
     productType: ProductType,
     bucket: BucketSize,
     startTime: string,
     endTime: string,
-    feeType: FeeType,
+    streamType: StreamType,
   ): Promise<SingleFeeTypeResponseDto> {
     const tableName = this.getTableName(productType, bucket);
-    const valueColumn = this.getValueColumn(productType, feeType);
+    const valueColumn = this.getValueColumn(productType, streamType);
 
     const sql = `
       SELECT
@@ -105,7 +115,7 @@ export class ChartsService {
     const periodAggregate = data.reduce((sum, point) => sum + point.value, 0);
 
     this.logger.log(
-      `Processed ${data.length} data points for ${feeType} with aggregate ${periodAggregate}`,
+      `Processed ${data.length} data points for ${streamType} with aggregate ${periodAggregate}`,
     );
 
     return { data, periodAggregate };
@@ -209,21 +219,14 @@ export class ChartsService {
     }
   }
 
-  private getValueColumn(productType: ProductType, feeType: FeeType): string {
-    if (feeType === FeeType.TOTAL) {
-      if (productType === ProductType.OMNIPOOL) {
-        return 'total_fee_usd';
-      } else {
-        return 'total_liquidation_fee_usd';
-      }
-    }
-
-    // Map fee type to JSONB key (money market uses uppercase keys)
-    if (productType === ProductType.MONEY_MARKET && feeType === FeeType.LIQUIDATION_PENALTY) {
+  private getValueColumn(productType: ProductType, streamType: StreamType): string {
+    // Map stream type to JSONB key (money market uses uppercase keys)
+    if (productType === ProductType.MONEY_MARKET && streamType === StreamType.LIQUIDATION_PENALTY) {
       return `(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`;
     }
 
-    return `(fees_by_type->>'${feeType}')::numeric`;
+    // For omnipool, DB keys match stream types (asset, protocol, burned)
+    return `(fees_by_type->>'${streamType}')::numeric`;
   }
 
   /**
@@ -236,7 +239,7 @@ export class ChartsService {
       `Incoming aggregated fees request: ${JSON.stringify(query)}`,
     );
 
-    const { productType = ProductType.OMNIPOOL, period, feeType } = query;
+    const { productType = ProductType.OMNIPOOL, period, feeDestination, streamType } = query;
 
     // Calculate time range
     let startTime: Date;
@@ -265,16 +268,18 @@ export class ChartsService {
       );
     }
 
-    if (feeType) {
-      return this.getAggregatedSingleFeeType(
+    // Route based on feeDestination
+    if (feeDestination === FeeDestination.TOTAL) {
+      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
+    } else {
+      // feeDestination === 'protocol', streamType will be present (validated by decorator)
+      return this.getAggregatedSingleStreamType(
         productType,
         startTime,
         endTime,
-        feeType,
+        streamType!,
         period,
       );
-    } else {
-      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
     }
   }
 
@@ -299,18 +304,18 @@ export class ChartsService {
   }
 
   /**
-   * Get aggregated value for single fee type
+   * Get aggregated value for single stream type
    */
-  private async getAggregatedSingleFeeType(
+  private async getAggregatedSingleStreamType(
     productType: ProductType,
     startTime: Date,
     endTime: Date,
-    feeType: FeeType,
+    streamType: StreamType,
     period?: AggregationPeriod,
   ): Promise<AggregateFeeResponseDto> {
     // Use any continuous aggregate table - sum is same regardless of bucket size
     const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
-    const valueColumn = this.getValueColumn(productType, feeType);
+    const valueColumn = this.getValueColumn(productType, streamType);
 
     const sql = `
       SELECT
@@ -320,21 +325,21 @@ export class ChartsService {
     `;
 
     this.logger.log(
-      `Executing aggregated query for ${feeType}:\nTable: ${tableName}\nParams: [${startTime.toISOString()}, ${endTime.toISOString()}]`,
+      `Executing aggregated query for ${streamType}:\nTable: ${tableName}\nParams: [${startTime.toISOString()}, ${endTime.toISOString()}]`,
     );
 
     const result = await this.dataSource.query(sql, [startTime, endTime]);
 
     const aggregate = parseFloat(result[0]?.aggregate || '0');
 
-    this.logger.log(`Aggregated ${feeType} fees: ${aggregate}`);
+    this.logger.log(`Aggregated ${streamType} fees: ${aggregate}`);
 
     return {
       aggregate,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       period,
-      feeType,
+      feeType: streamType,
     };
   }
 

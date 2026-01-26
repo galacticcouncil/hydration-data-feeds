@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { FeeType } from './get-fees-query.dto';
+import { StreamType } from './get-fees-query.dto';
 import { AggregationPeriod } from './aggregate-fees-query.dto';
 
 export class AggregateFeeResponseDto {
@@ -29,8 +29,8 @@ export class AggregateFeeResponseDto {
   period?: string;
 
   @ApiPropertyOptional({
-    enum: FeeType,
-    description: 'Fee type aggregated',
+    enum: StreamType,
+    description: 'Stream type aggregated',
     example: 'asset',
   })
   feeType?: string;
