@@ -16,7 +16,7 @@ export class MoneyMarketRaw {
   block_height: number;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  liquidation_call_id: string; // For reference/debugging only
+  liquidation_call_id: string | null; // For reference/debugging only
 
   // Fee data (treasury transfers)
   @Column({ type: 'text', array: true })
@@ -31,7 +31,7 @@ export class MoneyMarketRaw {
     toId: string;
     assetId: string;
     amount: string; // Normalized amount
-    feeType: 'LIQUIDATION_PENALTY' | 'OTHER'; // OTHER = minting from zero address
+    feeType: 'LIQUIDATION_PENALTY' | 'PEPL_LIQUIDATION_PROFIT' | 'OTHER'; // PEPL = protocol exposure profit, OTHER = minting from zero address
     transferEventId: string; // For traceability
   }>;
 

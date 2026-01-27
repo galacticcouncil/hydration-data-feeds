@@ -101,3 +101,29 @@ export interface TransfersConnection {
 export interface GetTreasuryTransfersResponse {
   transfers: TransfersConnection;
 }
+
+// PEPL Liquidation Event Types
+
+export interface PeplLiquidationEventNode {
+  id: string;
+  collateralAssetId: string;
+  debtAssetId: string;
+  profit: string; // Raw profit amount (numeric string)
+  paraBlockHeight: number; // Block height (can be filtered directly)
+  eventId: string;
+  event: {
+    id: string;
+    block: {
+      timestamp: string; // ISO8601 timestamp
+    };
+  };
+}
+
+export interface PeplLiquidationEventsConnection {
+  totalCount: number;
+  nodes: PeplLiquidationEventNode[];
+}
+
+export interface GetPeplLiquidationEventsResponse {
+  liquidationLiquidatedEvents: PeplLiquidationEventsConnection;
+}

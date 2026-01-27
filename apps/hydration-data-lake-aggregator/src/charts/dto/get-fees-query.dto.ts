@@ -33,6 +33,7 @@ export enum StreamType {
   PROTOCOL = 'protocol',
   BURNED = 'burned',
   LIQUIDATION_PENALTY = 'liquidation_penalty',
+  PEPL_LIQUIDATION_PROFIT = 'pepl_liquidation_profit',
 }
 
 export class GetFeesQueryDto {

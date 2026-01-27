@@ -32,6 +32,12 @@ export interface AppConfig {
     intervalSeconds: number;
     backfillOnStartup: boolean;
   };
+  peplLiquidation: {
+    startBlock: number;
+    batchSize: number;
+    intervalSeconds: number;
+    backfillOnStartup: boolean;
+  };
   enrichment: {
     batchSize: number;
     intervalSeconds: number;
@@ -68,7 +74,7 @@ export const configValidationSchema = Joi.object({
   DB_PASSWORD: Joi.string().required(),
   DB_DATABASE: Joi.string().required(),
   DB_SYNCHRONIZE: Joi.boolean().default(false),
-  DB_LOGGING: Joi.boolean().default(false),
+  DB_LOGGING: Joi.boolean().default(true),
 
   // Redis
   REDIS_HOST: Joi.string().default('localhost'),
@@ -86,6 +92,12 @@ export const configValidationSchema = Joi.object({
   MONEY_MARKET_BATCH_SIZE: Joi.number().default(100),
   MONEY_MARKET_INTERVAL_SECONDS: Joi.number().default(60),
   MONEY_MARKET_BACKFILL_ON_STARTUP: Joi.boolean().default(true),
+
+  // PEPL Liquidation
+  PEPL_LIQUIDATION_START_BLOCK: Joi.number().default(1000000),
+  PEPL_LIQUIDATION_BATCH_SIZE: Joi.number().default(500),
+  PEPL_LIQUIDATION_INTERVAL_SECONDS: Joi.number().default(300), // 5 minutes
+  PEPL_LIQUIDATION_BACKFILL_ON_STARTUP: Joi.boolean().default(true),
 
   // Enrichment
   ENRICHMENT_BATCH_SIZE: Joi.number().default(1000),
@@ -145,6 +157,22 @@ export const getAppConfig = (): AppConfig => ({
     ),
     backfillOnStartup:
       process.env.MONEY_MARKET_BACKFILL_ON_STARTUP !== 'false',
+  },
+  peplLiquidation: {
+    startBlock: parseInt(
+      process.env.PEPL_LIQUIDATION_START_BLOCK || '1000000',
+      10,
+    ),
+    batchSize: parseInt(
+      process.env.PEPL_LIQUIDATION_BATCH_SIZE || '500',
+      10,
+    ),
+    intervalSeconds: parseInt(
+      process.env.PEPL_LIQUIDATION_INTERVAL_SECONDS || '300',
+      10,
+    ),
+    backfillOnStartup:
+      process.env.PEPL_LIQUIDATION_BACKFILL_ON_STARTUP !== 'false',
   },
   enrichment: {
     batchSize: parseInt(process.env.ENRICHMENT_BATCH_SIZE || '1000', 10),

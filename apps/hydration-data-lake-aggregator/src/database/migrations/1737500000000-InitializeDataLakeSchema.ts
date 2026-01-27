@@ -315,6 +315,15 @@ export class InitializeDataLakeSchema1737500000000
                 ELSE 0
               END
             ), 0),
+            'PEPL_LIQUIDATION_PROFIT',
+            COALESCE(SUM(
+              CASE
+                WHEN (fee_transfer->>'feeType') = 'PEPL_LIQUIDATION_PROFIT'
+                THEN (fee_transfer->>'amount')::numeric *
+                     COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+                ELSE 0
+              END
+            ), 0),
             'OTHER',
             COALESCE(SUM(
               CASE

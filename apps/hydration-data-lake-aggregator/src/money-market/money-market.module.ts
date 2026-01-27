@@ -10,6 +10,11 @@ import { LiquidationFeeCalculatorService } from './services/liquidation-fee-calc
 import { LiquidationTransformerService } from './services/liquidation-transformer.service';
 import { MoneyMarketOrchestratorService } from './services/money-market-orchestrator.service';
 import { MoneyMarketIngestionScheduler } from './schedulers/money-market-ingestion.scheduler';
+import { PeplLiquidationFetcherService } from './services/pepl-liquidation-fetcher.service';
+import { PeplProfitCalculatorService } from './services/pepl-profit-calculator.service';
+import { PeplProfitTransformerService } from './services/pepl-profit-transformer.service';
+import { PeplLiquidationOrchestratorService } from './services/pepl-liquidation-orchestrator.service';
+import { PeplLiquidationScheduler } from './schedulers/pepl-liquidation.scheduler';
 
 /**
  * Money Market Module
@@ -30,6 +35,11 @@ import { MoneyMarketIngestionScheduler } from './schedulers/money-market-ingesti
     LiquidationTransformerService,
     MoneyMarketOrchestratorService,
     MoneyMarketIngestionScheduler,
+    PeplLiquidationFetcherService,
+    PeplProfitCalculatorService,
+    PeplProfitTransformerService,
+    PeplLiquidationOrchestratorService,
+    PeplLiquidationScheduler,
   ],
   exports: [
     MoneyMarketOrchestratorService,
