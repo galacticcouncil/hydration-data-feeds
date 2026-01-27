@@ -35,6 +35,7 @@ export enum StreamType {
   LIQUIDATION_PENALTY = 'liquidation_penalty',
   PEPL_LIQUIDATION_PROFIT = 'pepl_liquidation_profit',
   ASSET_RESERVE = 'asset_reserve',
+  BORROW_APR = 'borrow_apr',
 }
 
 export class GetFeesQueryDto {

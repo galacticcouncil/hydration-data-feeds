@@ -31,8 +31,9 @@ export class MoneyMarketRaw {
     toId: string;
     assetId: string;
     amount: string; // Normalized amount
-    feeType: 'LIQUIDATION_PENALTY' | 'PEPL_LIQUIDATION_PROFIT' | 'ASSET_RESERVE' | 'OTHER'; // PEPL = protocol exposure profit, ASSET_RESERVE = minted to treasury, OTHER = minting from zero address
+    feeType: 'LIQUIDATION_PENALTY' | 'PEPL_LIQUIDATION_PROFIT' | 'ASSET_RESERVE' | 'BORROW_APR' | 'OTHER'; // PEPL = protocol exposure profit, ASSET_RESERVE = minted to treasury, BORROW_APR = borrowing APR fees (special case of asset reserve), OTHER = minting from zero address
     transferEventId: string; // For traceability
+    countInTotal?: boolean; // Optional flag to control if this entry is counted in total (defaults to true)
   }>;
 
   // Spot prices for fee assets at this block (for USD conversion)

@@ -51,9 +51,21 @@ export class AssetReserveTransformerService {
       feeAmountsRaw[assetId] = amount;
     }
 
-    // Build fee_by_transfer - single entry for Asset Reserve
+    // Build fee_by_transfer - single or dual entry for Asset Reserve
     // Structure matches existing format with fromId, toId, assetId, amount, feeType, transferEventId
-    const feeByTransfer = [
+    // Special case: If assetId is the Borrow APR asset, create two entries
+    const BORROW_APR_ASSET_ID = '0x531a654d1696ed52e7275a8cede955e82620f99a';
+    const isBorrowAprAsset = event.assetId === BORROW_APR_ASSET_ID;
+
+    const feeByTransfer: Array<{
+      fromId: string;
+      toId: string;
+      assetId: string;
+      amount: string;
+      feeType: 'LIQUIDATION_PENALTY' | 'PEPL_LIQUIDATION_PROFIT' | 'ASSET_RESERVE' | 'BORROW_APR' | 'OTHER';
+      transferEventId: string;
+      countInTotal?: boolean;
+    }> = [
       {
         fromId: '0x0000000000000000000000000000000000000000000000000000000000000000', // Minted from money market
         toId: '0xe52567ff06acd6cbe7ba94dc777a3126e180b6d9', // Goes to treasury
@@ -61,8 +73,26 @@ export class AssetReserveTransformerService {
         amount: eventAmounts.get(event.assetId) || '0', // Normalized amount
         feeType: 'ASSET_RESERVE' as const,
         transferEventId: event.eventId, // Event ID for traceability
+        countInTotal: true, // Explicitly counted in total
       },
     ];
+
+    // Add second entry for Borrow APR if this is the special asset
+    if (isBorrowAprAsset) {
+      feeByTransfer.push({
+        fromId: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        toId: '0xe52567ff06acd6cbe7ba94dc777a3126e180b6d9',
+        assetId: event.assetId,
+        amount: eventAmounts.get(event.assetId) || '0',
+        feeType: 'BORROW_APR' as const,
+        transferEventId: event.eventId,
+        countInTotal: false, // NOT counted in total to avoid double-counting
+      });
+
+      this.logger.debug(
+        `Asset Reserve event ${event.id}: Detected Borrow APR asset, created dual entry`,
+      );
+    }
 
     // Fetch nearest prices if not provided in batch
     let spotPrices: Record<string, string> = {};

@@ -298,10 +298,14 @@ export class InitializeDataLakeSchema1737500000000
         SELECT
           time_bucket('${config.interval}', m.time) AS bucket,
 
-          -- Total liquidation fees in USD (using embedded prices)
+          -- Total liquidation fees in USD (using embedded prices, respecting countInTotal flag)
           SUM(
-            (fee_transfer->>'amount')::numeric *
-            COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+            CASE
+              WHEN COALESCE((fee_transfer->>'countInTotal')::boolean, true) = true
+              THEN (fee_transfer->>'amount')::numeric *
+                   COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+              ELSE 0
+            END
           ) AS total_liquidation_fee_usd,
 
           -- Fees by type
@@ -328,6 +332,15 @@ export class InitializeDataLakeSchema1737500000000
             COALESCE(SUM(
               CASE
                 WHEN (fee_transfer->>'feeType') = 'ASSET_RESERVE'
+                THEN (fee_transfer->>'amount')::numeric *
+                     COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+                ELSE 0
+              END
+            ), 0),
+            'BORROW_APR',
+            COALESCE(SUM(
+              CASE
+                WHEN (fee_transfer->>'feeType') = 'BORROW_APR'
                 THEN (fee_transfer->>'amount')::numeric *
                      COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
                 ELSE 0

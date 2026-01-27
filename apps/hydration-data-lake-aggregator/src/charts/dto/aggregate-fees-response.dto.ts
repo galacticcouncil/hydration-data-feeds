@@ -38,7 +38,7 @@ export class AggregateFeeResponseDto {
 
 export class AggregateAllFeesResponseDto {
   @ApiProperty({
-    description: 'Aggregated fee values by type. For omnipool: total, asset, protocol, burned. For money-market: total, liquidation_penalty',
+    description: 'Aggregated fee values by type. For omnipool: total, asset, protocol, burned. For money-market: total, liquidation_penalty, pepl_liquidation_profit, asset_reserve, borrow_apr',
     example: {
       total: 50000.0,
       asset: 30000.0,

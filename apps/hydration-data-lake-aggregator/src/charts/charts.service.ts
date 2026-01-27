@@ -151,7 +151,8 @@ export class ChartsService {
           total_liquidation_fee_usd as total,
           (fees_by_type->>'LIQUIDATION_PENALTY')::numeric as liquidation_penalty,
           (fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric as pepl_liquidation_profit,
-          (fees_by_type->>'ASSET_RESERVE')::numeric as asset_reserve
+          (fees_by_type->>'ASSET_RESERVE')::numeric as asset_reserve,
+          (fees_by_type->>'BORROW_APR')::numeric as borrow_apr
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
         ORDER BY bucket ASC
@@ -194,11 +195,12 @@ export class ChartsService {
         liquidation_penalty: [],
         pepl_liquidation_profit: [],
         asset_reserve: [],
+        borrow_apr: [],
       };
-      aggregates = { total: 0, liquidation_penalty: 0, pepl_liquidation_profit: 0, asset_reserve: 0 };
+      aggregates = { total: 0, liquidation_penalty: 0, pepl_liquidation_profit: 0, asset_reserve: 0, borrow_apr: 0 };
 
       rawData.forEach((row) => {
-        ['total', 'liquidation_penalty', 'pepl_liquidation_profit', 'asset_reserve'].forEach((type) => {
+        ['total', 'liquidation_penalty', 'pepl_liquidation_profit', 'asset_reserve', 'borrow_apr'].forEach((type) => {
           const value = parseFloat(row[type]) || 0;
           data[type].push({ timestamp: row.timestamp, value });
           aggregates[type] += value;
@@ -232,6 +234,8 @@ export class ChartsService {
         return `(fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric`;
       } else if (streamType === StreamType.ASSET_RESERVE) {
         return `(fees_by_type->>'ASSET_RESERVE')::numeric`;
+      } else if (streamType === StreamType.BORROW_APR) {
+        return `(fees_by_type->>'BORROW_APR')::numeric`;
       }
     }
 
@@ -388,7 +392,8 @@ export class ChartsService {
           SUM(total_liquidation_fee_usd) as total,
           SUM((fees_by_type->>'LIQUIDATION_PENALTY')::numeric) as liquidation_penalty,
           SUM((fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric) as pepl_liquidation_profit,
-          SUM((fees_by_type->>'ASSET_RESERVE')::numeric) as asset_reserve
+          SUM((fees_by_type->>'ASSET_RESERVE')::numeric) as asset_reserve,
+          SUM((fees_by_type->>'BORROW_APR')::numeric) as borrow_apr
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
@@ -415,6 +420,7 @@ export class ChartsService {
         liquidation_penalty: parseFloat(result[0]?.liquidation_penalty || '0'),
         pepl_liquidation_profit: parseFloat(result[0]?.pepl_liquidation_profit || '0'),
         asset_reserve: parseFloat(result[0]?.asset_reserve || '0'),
+        borrow_apr: parseFloat(result[0]?.borrow_apr || '0'),
       };
     }
 
