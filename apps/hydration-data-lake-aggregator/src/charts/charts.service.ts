@@ -149,7 +149,8 @@ export class ChartsService {
         SELECT
           bucket as timestamp,
           total_liquidation_fee_usd as total,
-          (fees_by_type->>'LIQUIDATION_PENALTY')::numeric as liquidation_penalty
+          (fees_by_type->>'LIQUIDATION_PENALTY')::numeric as liquidation_penalty,
+          (fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric as pepl_liquidation_profit
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
         ORDER BY bucket ASC
@@ -190,11 +191,12 @@ export class ChartsService {
       data = {
         total: [],
         liquidation_penalty: [],
+        pepl_liquidation_profit: [],
       };
-      aggregates = { total: 0, liquidation_penalty: 0 };
+      aggregates = { total: 0, liquidation_penalty: 0, pepl_liquidation_profit: 0 };
 
       rawData.forEach((row) => {
-        ['total', 'liquidation_penalty'].forEach((type) => {
+        ['total', 'liquidation_penalty', 'pepl_liquidation_profit'].forEach((type) => {
           const value = parseFloat(row[type]) || 0;
           data[type].push({ timestamp: row.timestamp, value });
           aggregates[type] += value;
@@ -221,8 +223,12 @@ export class ChartsService {
 
   private getValueColumn(productType: ProductType, streamType: StreamType): string {
     // Map stream type to JSONB key (money market uses uppercase keys)
-    if (productType === ProductType.MONEY_MARKET && streamType === StreamType.LIQUIDATION_PENALTY) {
-      return `(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`;
+    if (productType === ProductType.MONEY_MARKET) {
+      if (streamType === StreamType.LIQUIDATION_PENALTY) {
+        return `(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`;
+      } else if (streamType === StreamType.PEPL_LIQUIDATION_PROFIT) {
+        return `(fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric`;
+      }
     }
 
     // For omnipool, DB keys match stream types (asset, protocol, burned)
@@ -298,6 +304,11 @@ export class ChartsService {
       [AggregationPeriod.ONE_HOUR]: 60 * 60 * 1000,
       [AggregationPeriod.SIX_HOUR]: 6 * 60 * 60 * 1000,
       [AggregationPeriod.TWENTY_FOUR_HOUR]: 24 * 60 * 60 * 1000,
+      [AggregationPeriod.SEVEN_DAY]: 7 * 24 * 60 * 60 * 1000,
+      [AggregationPeriod.THIRTY_DAY]: 30 * 24 * 60 * 60 * 1000,
+      [AggregationPeriod.NINETY_DAY]: 90 * 24 * 60 * 60 * 1000,
+      [AggregationPeriod.ONE_EIGHTY_DAY]: 180 * 24 * 60 * 60 * 1000,
+      [AggregationPeriod.THREE_SIXTY_FIVE_DAY]: 365 * 24 * 60 * 60 * 1000,
     };
 
     return new Date(endTime.getTime() - periodMs[period]);
@@ -371,7 +382,8 @@ export class ChartsService {
       sql = `
         SELECT
           SUM(total_liquidation_fee_usd) as total,
-          SUM((fees_by_type->>'LIQUIDATION_PENALTY')::numeric) as liquidation_penalty
+          SUM((fees_by_type->>'LIQUIDATION_PENALTY')::numeric) as liquidation_penalty,
+          SUM((fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric) as pepl_liquidation_profit
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
@@ -396,6 +408,7 @@ export class ChartsService {
       aggregate = {
         total: parseFloat(result[0]?.total || '0'),
         liquidation_penalty: parseFloat(result[0]?.liquidation_penalty || '0'),
+        pepl_liquidation_profit: parseFloat(result[0]?.pepl_liquidation_profit || '0'),
       };
     }
 

@@ -17,6 +17,11 @@ export enum AggregationPeriod {
   ONE_HOUR = '1hour',
   SIX_HOUR = '6hour',
   TWENTY_FOUR_HOUR = '24hour',
+  SEVEN_DAY = '7day',
+  THIRTY_DAY = '30day',
+  NINETY_DAY = '90day',
+  ONE_EIGHTY_DAY = '180day',
+  THREE_SIXTY_FIVE_DAY = '365day',
 }
 
 export class GetAggregatedFeesQueryDto {
