@@ -127,3 +127,28 @@ export interface PeplLiquidationEventsConnection {
 export interface GetPeplLiquidationEventsResponse {
   liquidationLiquidatedEvents: PeplLiquidationEventsConnection;
 }
+
+// Asset Reserve Event Types
+
+export interface AssetReserveEventNode {
+  id: string;
+  assetId: string;
+  amount: string; // Raw amount (numeric string)
+  paraBlockHeight: number; // Block height (can be filtered directly)
+  eventId: string;
+  event: {
+    id: string;
+    block: {
+      timestamp: string; // ISO8601 timestamp
+    };
+  };
+}
+
+export interface AssetReserveEventsConnection {
+  nodes: AssetReserveEventNode[];
+  totalCount: number;
+}
+
+export interface GetAssetReserveEventsResponse {
+  mmMintedToTreasuryEvents: AssetReserveEventsConnection;
+}

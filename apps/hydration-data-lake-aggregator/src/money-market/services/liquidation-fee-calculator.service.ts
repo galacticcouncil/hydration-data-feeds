@@ -4,10 +4,12 @@ import {
 } from '@nestjs/common';
 
 import {
+  AssetRegistryService,
+} from '../../common/services/asset-registry.service';
+import {
   LiquidationEventNode,
   TransferNode,
 } from '../../graphql-client/types/graphql-response.types';
-import { AssetRegistryService } from '../../common/services/asset-registry.service';
 
 export interface FeeByTransfer {
   fromId: string;

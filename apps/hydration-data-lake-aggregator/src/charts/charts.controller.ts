@@ -22,8 +22,10 @@ export class ChartsController {
     summary: 'Get fee chart data',
     description:
       'Retrieves aggregated fee data from continuous aggregates. ' +
-      'If feeType is specified, returns single fee type data. ' +
-      'If feeType is omitted, returns all fee types in breakdown format.',
+      'Valid combinations: ' +
+      'omnipool+protocol+asset, omnipool+protocol+protocol, omnipool+protocol+burned, omnipool+total, ' +
+      'money-market+protocol+liquidation_penalty, money-market+protocol+pepl_liquidation_profit, ' +
+      'money-market+protocol+asset_reserve, money-market+total (returns 4 separate values)',
   })
   @ApiResponse({
     status: 200,
@@ -44,7 +46,8 @@ export class ChartsController {
       'If feeType is specified, returns single aggregate value. ' +
       'If feeType is omitted, returns breakdown of all fee types. ' +
       'Use "period" parameter for quick time windows (e.g., period=1hour for last hour), ' +
-      'or use startTime/endTime for custom date ranges.',
+      'or use startTime/endTime for custom date ranges. ' +
+      'Valid combinations: same as /fees endpoint',
   })
   @ApiResponse({
     status: 200,

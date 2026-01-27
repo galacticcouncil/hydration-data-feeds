@@ -15,6 +15,11 @@ import { PeplProfitCalculatorService } from './services/pepl-profit-calculator.s
 import { PeplProfitTransformerService } from './services/pepl-profit-transformer.service';
 import { PeplLiquidationOrchestratorService } from './services/pepl-liquidation-orchestrator.service';
 import { PeplLiquidationScheduler } from './schedulers/pepl-liquidation.scheduler';
+import { AssetReserveFetcherService } from './services/asset-reserve-fetcher.service';
+import { AssetReserveCalculatorService } from './services/asset-reserve-calculator.service';
+import { AssetReserveTransformerService } from './services/asset-reserve-transformer.service';
+import { AssetReserveOrchestratorService } from './services/asset-reserve-orchestrator.service';
+import { AssetReserveScheduler } from './schedulers/asset-reserve.scheduler';
 
 /**
  * Money Market Module
@@ -40,6 +45,11 @@ import { PeplLiquidationScheduler } from './schedulers/pepl-liquidation.schedule
     PeplProfitTransformerService,
     PeplLiquidationOrchestratorService,
     PeplLiquidationScheduler,
+    AssetReserveFetcherService,
+    AssetReserveCalculatorService,
+    AssetReserveTransformerService,
+    AssetReserveOrchestratorService,
+    AssetReserveScheduler,
   ],
   exports: [
     MoneyMarketOrchestratorService,

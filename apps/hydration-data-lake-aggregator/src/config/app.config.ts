@@ -38,6 +38,12 @@ export interface AppConfig {
     intervalSeconds: number;
     backfillOnStartup: boolean;
   };
+  assetReserve: {
+    startBlock: number;
+    batchSize: number;
+    intervalSeconds: number;
+    backfillOnStartup: boolean;
+  };
   enrichment: {
     batchSize: number;
     intervalSeconds: number;
@@ -98,6 +104,12 @@ export const configValidationSchema = Joi.object({
   PEPL_LIQUIDATION_BATCH_SIZE: Joi.number().default(500),
   PEPL_LIQUIDATION_INTERVAL_SECONDS: Joi.number().default(300), // 5 minutes
   PEPL_LIQUIDATION_BACKFILL_ON_STARTUP: Joi.boolean().default(true),
+
+  // Asset Reserve
+  ASSET_RESERVE_START_BLOCK: Joi.number().default(1000000),
+  ASSET_RESERVE_BATCH_SIZE: Joi.number().default(500),
+  ASSET_RESERVE_INTERVAL_SECONDS: Joi.number().default(300), // 5 minutes
+  ASSET_RESERVE_BACKFILL_ON_STARTUP: Joi.boolean().default(true),
 
   // Enrichment
   ENRICHMENT_BATCH_SIZE: Joi.number().default(1000),
@@ -173,6 +185,22 @@ export const getAppConfig = (): AppConfig => ({
     ),
     backfillOnStartup:
       process.env.PEPL_LIQUIDATION_BACKFILL_ON_STARTUP !== 'false',
+  },
+  assetReserve: {
+    startBlock: parseInt(
+      process.env.ASSET_RESERVE_START_BLOCK || '1000000',
+      10,
+    ),
+    batchSize: parseInt(
+      process.env.ASSET_RESERVE_BATCH_SIZE || '500',
+      10,
+    ),
+    intervalSeconds: parseInt(
+      process.env.ASSET_RESERVE_INTERVAL_SECONDS || '300',
+      10,
+    ),
+    backfillOnStartup:
+      process.env.ASSET_RESERVE_BACKFILL_ON_STARTUP !== 'false',
   },
   enrichment: {
     batchSize: parseInt(process.env.ENRICHMENT_BATCH_SIZE || '1000', 10),

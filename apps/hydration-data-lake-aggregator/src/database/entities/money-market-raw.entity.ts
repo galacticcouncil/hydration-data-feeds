@@ -31,7 +31,7 @@ export class MoneyMarketRaw {
     toId: string;
     assetId: string;
     amount: string; // Normalized amount
-    feeType: 'LIQUIDATION_PENALTY' | 'PEPL_LIQUIDATION_PROFIT' | 'OTHER'; // PEPL = protocol exposure profit, OTHER = minting from zero address
+    feeType: 'LIQUIDATION_PENALTY' | 'PEPL_LIQUIDATION_PROFIT' | 'ASSET_RESERVE' | 'OTHER'; // PEPL = protocol exposure profit, ASSET_RESERVE = minted to treasury, OTHER = minting from zero address
     transferEventId: string; // For traceability
   }>;
 
