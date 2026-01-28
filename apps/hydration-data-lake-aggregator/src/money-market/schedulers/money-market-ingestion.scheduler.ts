@@ -26,6 +26,17 @@ export class MoneyMarketIngestionScheduler {
     name: 'money-market-ingestion',
   })
   async handleIngestionCron() {
+    // Check if backfill/ingestion is enabled
+    const backfillOnStartup = this.configService.get(
+      'moneyMarket.backfillOnStartup',
+      { infer: true },
+    );
+
+    if (!backfillOnStartup) {
+      this.logger.debug('Money market ingestion is disabled (backfillOnStartup=false), skipping');
+      return;
+    }
+
     if (this.isRunning) {
       this.logger.debug(
         'Money market ingestion already running, skipping scheduled run',

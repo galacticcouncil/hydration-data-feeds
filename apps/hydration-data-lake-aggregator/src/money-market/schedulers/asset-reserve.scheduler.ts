@@ -35,6 +35,17 @@ export class AssetReserveScheduler {
     name: 'asset-reserve-ingestion',
   })
   async handleIngestionCron() {
+    // Check if backfill/ingestion is enabled
+    const backfillOnStartup = this.configService.get(
+      'assetReserve.backfillOnStartup',
+      { infer: true },
+    );
+
+    if (!backfillOnStartup) {
+      this.logger.debug('Asset Reserve ingestion is disabled (backfillOnStartup=false), skipping');
+      return;
+    }
+
     if (this.isRunning) {
       this.logger.debug(
         'Asset Reserve ingestion already running, skipping scheduled run',

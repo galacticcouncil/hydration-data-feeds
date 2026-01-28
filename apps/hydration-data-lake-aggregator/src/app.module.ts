@@ -6,6 +6,7 @@ import { ChartsModule } from './charts/charts.module';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { GraphqlClientModule } from './graphql-client/graphql-client.module';
+import { HollarModule } from './hollar/hollar.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { MoneyMarketModule } from './money-market/money-market.module';
 
@@ -16,6 +17,7 @@ import { MoneyMarketModule } from './money-market/money-market.module';
     GraphqlClientModule,
     IngestionModule,
     MoneyMarketModule,
+    HollarModule,
     ChartsModule,
   ],
   controllers: [AppController],

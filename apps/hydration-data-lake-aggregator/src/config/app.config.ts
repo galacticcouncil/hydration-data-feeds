@@ -44,6 +44,12 @@ export interface AppConfig {
     intervalSeconds: number;
     backfillOnStartup: boolean;
   };
+  hsmRevenue: {
+    startBlock: number;
+    batchSize: number;
+    intervalSeconds: number;
+    backfillOnStartup: boolean;
+  };
   enrichment: {
     batchSize: number;
     intervalSeconds: number;
@@ -110,6 +116,12 @@ export const configValidationSchema = Joi.object({
   ASSET_RESERVE_BATCH_SIZE: Joi.number().default(500),
   ASSET_RESERVE_INTERVAL_SECONDS: Joi.number().default(300), // 5 minutes
   ASSET_RESERVE_BACKFILL_ON_STARTUP: Joi.boolean().default(true),
+
+  // HSM Revenue
+  HSM_REVENUE_START_BLOCK: Joi.number().default(1000000),
+  HSM_REVENUE_BATCH_SIZE: Joi.number().default(100),
+  HSM_REVENUE_INTERVAL_SECONDS: Joi.number().default(300), // 5 minutes
+  HSM_REVENUE_BACKFILL_ON_STARTUP: Joi.boolean().default(true),
 
   // Enrichment
   ENRICHMENT_BATCH_SIZE: Joi.number().default(1000),
@@ -201,6 +213,22 @@ export const getAppConfig = (): AppConfig => ({
     ),
     backfillOnStartup:
       process.env.ASSET_RESERVE_BACKFILL_ON_STARTUP !== 'false',
+  },
+  hsmRevenue: {
+    startBlock: parseInt(
+      process.env.HSM_REVENUE_START_BLOCK || '1000000',
+      10,
+    ),
+    batchSize: parseInt(
+      process.env.HSM_REVENUE_BATCH_SIZE || '100',
+      10,
+    ),
+    intervalSeconds: parseInt(
+      process.env.HSM_REVENUE_INTERVAL_SECONDS || '300',
+      10,
+    ),
+    backfillOnStartup:
+      process.env.HSM_REVENUE_BACKFILL_ON_STARTUP !== 'false',
   },
   enrichment: {
     batchSize: parseInt(process.env.ENRICHMENT_BATCH_SIZE || '1000', 10),

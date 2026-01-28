@@ -35,6 +35,17 @@ export class PeplLiquidationScheduler {
     name: 'pepl-liquidation-ingestion',
   })
   async handleIngestionCron() {
+    // Check if backfill/ingestion is enabled
+    const backfillOnStartup = this.configService.get(
+      'peplLiquidation.backfillOnStartup',
+      { infer: true },
+    );
+
+    if (!backfillOnStartup) {
+      this.logger.debug('PEPL ingestion is disabled (backfillOnStartup=false), skipping');
+      return;
+    }
+
     if (this.isRunning) {
       this.logger.debug(
         'PEPL ingestion already running, skipping scheduled run',

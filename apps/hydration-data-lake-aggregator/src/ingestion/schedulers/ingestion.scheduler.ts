@@ -22,6 +22,17 @@ export class IngestionScheduler {
     name: 'swap-ingestion',
   })
   async handleIngestionCron() {
+    // Check if backfill/ingestion is enabled
+    const backfillOnStartup = this.configService.get(
+      'ingestion.backfillOnStartup',
+      { infer: true },
+    );
+
+    if (!backfillOnStartup) {
+      this.logger.debug('Ingestion is disabled (backfillOnStartup=false), skipping');
+      return;
+    }
+
     if (this.isRunning) {
       this.logger.debug('Ingestion already running, skipping scheduled run');
       return;

@@ -152,3 +152,34 @@ export interface AssetReserveEventsConnection {
 export interface GetAssetReserveEventsResponse {
   mmMintedToTreasuryEvents: AssetReserveEventsConnection;
 }
+
+// HSM Revenue Types
+
+export interface AaveFacilitatorHistoricalDataNode {
+  id: string;
+  bucketLevel: string; // Raw amount (numeric string) - needs 18 decimal normalization
+  paraBlockHeight: number;
+  paraTimestamp: string; // ISO8601 timestamp
+}
+
+export interface AaveFacilitatorHistoricalDataConnection {
+  nodes: AaveFacilitatorHistoricalDataNode[];
+  totalCount: number;
+}
+
+export interface GetAaveFacilitatorHistoricalDataResponse {
+  aaveFacilitatorHistoricalData: AaveFacilitatorHistoricalDataConnection;
+}
+
+export interface AccountTotalBalanceHistoricalDataNode {
+  paraBlockHeight: number;
+  totalTransferableNorm: string; // Already normalized
+}
+
+export interface AccountTotalBalanceHistoricalDataConnection {
+  nodes: AccountTotalBalanceHistoricalDataNode[];
+}
+
+export interface GetAccountTotalBalanceHistoricalDataResponse {
+  accountTotalBalanceHistoricalData: AccountTotalBalanceHistoricalDataConnection;
+}

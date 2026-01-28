@@ -85,7 +85,7 @@ export class ChartsService {
     endTime: string,
     streamType: StreamType,
   ): Promise<SingleFeeTypeResponseDto> {
-    const tableName = this.getTableName(productType, bucket);
+    const tableName = this.getTableName(productType, bucket, streamType);
     const valueColumn = this.getValueColumn(productType, streamType);
 
     const sql = `
@@ -215,14 +215,18 @@ export class ChartsService {
     return { data, periodAggregate: aggregates };
   }
 
-  private getTableName(productType: ProductType, bucket: BucketSize): string {
+  private getTableName(productType: ProductType, bucket: BucketSize, streamType?: StreamType): string {
     // Convert product type and bucket to table name
     if (productType === ProductType.OMNIPOOL) {
       return `fees_${bucket}`;
     } else if (productType === ProductType.MONEY_MARKET) {
       return `liquidation_fees_${bucket}`;
     } else if (productType === ProductType.HOLLAR) {
-      // For now, hollar uses liquidation_fees tables (will change in future)
+      // HSM revenue has its own table
+      if (streamType === StreamType.HSM_REVENUE) {
+        return `hsm_revenue_${bucket}`;
+      }
+      // Borrow APR uses liquidation_fees tables
       return `liquidation_fees_${bucket}`;
     }
     // Fallback to liquidation_fees for any other product type
@@ -241,10 +245,13 @@ export class ChartsService {
       }
     }
 
-    // Hollar uses money market tables with BORROW_APR
+    // Hollar stream types
     if (productType === ProductType.HOLLAR) {
       if (streamType === StreamType.BORROW_APR) {
         return `(fees_by_type->>'BORROW_APR')::numeric`;
+      } else if (streamType === StreamType.HSM_REVENUE) {
+        // HSM revenue has direct column, not JSONB
+        return `hsm_revenue`;
       }
     }
 
@@ -342,7 +349,7 @@ export class ChartsService {
     period?: AggregationPeriod,
   ): Promise<AggregateFeeResponseDto> {
     // Use any continuous aggregate table - sum is same regardless of bucket size
-    const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
+    const tableName = this.getTableName(productType, BucketSize.ONE_HOUR, streamType);
     const valueColumn = this.getValueColumn(productType, streamType);
 
     const sql = `
