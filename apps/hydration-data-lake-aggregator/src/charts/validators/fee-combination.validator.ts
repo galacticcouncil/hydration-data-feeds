@@ -15,8 +15,8 @@ export class IsValidFeeCombinationConstraint implements ValidatorConstraintInter
       { productType: 'money-market', feeDestination: 'protocol', streamType: 'liquidation_penalty' },
       { productType: 'money-market', feeDestination: 'protocol', streamType: 'pepl_liquidation_profit' },
       { productType: 'money-market', feeDestination: 'protocol', streamType: 'asset_reserve' },
-      { productType: 'money-market', feeDestination: 'protocol', streamType: 'borrow_apr' },
       { productType: 'money-market', feeDestination: 'total', streamType: undefined },
+      { productType: 'hollar', feeDestination: 'protocol', streamType: 'borrow_apr' },
     ];
 
     // Check if current combination is valid
@@ -28,6 +28,6 @@ export class IsValidFeeCombinationConstraint implements ValidatorConstraintInter
   }
 
   defaultMessage(args: ValidationArguments) {
-    return 'Invalid filter combination. Valid combinations: omnipool+protocol+asset, omnipool+protocol+protocol, omnipool+protocol+burned, omnipool+total, money-market+protocol+liquidation_penalty, money-market+protocol+pepl_liquidation_profit, money-market+protocol+asset_reserve, money-market+protocol+borrow_apr, money-market+total';
+    return 'Invalid filter combination. Valid combinations: omnipool+protocol+asset, omnipool+protocol+protocol, omnipool+protocol+burned, omnipool+total, money-market+protocol+liquidation_penalty, money-market+protocol+pepl_liquidation_profit, money-market+protocol+asset_reserve, money-market+total, hollar+protocol+borrow_apr';
   }
 }

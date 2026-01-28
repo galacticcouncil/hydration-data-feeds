@@ -25,8 +25,8 @@ export class ChartsController {
       'Valid combinations: ' +
       'omnipool+protocol+asset, omnipool+protocol+protocol, omnipool+protocol+burned, omnipool+total, ' +
       'money-market+protocol+liquidation_penalty, money-market+protocol+pepl_liquidation_profit, ' +
-      'money-market+protocol+asset_reserve, money-market+protocol+borrow_apr, ' +
-      'money-market+total (returns 5 separate values: liquidation_penalty, pepl_liquidation_profit, asset_reserve, borrow_apr, total)',
+      'money-market+protocol+asset_reserve, money-market+total (returns 4 separate values: liquidation_penalty, pepl_liquidation_profit, asset_reserve, total), ' +
+      'hollar+protocol+borrow_apr',
   })
   @ApiResponse({
     status: 200,

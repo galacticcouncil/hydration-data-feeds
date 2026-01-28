@@ -219,10 +219,14 @@ export class ChartsService {
     // Convert product type and bucket to table name
     if (productType === ProductType.OMNIPOOL) {
       return `fees_${bucket}`;
-    } else {
-      // MONEY_MARKET
+    } else if (productType === ProductType.MONEY_MARKET) {
+      return `liquidation_fees_${bucket}`;
+    } else if (productType === ProductType.HOLLAR) {
+      // For now, hollar uses liquidation_fees tables (will change in future)
       return `liquidation_fees_${bucket}`;
     }
+    // Fallback to liquidation_fees for any other product type
+    return `liquidation_fees_${bucket}`;
   }
 
   private getValueColumn(productType: ProductType, streamType: StreamType): string {
@@ -234,7 +238,12 @@ export class ChartsService {
         return `(fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric`;
       } else if (streamType === StreamType.ASSET_RESERVE) {
         return `(fees_by_type->>'ASSET_RESERVE')::numeric`;
-      } else if (streamType === StreamType.BORROW_APR) {
+      }
+    }
+
+    // Hollar uses money market tables with BORROW_APR
+    if (productType === ProductType.HOLLAR) {
+      if (streamType === StreamType.BORROW_APR) {
         return `(fees_by_type->>'BORROW_APR')::numeric`;
       }
     }

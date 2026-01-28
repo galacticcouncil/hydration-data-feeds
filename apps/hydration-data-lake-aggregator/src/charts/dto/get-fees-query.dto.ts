@@ -21,6 +21,7 @@ export enum BucketSize {
 export enum ProductType {
   OMNIPOOL = 'omnipool',
   MONEY_MARKET = 'money-market',
+  HOLLAR = 'hollar',
 }
 
 export enum FeeDestination {
