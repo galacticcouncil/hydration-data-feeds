@@ -9,6 +9,7 @@ import {
 import {
   GET_AAVE_FACILITATOR_HISTORICAL_DATA_QUERY,
   GET_ACCOUNT_TOTAL_BALANCE_HISTORICAL_DATA_QUERY,
+  GET_MOST_RECENT_ACCOUNT_BALANCE_QUERY,
 } from '../../graphql-client/queries/hsm-revenue.queries';
 import {
   AaveFacilitatorHistoricalDataNode,
@@ -104,7 +105,9 @@ export class HsmRevenueFetcherService {
 
   /**
    * Fetch account balances for multiple block heights in a single batch query
-   * Much more efficient than querying each block individually (1 query vs 100 queries)
+   * Uses hybrid approach:
+   * 1. Primary query: Fetch exact matches using IN operator (fast)
+   * 2. Fallback query: For missing blocks, fetch most recent balance using lessThanOrEqualTo
    */
   private async fetchAccountBalancesForBlocks(
     blockHeights: number[],
@@ -120,6 +123,7 @@ export class HsmRevenueFetcherService {
     );
 
     try {
+      // Primary query: Fetch exact matches
       const response =
         await this.graphqlClient.query<GetAccountTotalBalanceHistoricalDataResponse>(
           GET_ACCOUNT_TOTAL_BALANCE_HISTORICAL_DATA_QUERY,
@@ -136,14 +140,18 @@ export class HsmRevenueFetcherService {
         balanceMap.set(node.paraBlockHeight, node.totalTransferableNorm);
       });
 
-      // Log missing blocks
+      // Find missing blocks
       const missingBlocks = blockHeights.filter(
         (height) => !balanceMap.has(height),
       );
+
       if (missingBlocks.length > 0) {
-        this.logger.warn(
-          `No account balance found for ${missingBlocks.length}/${blockHeights.length} blocks: ${missingBlocks.slice(0, 10).join(', ')}${missingBlocks.length > 10 ? '...' : ''}`,
+        this.logger.debug(
+          `No exact match for ${missingBlocks.length}/${blockHeights.length} blocks, fetching most recent balances`,
         );
+
+        // Fallback query: Fetch most recent balance for each missing block
+        await this.fetchFallbackBalances(missingBlocks, balanceMap);
       }
 
       this.logger.debug(
@@ -157,6 +165,68 @@ export class HsmRevenueFetcherService {
         error.stack,
       );
       return balanceMap;
+    }
+  }
+
+  /**
+   * Fallback method to fetch the most recent balance for blocks with no exact match
+   * Queries for balance at or before the requested block height
+   *
+   * Uses individual queries for each missing block to get the most recent balance
+   * This is acceptable since missing blocks are typically rare (<5%)
+   */
+  private async fetchFallbackBalances(
+    missingBlocks: number[],
+    balanceMap: Map<number, string>,
+  ): Promise<void> {
+    if (missingBlocks.length === 0) return;
+
+    // Query each missing block individually to get most recent balance
+    const fallbackPromises = missingBlocks.map(async (blockHeight) => {
+      try {
+        const response =
+          await this.graphqlClient.query<GetAccountTotalBalanceHistoricalDataResponse>(
+            GET_MOST_RECENT_ACCOUNT_BALANCE_QUERY,
+            {
+              accountId: this.CONSTANT_ACCOUNT_ID,
+              maxBlockHeight: blockHeight,
+            },
+          );
+
+        const nodes = response.accountTotalBalanceHistoricalData.nodes;
+
+        if (nodes.length > 0) {
+          const mostRecentBalance = nodes[0];
+          balanceMap.set(blockHeight, mostRecentBalance.totalTransferableNorm);
+          this.logger.debug(
+            `Using balance from block ${mostRecentBalance.paraBlockHeight} for missing block ${blockHeight}`,
+          );
+          return { blockHeight, found: true };
+        } else {
+          this.logger.warn(
+            `No fallback balance found for block ${blockHeight}`,
+          );
+          return { blockHeight, found: false };
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to fetch fallback balance for block ${blockHeight}: ${error.message}`,
+        );
+        return { blockHeight, found: false };
+      }
+    });
+
+    const results = await Promise.all(fallbackPromises);
+    const stillMissing = results.filter(r => !r.found).map(r => r.blockHeight);
+
+    if (stillMissing.length > 0) {
+      this.logger.warn(
+        `Still missing balances for ${stillMissing.length}/${missingBlocks.length} blocks after fallback: ${stillMissing.slice(0, 10).join(', ')}${stillMissing.length > 10 ? '...' : ''}`,
+      );
+    } else {
+      this.logger.log(
+        `Successfully fetched fallback balances for all ${missingBlocks.length} missing blocks`,
+      );
     }
   }
 

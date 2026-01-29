@@ -52,3 +52,29 @@ export const GET_ACCOUNT_TOTAL_BALANCE_HISTORICAL_DATA_QUERY = gql`
     }
   }
 `;
+
+/**
+ * Fallback query to fetch the most recent Account Total Balance at or before a specific block
+ *
+ * Strategy: Fetch most recent balance when exact match not found
+ * - Filter: accountId (constant) AND paraBlockHeight <= targetBlock
+ * - Order by paraBlockHeight DESC to get most recent
+ * - Limit to 1 result
+ */
+export const GET_MOST_RECENT_ACCOUNT_BALANCE_QUERY = gql`
+  query GetMostRecentAccountBalance($accountId: String!, $maxBlockHeight: Int!) {
+    accountTotalBalanceHistoricalData(
+      filter: {
+        accountId: { equalTo: $accountId }
+        paraBlockHeight: { lessThanOrEqualTo: $maxBlockHeight }
+      }
+      orderBy: PARA_BLOCK_HEIGHT_DESC
+      first: 1
+    ) {
+      nodes {
+        paraBlockHeight
+        totalTransferableNorm
+      }
+    }
+  }
+`;
