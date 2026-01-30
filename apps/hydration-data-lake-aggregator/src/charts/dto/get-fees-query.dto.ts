@@ -16,6 +16,8 @@ export enum BucketSize {
   ONE_HOUR = '1hour',
   SIX_HOUR = '6hour',
   TWENTY_FOUR_HOUR = '24hour',
+  SEVEN_DAY = '7day',
+  THIRTY_DAY = '30day',
 }
 
 export enum ProductType {
