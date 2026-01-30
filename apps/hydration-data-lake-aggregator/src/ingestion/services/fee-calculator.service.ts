@@ -5,7 +5,7 @@ import {
 } from '../../graphql-client/types/graphql-response.types';
 import { AssetRegistryService } from '../../common/services/asset-registry.service';
 
-export type FeeType = 'asset' | 'protocol' | 'burned';
+export type FeeType = 'asset_referral' | 'asset_omnipool' | 'protocol_treasury' | 'protocol_burned';
 
 export interface FeeByRecipient {
   recipientId: string;
@@ -26,30 +26,50 @@ export class FeeCalculatorService {
   private readonly logger = new Logger(FeeCalculatorService.name);
 
   // Recipient ID constants
-  private readonly ASSET_FEES_RECIPIENT =
-    '0x6d6f646c726566657272616c0000000000000000000000000000000000000000';
-  private readonly PROTOCOL_FEES_RECIPIENT =
-    '0x6d6f646c70792f74727372790000000000000000000000000000000000000000';
+  // Asset fees are split 50/50 between referral and omnipool
+  private readonly ASSET_FEES_REFERRAL_RECIPIENT =
+    '0x6d6f646c726566657272616c0000000000000000000000000000000000000000'; // modlreferral
+  private readonly ASSET_FEES_OMNIPOOL_RECIPIENT =
+    '0x6d6f646c6f6d6e69706f6f6c0000000000000000000000000000000000000000'; // modlomnipool
+
+  // Protocol fees are split 50/50 between treasury and burned
+  private readonly PROTOCOL_FEES_TREASURY_RECIPIENT =
+    '0x6d6f646c70792f74727372790000000000000000000000000000000000000000'; // modlpy/trsry
 
   constructor(private readonly assetRegistry: AssetRegistryService) {}
 
   /**
    * Determine fee type based on recipient ID
+   *
+   * Fee Distribution:
+   * - Asset fees: 50% to referral (asset_referral), 50% to omnipool (asset_omnipool)
+   * - Protocol fees: 50% to treasury (protocol_treasury), 50% burned (protocol_burned)
+   *
+   * Returns null for unknown recipients (which will be filtered out)
    */
-  private determineFeeType(recipientId: string | null): FeeType {
-    // If recipientId is null, fees are burned
+  private determineFeeType(recipientId: string | null): FeeType | null {
+    // If recipientId is null, fees are burned (50% of protocol fees)
     if (!recipientId || recipientId === null) {
-      return 'burned';
+      return 'protocol_burned';
     }
 
-    if (recipientId === this.ASSET_FEES_RECIPIENT) {
-      return 'asset';
-    } else if (recipientId === this.PROTOCOL_FEES_RECIPIENT) {
-      return 'protocol';
+    // Asset fee to referral account (50% of asset fees)
+    if (recipientId === this.ASSET_FEES_REFERRAL_RECIPIENT) {
+      return 'asset_referral';
     }
 
-    // Default to protocol for unknown recipients
-    return 'protocol';
+    // Asset fee to omnipool account (50% of asset fees)
+    if (recipientId === this.ASSET_FEES_OMNIPOOL_RECIPIENT) {
+      return 'asset_omnipool';
+    }
+
+    // Protocol fee to treasury (50% of protocol fees)
+    if (recipientId === this.PROTOCOL_FEES_TREASURY_RECIPIENT) {
+      return 'protocol_treasury';
+    }
+
+    // Unknown recipient - return null to skip this fee
+    return null;
   }
 
   /**
@@ -69,6 +89,14 @@ export class FeeCalculatorService {
 
     // Process each fee
     for (const fee of swap.swapFees.nodes) {
+      // Determine fee type first - skip if unknown recipient
+      const feeType = this.determineFeeType(fee.recipientId);
+
+      // Skip fees with unknown recipients
+      if (feeType === null) {
+        continue;
+      }
+
       const assetId = fee.assetId;
       const rawAmount = fee.amount;
 
@@ -102,9 +130,6 @@ export class FeeCalculatorService {
         feeAmountsRaw[assetId] = normalizedAmount;
         feeAssetIds.push(assetId);
       }
-
-      // Determine fee type
-      const feeType = this.determineFeeType(fee.recipientId);
 
       // Track fee by recipient (with normalized amount)
       feeByRecipient.push({

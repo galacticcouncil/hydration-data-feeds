@@ -28,7 +28,8 @@ export class GetAggregatedFeesQueryDto {
   @ApiPropertyOptional({
     enum: ProductType,
     default: ProductType.OMNIPOOL,
-    description: 'Product type: omnipool (swap fees) or money-market (liquidation fees)'
+    description: 'Product type to query fees for',
+    example: ProductType.OMNIPOOL,
   })
   @IsOptional()
   @IsEnum(ProductType)
@@ -37,15 +38,15 @@ export class GetAggregatedFeesQueryDto {
 
   @ApiPropertyOptional({
     enum: AggregationPeriod,
-    description: 'Aggregation period (e.g., "1hour" = last 1 hour from now)',
-    example: '1hour',
+    description: 'Time period to aggregate (e.g., "1hour" = last 1 hour, "7day" = last 7 days)',
+    example: AggregationPeriod.TWENTY_FOUR_HOUR,
   })
   @IsOptional()
   @IsEnum(AggregationPeriod)
   period?: AggregationPeriod;
 
   @ApiPropertyOptional({
-    description: 'Custom start time (ISO 8601 timestamp). Overrides period.',
+    description: 'Custom start time (ISO 8601 format). Overrides period parameter.',
     example: '2026-01-01T00:00:00Z',
   })
   @IsOptional()
@@ -53,7 +54,7 @@ export class GetAggregatedFeesQueryDto {
   startTime?: string;
 
   @ApiPropertyOptional({
-    description: 'Custom end time (ISO 8601 timestamp). Overrides period.',
+    description: 'Custom end time (ISO 8601 format). Overrides period parameter.',
     example: '2026-01-31T23:59:59Z',
   })
   @IsOptional()
@@ -62,7 +63,8 @@ export class GetAggregatedFeesQueryDto {
 
   @ApiPropertyOptional({
     enum: FeeDestination,
-    description: 'Fee destination: protocol or total'
+    description: 'Fee destination filter: "lp" (liquidity providers), "protocol", or "total" (all fees)',
+    example: FeeDestination.TOTAL,
   })
   @IsOptional()
   @IsEnum(FeeDestination)
@@ -70,7 +72,8 @@ export class GetAggregatedFeesQueryDto {
 
   @ApiPropertyOptional({
     enum: StreamType,
-    description: 'Stream type: asset, protocol, burned, or liquidation_penalty'
+    description: 'Specific fee stream type. Combine with feeDestination for granular filtering.',
+    example: StreamType.ASSET,
   })
   @IsOptional()
   @IsEnum(StreamType)

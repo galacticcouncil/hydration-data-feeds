@@ -51,7 +51,7 @@ export class ChartsService {
     if (feeDestination === FeeDestination.TOTAL) {
       return this.getAllFeeTypes(productType, bucket, startTime, endTime);
     } else {
-      // feeDestination === 'protocol', streamType will be present (validated by decorator)
+      // feeDestination === 'protocol' or 'lp', streamType will be present (validated by decorator)
       return this.getSingleStreamType(productType, bucket, startTime, endTime, streamType!);
     }
   }
@@ -136,6 +136,12 @@ export class ChartsService {
         SELECT
           bucket as timestamp,
           total_fee_usd as total,
+          -- Granular fee types
+          (fees_by_type->>'asset_referral')::numeric as asset_referral,
+          (fees_by_type->>'asset_omnipool')::numeric as asset_omnipool,
+          (fees_by_type->>'protocol_treasury')::numeric as protocol_treasury,
+          (fees_by_type->>'protocol_burned')::numeric as protocol_burned,
+          -- Aggregated fee types (backward compatibility)
           (fees_by_type->>'asset')::numeric as asset,
           (fees_by_type->>'protocol')::numeric as protocol,
           (fees_by_type->>'burned')::numeric as burned
@@ -143,16 +149,26 @@ export class ChartsService {
         WHERE bucket >= $1 AND bucket <= $2
         ORDER BY bucket ASC
       `;
-    } else {
-      // MONEY_MARKET
+    } else if (productType === ProductType.MONEY_MARKET) {
       sql = `
         SELECT
           bucket as timestamp,
           total_liquidation_fee_usd as total,
           (fees_by_type->>'LIQUIDATION_PENALTY')::numeric as liquidation_penalty,
           (fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric as pepl_liquidation_profit,
-          (fees_by_type->>'ASSET_RESERVE')::numeric as asset_reserve,
-          (fees_by_type->>'BORROW_APR')::numeric as borrow_apr
+          (fees_by_type->>'ASSET_RESERVE')::numeric as asset_reserve
+        FROM ${tableName}
+        WHERE bucket >= $1 AND bucket <= $2
+        ORDER BY bucket ASC
+      `;
+    } else {
+      // HOLLAR
+      sql = `
+        SELECT
+          bucket as timestamp,
+          total_liquidation_fee_usd as total,
+          (fees_by_type->>'BORROW_APR')::numeric as borrow_apr,
+          (fees_by_type->>'HSM_REVENUE')::numeric as hsm_revenue
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
         ORDER BY bucket ASC
@@ -169,38 +185,77 @@ export class ChartsService {
       `Raw data from DB: ${rawData.length} rows. First row: ${JSON.stringify(rawData[0])}`,
     );
 
-    let data: Record<string, Array<{ timestamp: string; value: number }>>;
-    let aggregates: Record<string, number>;
+    let data: Record<string, any>;
+    let aggregates: Record<string, any>;
 
     if (productType === ProductType.OMNIPOOL) {
       data = {
         total: [],
         asset: [],
         protocol: [],
-        burned: [],
+        granular: {
+          asset_referral: [],
+          asset_omnipool: [],
+          protocol_treasury: [],
+          protocol_burned: [],
+        },
       };
-      aggregates = { total: 0, asset: 0, protocol: 0, burned: 0 };
+      aggregates = {
+        total: 0,
+        asset: 0,
+        protocol: 0,
+        granular: {
+          asset_referral: 0,
+          asset_omnipool: 0,
+          protocol_treasury: 0,
+          protocol_burned: 0,
+        },
+      };
 
       rawData.forEach((row) => {
-        ['total', 'asset', 'protocol', 'burned'].forEach((type) => {
+        const timestamp = row.timestamp;
+
+        // Top-level aggregated values
+        ['total', 'asset', 'protocol'].forEach((type) => {
+          const value = parseFloat(row[type]) || 0;
+          data[type].push({ timestamp, value });
+          aggregates[type] += value;
+        });
+
+        // Granular breakdown
+        ['asset_referral', 'asset_omnipool', 'protocol_treasury', 'protocol_burned'].forEach((type) => {
+          const value = parseFloat(row[type]) || 0;
+          data.granular[type].push({ timestamp, value });
+          aggregates.granular[type] += value;
+        });
+      });
+    } else if (productType === ProductType.MONEY_MARKET) {
+      data = {
+        total: [],
+        liquidation_penalty: [],
+        pepl_liquidation_profit: [],
+        asset_reserve: [],
+      };
+      aggregates = { total: 0, liquidation_penalty: 0, pepl_liquidation_profit: 0, asset_reserve: 0 };
+
+      rawData.forEach((row) => {
+        ['total', 'liquidation_penalty', 'pepl_liquidation_profit', 'asset_reserve'].forEach((type) => {
           const value = parseFloat(row[type]) || 0;
           data[type].push({ timestamp: row.timestamp, value });
           aggregates[type] += value;
         });
       });
     } else {
-      // MONEY_MARKET
+      // HOLLAR
       data = {
         total: [],
-        liquidation_penalty: [],
-        pepl_liquidation_profit: [],
-        asset_reserve: [],
         borrow_apr: [],
+        hsm_revenue: [],
       };
-      aggregates = { total: 0, liquidation_penalty: 0, pepl_liquidation_profit: 0, asset_reserve: 0, borrow_apr: 0 };
+      aggregates = { total: 0, borrow_apr: 0, hsm_revenue: 0 };
 
       rawData.forEach((row) => {
-        ['total', 'liquidation_penalty', 'pepl_liquidation_profit', 'asset_reserve', 'borrow_apr'].forEach((type) => {
+        ['total', 'borrow_apr', 'hsm_revenue'].forEach((type) => {
           const value = parseFloat(row[type]) || 0;
           data[type].push({ timestamp: row.timestamp, value });
           aggregates[type] += value;
@@ -298,11 +353,21 @@ export class ChartsService {
       );
     }
 
-    // Route based on feeDestination
-    if (feeDestination === FeeDestination.TOTAL) {
+    // Route based on feeDestination and streamType
+    if (feeDestination === FeeDestination.TOTAL && !streamType) {
+      // omnipool + total (no streamType) → Returns aggregated breakdown
       return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
+    } else if (streamType && feeDestination === FeeDestination.TOTAL) {
+      // omnipool + asset/protocol + total → Returns granular breakdown for that stream type
+      return this.getAggregatedGranularByStreamType(
+        productType,
+        startTime,
+        endTime,
+        streamType,
+        period,
+      );
     } else {
-      // feeDestination === 'protocol', streamType will be present (validated by decorator)
+      // Single stream type query (e.g., omnipool + lp + asset_referral)
       return this.getAggregatedSingleStreamType(
         productType,
         startTime,
@@ -379,6 +444,88 @@ export class ChartsService {
   }
 
   /**
+   * Get aggregated granular breakdown by stream type
+   * Examples:
+   * - omnipool + asset + total → { total, asset_referral, asset_omnipool }
+   * - omnipool + protocol + total → { total, protocol_treasury, protocol_burned }
+   */
+  private async getAggregatedGranularByStreamType(
+    productType: ProductType,
+    startTime: Date,
+    endTime: Date,
+    streamType: StreamType,
+    period?: AggregationPeriod,
+  ): Promise<AggregateAllFeesResponseDto> {
+    const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
+
+    let sql: string;
+    let aggregate: Record<string, number>;
+
+    if (productType === ProductType.OMNIPOOL) {
+      if (streamType === StreamType.ASSET) {
+        // omnipool + asset + total → Returns: total, asset_referral, asset_omnipool
+        sql = `
+          SELECT
+            SUM((fees_by_type->>'asset')::numeric) as total,
+            SUM((fees_by_type->>'asset_referral')::numeric) as asset_referral,
+            SUM((fees_by_type->>'asset_omnipool')::numeric) as asset_omnipool
+          FROM ${tableName}
+          WHERE bucket >= $1 AND bucket <= $2
+        `;
+
+        const result = await this.dataSource.query(sql, [startTime, endTime]);
+
+        aggregate = {
+          total: parseFloat(result[0]?.total || '0'),
+          asset_referral: parseFloat(result[0]?.asset_referral || '0'),
+          asset_omnipool: parseFloat(result[0]?.asset_omnipool || '0'),
+        };
+      } else if (streamType === StreamType.PROTOCOL) {
+        // omnipool + protocol + total → Returns: total, protocol_treasury, protocol_burned
+        sql = `
+          SELECT
+            SUM((fees_by_type->>'protocol')::numeric) as total,
+            SUM((fees_by_type->>'protocol_treasury')::numeric) as protocol_treasury,
+            SUM((fees_by_type->>'protocol_burned')::numeric) as protocol_burned
+          FROM ${tableName}
+          WHERE bucket >= $1 AND bucket <= $2
+        `;
+
+        const result = await this.dataSource.query(sql, [startTime, endTime]);
+
+        aggregate = {
+          total: parseFloat(result[0]?.total || '0'),
+          protocol_treasury: parseFloat(result[0]?.protocol_treasury || '0'),
+          protocol_burned: parseFloat(result[0]?.protocol_burned || '0'),
+        };
+      } else {
+        // Unsupported granular breakdown - fallback to single stream type
+        return this.getAggregatedSingleStreamType(
+          productType,
+          startTime,
+          endTime,
+          streamType,
+          period,
+        ) as any;
+      }
+    } else {
+      // For non-omnipool products, use the standard all fee types method
+      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
+    }
+
+    this.logger.log(
+      `Aggregated granular fees for ${streamType}: ${JSON.stringify(aggregate)}`,
+    );
+
+    return {
+      aggregate,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      period,
+    };
+  }
+
+  /**
    * Get aggregated values for all fee types
    */
   private async getAggregatedAllFeeTypes(
@@ -395,21 +542,35 @@ export class ChartsService {
       sql = `
         SELECT
           SUM(total_fee_usd) as total,
+          -- Granular fee types
+          SUM((fees_by_type->>'asset_referral')::numeric) as asset_referral,
+          SUM((fees_by_type->>'asset_omnipool')::numeric) as asset_omnipool,
+          SUM((fees_by_type->>'protocol_treasury')::numeric) as protocol_treasury,
+          SUM((fees_by_type->>'protocol_burned')::numeric) as protocol_burned,
+          -- Aggregated fee types (backward compatibility)
           SUM((fees_by_type->>'asset')::numeric) as asset,
           SUM((fees_by_type->>'protocol')::numeric) as protocol,
           SUM((fees_by_type->>'burned')::numeric) as burned
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
-    } else {
-      // MONEY_MARKET
+    } else if (productType === ProductType.MONEY_MARKET) {
       sql = `
         SELECT
           SUM(total_liquidation_fee_usd) as total,
           SUM((fees_by_type->>'LIQUIDATION_PENALTY')::numeric) as liquidation_penalty,
           SUM((fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric) as pepl_liquidation_profit,
-          SUM((fees_by_type->>'ASSET_RESERVE')::numeric) as asset_reserve,
-          SUM((fees_by_type->>'BORROW_APR')::numeric) as borrow_apr
+          SUM((fees_by_type->>'ASSET_RESERVE')::numeric) as asset_reserve
+        FROM ${tableName}
+        WHERE bucket >= $1 AND bucket <= $2
+      `;
+    } else {
+      // HOLLAR
+      sql = `
+        SELECT
+          SUM(total_liquidation_fee_usd) as total,
+          SUM((fees_by_type->>'BORROW_APR')::numeric) as borrow_apr,
+          SUM((fees_by_type->>'HSM_REVENUE')::numeric) as hsm_revenue
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
@@ -421,22 +582,32 @@ export class ChartsService {
 
     const result = await this.dataSource.query(sql, [startTime, endTime]);
 
-    let aggregate: Record<string, number>;
+    let aggregate: Record<string, any>;
     if (productType === ProductType.OMNIPOOL) {
       aggregate = {
         total: parseFloat(result[0]?.total || '0'),
         asset: parseFloat(result[0]?.asset || '0'),
         protocol: parseFloat(result[0]?.protocol || '0'),
-        burned: parseFloat(result[0]?.burned || '0'),
+        granular: {
+          asset_referral: parseFloat(result[0]?.asset_referral || '0'),
+          asset_omnipool: parseFloat(result[0]?.asset_omnipool || '0'),
+          protocol_treasury: parseFloat(result[0]?.protocol_treasury || '0'),
+          protocol_burned: parseFloat(result[0]?.protocol_burned || '0'),
+        },
       };
-    } else {
-      // MONEY_MARKET
+    } else if (productType === ProductType.MONEY_MARKET) {
       aggregate = {
         total: parseFloat(result[0]?.total || '0'),
         liquidation_penalty: parseFloat(result[0]?.liquidation_penalty || '0'),
         pepl_liquidation_profit: parseFloat(result[0]?.pepl_liquidation_profit || '0'),
         asset_reserve: parseFloat(result[0]?.asset_reserve || '0'),
+      };
+    } else {
+      // HOLLAR
+      aggregate = {
+        total: parseFloat(result[0]?.total || '0'),
         borrow_apr: parseFloat(result[0]?.borrow_apr || '0'),
+        hsm_revenue: parseFloat(result[0]?.hsm_revenue || '0'),
       };
     }
 

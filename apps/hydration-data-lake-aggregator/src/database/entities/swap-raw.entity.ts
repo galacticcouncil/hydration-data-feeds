@@ -32,7 +32,7 @@ export class SwapRaw {
     destinationType: string;
     assetId: string;
     amount: string;
-    feeType: 'asset' | 'protocol' | 'burned';
+    feeType: 'asset_referral' | 'asset_omnipool' | 'protocol_treasury' | 'protocol_burned';
   }>;
 
   // Spot prices for fee assets at this block (for USD conversion)
