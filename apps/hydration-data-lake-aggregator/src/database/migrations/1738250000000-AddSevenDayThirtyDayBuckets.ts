@@ -229,7 +229,7 @@ export class AddSevenDayThirtyDayBuckets1738250000000 implements MigrationInterf
     `);
 
     // ============================================================
-    // MONEY MARKET + HOLLAR LIQUIDATION FEES - 7 DAY AND 30 DAY
+    // MONEY MARKET LIQUIDATION FEES - 7 DAY AND 30 DAY
     // ============================================================
 
     // liquidation_fees_7day
@@ -237,24 +237,69 @@ export class AddSevenDayThirtyDayBuckets1738250000000 implements MigrationInterf
       CREATE MATERIALIZED VIEW liquidation_fees_7day
       WITH (timescaledb.continuous) AS
       SELECT
-        time_bucket('7 days', time) AS bucket,
+        time_bucket('7 days', m.time) AS bucket,
 
-        -- Total liquidation fee in USD
-        COALESCE(SUM(liquidation_fee_usd), 0) AS total_liquidation_fee_usd,
+        -- Total liquidation fees in USD (using embedded prices, respecting countInTotal flag)
+        SUM(
+          CASE
+            WHEN COALESCE((fee_transfer->>'countInTotal')::boolean, true) = true
+            THEN (fee_transfer->>'amount')::numeric *
+                 COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+            ELSE 0
+          END
+        ) AS total_liquidation_fee_usd,
 
-        -- Breakdown by fee type
+        -- Fees by type
         jsonb_build_object(
-          'LIQUIDATION_PENALTY', COALESCE(SUM(CASE WHEN fee_type = 'LIQUIDATION_PENALTY' THEN liquidation_fee_usd ELSE 0 END), 0),
-          'PEPL_LIQUIDATION_PROFIT', COALESCE(SUM(CASE WHEN fee_type = 'PEPL_LIQUIDATION_PROFIT' THEN liquidation_fee_usd ELSE 0 END), 0),
-          'ASSET_RESERVE', COALESCE(SUM(CASE WHEN fee_type = 'ASSET_RESERVE' THEN liquidation_fee_usd ELSE 0 END), 0),
-          'BORROW_APR', COALESCE(SUM(CASE WHEN fee_type = 'BORROW_APR' THEN liquidation_fee_usd ELSE 0 END), 0),
-          'HSM_REVENUE', COALESCE(SUM(CASE WHEN fee_type = 'HSM_REVENUE' THEN liquidation_fee_usd ELSE 0 END), 0)
+          'LIQUIDATION_PENALTY',
+          COALESCE(SUM(
+            CASE
+              WHEN (fee_transfer->>'feeType') = 'LIQUIDATION_PENALTY'
+              THEN (fee_transfer->>'amount')::numeric *
+                   COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+              ELSE 0
+            END
+          ), 0),
+          'PEPL_LIQUIDATION_PROFIT',
+          COALESCE(SUM(
+            CASE
+              WHEN (fee_transfer->>'feeType') = 'PEPL_LIQUIDATION_PROFIT'
+              THEN (fee_transfer->>'amount')::numeric *
+                   COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+              ELSE 0
+            END
+          ), 0),
+          'ASSET_RESERVE',
+          COALESCE(SUM(
+            CASE
+              WHEN (fee_transfer->>'feeType') = 'ASSET_RESERVE'
+              THEN (fee_transfer->>'amount')::numeric *
+                   COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+              ELSE 0
+            END
+          ), 0),
+          'BORROW_APR',
+          COALESCE(SUM(
+            CASE
+              WHEN (fee_transfer->>'feeType') = 'BORROW_APR'
+              THEN (fee_transfer->>'amount')::numeric *
+                   COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+              ELSE 0
+            END
+          ), 0)
         ) AS fees_by_type,
 
-        -- Event count
-        COUNT(*) AS event_count
+        -- Liquidation count
+        COUNT(DISTINCT m.liquidation_event_id) AS liquidation_count,
 
-      FROM liquidation_aggregates
+        -- Transfer count
+        COUNT(fee_transfer) AS transfer_count
+
+      FROM money_market_raw m
+      CROSS JOIN LATERAL jsonb_array_elements(m.fee_by_transfer) AS fee_transfer
+      WHERE jsonb_typeof(m.fee_spot_prices) = 'object'
+        AND m.fee_spot_prices != '{}'::jsonb
+
       GROUP BY bucket
       WITH NO DATA;
     `);
@@ -275,24 +320,69 @@ export class AddSevenDayThirtyDayBuckets1738250000000 implements MigrationInterf
       CREATE MATERIALIZED VIEW liquidation_fees_30day
       WITH (timescaledb.continuous) AS
       SELECT
-        time_bucket('30 days', time) AS bucket,
+        time_bucket('30 days', m.time) AS bucket,
 
-        -- Total liquidation fee in USD
-        COALESCE(SUM(liquidation_fee_usd), 0) AS total_liquidation_fee_usd,
+        -- Total liquidation fees in USD (using embedded prices, respecting countInTotal flag)
+        SUM(
+          CASE
+            WHEN COALESCE((fee_transfer->>'countInTotal')::boolean, true) = true
+            THEN (fee_transfer->>'amount')::numeric *
+                 COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+            ELSE 0
+          END
+        ) AS total_liquidation_fee_usd,
 
-        -- Breakdown by fee type
+        -- Fees by type
         jsonb_build_object(
-          'LIQUIDATION_PENALTY', COALESCE(SUM(CASE WHEN fee_type = 'LIQUIDATION_PENALTY' THEN liquidation_fee_usd ELSE 0 END), 0),
-          'PEPL_LIQUIDATION_PROFIT', COALESCE(SUM(CASE WHEN fee_type = 'PEPL_LIQUIDATION_PROFIT' THEN liquidation_fee_usd ELSE 0 END), 0),
-          'ASSET_RESERVE', COALESCE(SUM(CASE WHEN fee_type = 'ASSET_RESERVE' THEN liquidation_fee_usd ELSE 0 END), 0),
-          'BORROW_APR', COALESCE(SUM(CASE WHEN fee_type = 'BORROW_APR' THEN liquidation_fee_usd ELSE 0 END), 0),
-          'HSM_REVENUE', COALESCE(SUM(CASE WHEN fee_type = 'HSM_REVENUE' THEN liquidation_fee_usd ELSE 0 END), 0)
+          'LIQUIDATION_PENALTY',
+          COALESCE(SUM(
+            CASE
+              WHEN (fee_transfer->>'feeType') = 'LIQUIDATION_PENALTY'
+              THEN (fee_transfer->>'amount')::numeric *
+                   COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+              ELSE 0
+            END
+          ), 0),
+          'PEPL_LIQUIDATION_PROFIT',
+          COALESCE(SUM(
+            CASE
+              WHEN (fee_transfer->>'feeType') = 'PEPL_LIQUIDATION_PROFIT'
+              THEN (fee_transfer->>'amount')::numeric *
+                   COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+              ELSE 0
+            END
+          ), 0),
+          'ASSET_RESERVE',
+          COALESCE(SUM(
+            CASE
+              WHEN (fee_transfer->>'feeType') = 'ASSET_RESERVE'
+              THEN (fee_transfer->>'amount')::numeric *
+                   COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+              ELSE 0
+            END
+          ), 0),
+          'BORROW_APR',
+          COALESCE(SUM(
+            CASE
+              WHEN (fee_transfer->>'feeType') = 'BORROW_APR'
+              THEN (fee_transfer->>'amount')::numeric *
+                   COALESCE((m.fee_spot_prices->>(fee_transfer->>'assetId'))::numeric, 0)
+              ELSE 0
+            END
+          ), 0)
         ) AS fees_by_type,
 
-        -- Event count
-        COUNT(*) AS event_count
+        -- Liquidation count
+        COUNT(DISTINCT m.liquidation_event_id) AS liquidation_count,
 
-      FROM liquidation_aggregates
+        -- Transfer count
+        COUNT(fee_transfer) AS transfer_count
+
+      FROM money_market_raw m
+      CROSS JOIN LATERAL jsonb_array_elements(m.fee_by_transfer) AS fee_transfer
+      WHERE jsonb_typeof(m.fee_spot_prices) = 'object'
+        AND m.fee_spot_prices != '{}'::jsonb
+
       GROUP BY bucket
       WITH NO DATA;
     `);
@@ -317,9 +407,10 @@ export class AddSevenDayThirtyDayBuckets1738250000000 implements MigrationInterf
       CREATE MATERIALIZED VIEW hsm_revenue_7day
       WITH (timescaledb.continuous) AS
       SELECT
-        time_bucket('7 days', time) AS bucket,
-        SUM(hsm_revenue::numeric) AS hsm_revenue
-      FROM hsm_revenue_raw
+        time_bucket('7 days', h.time) AS bucket,
+        SUM(h.hsm_revenue) AS hsm_revenue,
+        COUNT(*) AS event_count
+      FROM hsm_revenue_raw h
       GROUP BY bucket
       WITH NO DATA;
     `);
@@ -340,9 +431,10 @@ export class AddSevenDayThirtyDayBuckets1738250000000 implements MigrationInterf
       CREATE MATERIALIZED VIEW hsm_revenue_30day
       WITH (timescaledb.continuous) AS
       SELECT
-        time_bucket('30 days', time) AS bucket,
-        SUM(hsm_revenue::numeric) AS hsm_revenue
-      FROM hsm_revenue_raw
+        time_bucket('30 days', h.time) AS bucket,
+        SUM(h.hsm_revenue) AS hsm_revenue,
+        COUNT(*) AS event_count
+      FROM hsm_revenue_raw h
       GROUP BY bucket
       WITH NO DATA;
     `);
