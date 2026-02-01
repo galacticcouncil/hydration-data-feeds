@@ -16,6 +16,7 @@ async function refreshAllAggregates() {
   });
 
   const aggregates = [
+    // Omnipool swap fees
     'fees_1min',
     'fees_5min',
     'fees_10min',
@@ -23,6 +24,9 @@ async function refreshAllAggregates() {
     'fees_1hour',
     'fees_6hour',
     'fees_24hour',
+    'fees_7day',
+    'fees_30day',
+    // Money Market + Hollar liquidation fees
     'liquidation_fees_1min',
     'liquidation_fees_5min',
     'liquidation_fees_10min',
@@ -30,6 +34,18 @@ async function refreshAllAggregates() {
     'liquidation_fees_1hour',
     'liquidation_fees_6hour',
     'liquidation_fees_24hour',
+    'liquidation_fees_7day',
+    'liquidation_fees_30day',
+    // Hollar HSM revenue
+    'hsm_revenue_1min',
+    'hsm_revenue_5min',
+    'hsm_revenue_10min',
+    'hsm_revenue_30min',
+    'hsm_revenue_1hour',
+    'hsm_revenue_6hour',
+    'hsm_revenue_24hour',
+    'hsm_revenue_7day',
+    'hsm_revenue_30day',
   ];
 
   try {
