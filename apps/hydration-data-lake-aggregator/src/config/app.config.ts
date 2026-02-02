@@ -5,6 +5,10 @@ export interface AppConfig {
   port: number;
   graphql: {
     endpoint: string;
+    multiEndpoint: {
+      enabled: boolean;
+      endpoints: string;
+    };
   };
   database: {
     host: string;
@@ -78,6 +82,8 @@ export const configValidationSchema = Joi.object({
 
   // GraphQL
   GRAPHQL_ENDPOINT: Joi.string().uri().required(),
+  GRAPHQL_MULTI_ENDPOINT_ENABLED: Joi.boolean().default(false),
+  GRAPHQL_ENDPOINTS: Joi.string().optional().default('[]'),
 
   // Database
   DB_HOST: Joi.string().default('localhost'),
@@ -147,6 +153,10 @@ export const getAppConfig = (): AppConfig => ({
   port: parseInt(process.env.PORT || '3000', 10),
   graphql: {
     endpoint: process.env.GRAPHQL_ENDPOINT || '',
+    multiEndpoint: {
+      enabled: process.env.GRAPHQL_MULTI_ENDPOINT_ENABLED === 'true',
+      endpoints: process.env.GRAPHQL_ENDPOINTS || '[]',
+    },
   },
   database: {
     host: process.env.DB_HOST || 'localhost',
