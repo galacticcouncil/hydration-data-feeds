@@ -1,7 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 
-import { PeplLiquidationEventNode } from '../../graphql-client/types/graphql-response.types';
-import { AssetRegistryService } from '../../common/services/asset-registry.service';
+import {
+  AssetRegistryService,
+} from '../../common/services/asset-registry.service';
+import {
+  PeplLiquidationEventNode,
+} from '../../graphql-client/types/graphql-response.types';
 
 /**
  * Service responsible for calculating and normalizing PEPL liquidation profits
@@ -39,16 +46,16 @@ export class PeplProfitCalculatorService {
     event: PeplLiquidationEventNode,
     decimalsMap: Map<string, number>,
   ): Promise<{ assetId: string; normalizedAmount: string } | null> {
-    let decimals = decimalsMap.get(event.collateralAssetId);
+    let decimals = decimalsMap.get(event.debtAssetId);
 
     if (decimals === undefined || decimals === 0) {
       // Fallback: try individual lookup
       const fetchedDecimals = await this.assetRegistry.getDecimals(
-        event.collateralAssetId,
+        event.debtAssetId,
       );
       if (fetchedDecimals === null) {
         this.logger.warn(
-          `Missing decimals for collateral asset ${event.collateralAssetId}, skipping event ${event.id}`,
+          `Missing decimals for debt asset ${event.debtAssetId}, skipping event ${event.id}`,
         );
         return null;
       }
@@ -58,7 +65,7 @@ export class PeplProfitCalculatorService {
     const normalizedAmount = this.normalizeAmount(event.profit, decimals);
 
     return {
-      assetId: event.collateralAssetId,
+      assetId: event.debtAssetId,
       normalizedAmount,
     };
   }
@@ -74,7 +81,7 @@ export class PeplProfitCalculatorService {
     const eventProfits = new Map<string, Map<string, string>>();
 
     // Extract unique asset IDs for batch decimal lookup
-    const assetIds = [...new Set(events.map((e) => e.collateralAssetId))];
+    const assetIds = [...new Set(events.map((e) => e.debtAssetId))];
     const decimalsMap = await this.assetRegistry.getDecimalsBatch(assetIds);
 
     for (const event of events) {

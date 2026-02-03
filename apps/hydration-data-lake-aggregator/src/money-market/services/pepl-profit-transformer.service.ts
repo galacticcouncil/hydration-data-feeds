@@ -1,7 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 
-import { MoneyMarketRaw } from '../../database/entities/money-market-raw.entity';
-import { PeplLiquidationEventNode } from '../../graphql-client/types/graphql-response.types';
+import {
+  MoneyMarketRaw,
+} from '../../database/entities/money-market-raw.entity';
+import {
+  PeplLiquidationEventNode,
+} from '../../graphql-client/types/graphql-response.types';
 import {
   AssetPriceMap,
   GraphqlFetcherService,
@@ -50,8 +57,8 @@ export class PeplProfitTransformerService {
       {
         fromId: 'protocol', // PEPL profit comes from protocol exposure
         toId: 'protocol', // Profit goes to protocol
-        assetId: event.collateralAssetId,
-        amount: eventProfits.get(event.collateralAssetId) || '0', // Normalized amount
+        assetId: event.debtAssetId,
+        amount: eventProfits.get(event.debtAssetId) || '0', // Normalized amount
         feeType: 'PEPL_LIQUIDATION_PROFIT' as const,
         transferEventId: event.event.id, // Event ID for traceability
       },
