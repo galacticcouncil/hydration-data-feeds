@@ -65,7 +65,7 @@ services:
       - hydration-aggregator-redis
 
   hydration-agggregator-nest-app:
-    image: ghcr.io/mckrava/hydration-data-lake-aggregator:83073e572c292014c351c9bd7aec21bc82bba075
+    image: ghcr.io/mckrava/hydration-data-lake-aggregator:f166958918a2ac9ae5f3a7c9b68e7565d420fb21
     environment:
       # Application
       NODE_ENV: production
@@ -88,11 +88,35 @@ services:
       # GraphQL Endpoint
       GRAPHQL_ENDPOINT: https://galacticcouncil.squids.live/hydration-pools:orca-prod/api/graphql
 
-      # Ingestion Configuration
+      # Ingestion Configuration (Swaps)
       INGESTION_START_BLOCK: 9999990
-      INGESTION_BATCH_SIZE: 100
+      INGESTION_BATCH_SIZE: 500
       INGESTION_INTERVAL_SECONDS: 60
-      INGESTION_BACKFILL_ON_STARTUP: "true"
+      INGESTION_BACKFILL_ON_STARTUP: true
+
+      # Money Market Configuration (Liquidations)
+      MONEY_MARKET_START_BLOCK: 121
+      MONEY_MARKET_BATCH_SIZE: 500
+      MONEY_MARKET_INTERVAL_SECONDS: 60
+      MONEY_MARKET_BACKFILL_ON_STARTUP: true
+
+      # PEPL Liquidation Configuration
+      PEPL_LIQUIDATION_START_BLOCK: 1000000
+      PEPL_LIQUIDATION_BATCH_SIZE: 500
+      PEPL_LIQUIDATION_INTERVAL_SECONDS: 300
+      PEPL_LIQUIDATION_BACKFILL_ON_STARTUP: true
+
+      # Asset Reserve Configuration
+      ASSET_RESERVE_START_BLOCK: 1000000
+      ASSET_RESERVE_BATCH_SIZE: 500
+      ASSET_RESERVE_INTERVAL_SECONDS: 300
+      ASSET_RESERVE_BACKFILL_ON_STARTUP: true
+
+      # HSM Revenue Configuration
+      HSM_REVENUE_START_BLOCK: 1000000
+      HSM_REVENUE_BATCH_SIZE: 500
+      HSM_REVENUE_INTERVAL_SECONDS: 300
+      HSM_REVENUE_BACKFILL_ON_STARTUP: true
 
       # Enrichment Configuration
       ENRICHMENT_BATCH_SIZE: 1000
@@ -139,14 +163,14 @@ services:
       labels:
         traefik.http.middlewares.https-redirect.redirectscheme.scheme: https
         traefik.http.routers.hydration-aggregator-dev.tls.certresolver: myresolver
-        traefik.http.services.hydration-aggregator-dev.loadbalancer.server.port: '3000'
-        traefik.http.routers.hydration-aggregator-dev.tls: 'true'
+        traefik.http.services.hydration-aggregator-dev.loadbalancer.server.port: "3000"
+        traefik.http.routers.hydration-aggregator-dev.tls: "true"
         traefik.http.routers.hydration-aggregator-dev-http.middlewares: https-redirect
         traefik.http.routers.hydration-aggregator-dev-http.rule: Host(`hydration-aggregator-dev.kril.hydration.cloud`)
         traefik.http.routers.hydration-aggregator-dev-http.entrypoints: web
-        traefik.http.middlewares.https-redirect.redirectscheme.permanent: 'true'
+        traefik.http.middlewares.https-redirect.redirectscheme.permanent: "true"
         traefik.http.routers.hydration-aggregator-dev.rule: Host(`hydration-aggregator-dev.kril.hydration.cloud`)
-        traefik.enable: 'true'
+        traefik.enable: "true"
         traefik.http.routers.hydration-aggregator-dev.entrypoints: websecure
       restart_policy:
         condition: on-failure
