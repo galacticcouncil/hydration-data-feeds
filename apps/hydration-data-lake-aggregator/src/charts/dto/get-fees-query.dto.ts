@@ -27,29 +27,21 @@ export enum ProductType {
 }
 
 export enum FeeDestination {
-  LIQUIDITY_PROVIDER = 'lp',  // Asset fees (referral + omnipool)
-  PROTOCOL = 'protocol',       // Protocol fees (treasury + burned)
-  TOTAL = 'total',             // All fees combined
+  LIQUIDITY_PROVIDER = 'lp',  // omnipool + asset only (Referral pallet)
+  PROTOCOL = 'protocol',       // omnipool + asset/protocol; all money-market & hollar streams
+  TOTAL = 'total',             // omnipool + asset or protocol (sum of sub-buckets)
+  BURNED = 'burned',           // omnipool + protocol only (burned fees)
 }
 
 export enum StreamType {
-  // Granular fee types (new)
-  ASSET_REFERRAL = 'asset_referral',
-  ASSET_OMNIPOOL = 'asset_omnipool',
-  PROTOCOL_TREASURY = 'protocol_treasury',
-  PROTOCOL_BURNED = 'protocol_burned',
-
-  // Aggregated fee types (backward compatibility)
-  ASSET = 'asset',
-  PROTOCOL = 'protocol',
-  BURNED = 'burned',
-
-  // Money market / Hollar types
-  LIQUIDATION_PENALTY = 'liquidation_penalty',
-  PEPL_LIQUIDATION_PROFIT = 'pepl_liquidation_profit',
-  ASSET_RESERVE = 'asset_reserve',
-  BORROW_APR = 'borrow_apr',
-  HSM_REVENUE = 'hsm_revenue',
+  TOTAL = 'total',                              // Product-level total (all fees for the product)
+  ASSET = 'asset',                              // Omnipool asset fees (referral + omnipool)
+  PROTOCOL = 'protocol',                        // Omnipool protocol fees (treasury + burned)
+  LIQUIDATION_PENALTY = 'liquidation_penalty',  // Money market
+  PEPL_LIQUIDATION_PROFIT = 'pepl_liquidation_profit', // Money market
+  ASSET_RESERVE = 'asset_reserve',              // Money market
+  BORROW_APR = 'borrow_apr',                    // Hollar
+  HSM_REVENUE = 'hsm_revenue',                  // Hollar
 }
 
 export class GetFeesQueryDto {
@@ -101,8 +93,8 @@ export class GetFeesQueryDto {
 
   @ApiPropertyOptional({
     enum: StreamType,
-    description: 'Specific fee stream type. Use with feeDestination to filter granular fee types.',
-    example: StreamType.ASSET_REFERRAL,
+    description: 'Fee stream type. Use "total" for full product breakdown, or combine with feeDestination for specific sub-buckets.',
+    example: StreamType.ASSET,
   })
   @IsOptional()
   @IsEnum(StreamType)

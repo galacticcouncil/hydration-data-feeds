@@ -47,12 +47,12 @@ export class ChartsService {
       `Processed params - productType=${productType}, bucket=${bucket}, startTime=${startTime}, endTime=${endTime}, feeDestination=${feeDestination}, streamType=${streamType}`,
     );
 
-    // Route based on feeDestination
-    if (feeDestination === FeeDestination.TOTAL) {
+    // Route based on streamType
+    if (streamType === StreamType.TOTAL) {
       return this.getAllFeeTypes(productType, bucket, startTime, endTime);
     } else {
-      // feeDestination === 'protocol' or 'lp', streamType will be present (validated by decorator)
-      return this.getSingleStreamType(productType, bucket, startTime, endTime, streamType!);
+      // streamType is a specific fee stream; feeDestination selects the sub-bucket
+      return this.getSingleStreamType(productType, bucket, startTime, endTime, streamType!, feeDestination!);
     }
   }
 
@@ -84,9 +84,10 @@ export class ChartsService {
     startTime: string,
     endTime: string,
     streamType: StreamType,
+    feeDestination: FeeDestination,
   ): Promise<SingleFeeTypeResponseDto> {
     const tableName = this.getTableName(productType, bucket, streamType);
-    const valueColumn = this.getValueColumn(productType, streamType);
+    const valueColumn = this.getValueColumn(productType, streamType, feeDestination);
 
     const sql = `
       SELECT
@@ -288,29 +289,34 @@ export class ChartsService {
     return `liquidation_fees_${bucket}`;
   }
 
-  private getValueColumn(productType: ProductType, streamType: StreamType): string {
-    // Map stream type to JSONB key (money market uses uppercase keys)
+  private getValueColumn(productType: ProductType, streamType: StreamType, feeDestination: FeeDestination): string {
+    // Omnipool: feeDestination selects the sub-bucket within the stream
+    if (productType === ProductType.OMNIPOOL) {
+      if (streamType === StreamType.ASSET) {
+        if (feeDestination === FeeDestination.LIQUIDITY_PROVIDER) return `(fees_by_type->>'asset_referral')::numeric`;
+        if (feeDestination === FeeDestination.PROTOCOL) return `(fees_by_type->>'asset_omnipool')::numeric`;
+        return `(fees_by_type->>'asset')::numeric`; // total
+      }
+      if (streamType === StreamType.PROTOCOL) {
+        if (feeDestination === FeeDestination.PROTOCOL) return `(fees_by_type->>'protocol_treasury')::numeric`;
+        if (feeDestination === FeeDestination.BURNED) return `(fees_by_type->>'protocol_burned')::numeric`;
+        return `(fees_by_type->>'protocol')::numeric`; // total
+      }
+    }
+
+    // Money market (uppercase JSONB keys)
     if (productType === ProductType.MONEY_MARKET) {
-      if (streamType === StreamType.LIQUIDATION_PENALTY) {
-        return `(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`;
-      } else if (streamType === StreamType.PEPL_LIQUIDATION_PROFIT) {
-        return `(fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric`;
-      } else if (streamType === StreamType.ASSET_RESERVE) {
-        return `(fees_by_type->>'ASSET_RESERVE')::numeric`;
-      }
+      if (streamType === StreamType.LIQUIDATION_PENALTY) return `(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`;
+      if (streamType === StreamType.PEPL_LIQUIDATION_PROFIT) return `(fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric`;
+      if (streamType === StreamType.ASSET_RESERVE) return `(fees_by_type->>'ASSET_RESERVE')::numeric`;
     }
 
-    // Hollar stream types
+    // Hollar
     if (productType === ProductType.HOLLAR) {
-      if (streamType === StreamType.BORROW_APR) {
-        return `(fees_by_type->>'BORROW_APR')::numeric`;
-      } else if (streamType === StreamType.HSM_REVENUE) {
-        // HSM revenue has direct column, not JSONB
-        return `hsm_revenue`;
-      }
+      if (streamType === StreamType.BORROW_APR) return `(fees_by_type->>'BORROW_APR')::numeric`;
+      if (streamType === StreamType.HSM_REVENUE) return `hsm_revenue`; // direct column
     }
 
-    // For omnipool, DB keys match stream types (asset, protocol, burned)
     return `(fees_by_type->>'${streamType}')::numeric`;
   }
 
@@ -353,11 +359,11 @@ export class ChartsService {
       );
     }
 
-    // Route based on feeDestination and streamType
-    if (feeDestination === FeeDestination.TOTAL && !streamType) {
-      // omnipool + total (no streamType) → Returns aggregated breakdown
+    // Route based on streamType and feeDestination
+    if (streamType === StreamType.TOTAL) {
+      // product + total → Returns full breakdown for the product
       return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
-    } else if (streamType && feeDestination === FeeDestination.TOTAL) {
+    } else if ((streamType === StreamType.ASSET || streamType === StreamType.PROTOCOL) && feeDestination === FeeDestination.TOTAL) {
       // omnipool + asset/protocol + total → Returns granular breakdown for that stream type
       return this.getAggregatedGranularByStreamType(
         productType,
@@ -367,12 +373,13 @@ export class ChartsService {
         period,
       );
     } else {
-      // Single stream type query (e.g., omnipool + lp + asset_referral)
+      // Single value query (e.g., omnipool + asset + lp)
       return this.getAggregatedSingleStreamType(
         productType,
         startTime,
         endTime,
         streamType!,
+        feeDestination!,
         period,
       );
     }
@@ -411,11 +418,12 @@ export class ChartsService {
     startTime: Date,
     endTime: Date,
     streamType: StreamType,
+    feeDestination: FeeDestination,
     period?: AggregationPeriod,
   ): Promise<AggregateFeeResponseDto> {
     // Use any continuous aggregate table - sum is same regardless of bucket size
     const tableName = this.getTableName(productType, BucketSize.ONE_HOUR, streamType);
-    const valueColumn = this.getValueColumn(productType, streamType);
+    const valueColumn = this.getValueColumn(productType, streamType, feeDestination);
 
     const sql = `
       SELECT
@@ -499,17 +507,9 @@ export class ChartsService {
           protocol_burned: parseFloat(result[0]?.protocol_burned || '0'),
         };
       } else {
-        // Unsupported granular breakdown - fallback to single stream type
-        return this.getAggregatedSingleStreamType(
-          productType,
-          startTime,
-          endTime,
-          streamType,
-          period,
-        ) as any;
+        return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
       }
     } else {
-      // For non-omnipool products, use the standard all fee types method
       return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
     }
 

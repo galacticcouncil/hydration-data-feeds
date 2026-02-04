@@ -22,22 +22,23 @@ export class ChartsController {
     summary: 'Get fee chart time-series data',
     description:
       'Retrieves time-series fee data with timestamps and values for charting.\n\n' +
-      '**OMNIPOOL Filter Combinations:**\n' +
-      '• `lp+asset_referral` - Referral fees (granular)\n' +
-      '• `lp+asset_omnipool` - Omnipool fees (granular)\n' +
-      '• `lp+asset` - All LP fees (aggregated)\n' +
-      '• `protocol+protocol_treasury` - Treasury fees (granular)\n' +
-      '• `protocol+protocol_burned` - Burned fees (granular)\n' +
-      '• `protocol+protocol` - All protocol fees (aggregated)\n' +
-      '• `total` - All fees with nested granular breakdown\n\n' +
-      '**MONEY MARKET Filter Combinations:**\n' +
-      '• `protocol+liquidation_penalty` - Liquidation penalty fees\n' +
-      '• `protocol+pepl_liquidation_profit` - PEPL liquidation profit\n' +
-      '• `protocol+asset_reserve` - Asset reserve fees\n' +
+      'Filter order: `productType → streamType → feeDestination`\n\n' +
+      '**OMNIPOOL:**\n' +
+      '• `asset + lp` - Referral pallet fees\n' +
+      '• `asset + protocol` - Omnipool pallet fees\n' +
+      '• `asset + total` - All asset fees (referral + omnipool)\n' +
+      '• `protocol + protocol` - Treasury fees\n' +
+      '• `protocol + burned` - Burned fees\n' +
+      '• `protocol + total` - All protocol fees (treasury + burned)\n' +
+      '• `total` - All omnipool fees with full breakdown\n\n' +
+      '**MONEY MARKET:**\n' +
+      '• `liquidation_penalty + protocol` - Liquidation penalty fees\n' +
+      '• `pepl_liquidation_profit + protocol` - PEPL liquidation profit\n' +
+      '• `asset_reserve + protocol` - Asset reserve fees\n' +
       '• `total` - All money market fees\n\n' +
-      '**HOLLAR Filter Combinations:**\n' +
-      '• `protocol+borrow_apr` - Borrow APR fees\n' +
-      '• `protocol+hsm_revenue` - HSM revenue\n' +
+      '**HOLLAR:**\n' +
+      '• `borrow_apr + protocol` - Borrow APR fees\n' +
+      '• `hsm_revenue + protocol` - HSM revenue\n' +
       '• `total` - All Hollar fees',
   })
   @ApiResponse({
@@ -59,25 +60,24 @@ export class ChartsController {
       '**Time Ranges:**\n' +
       '• Use `period` for quick windows (e.g., "1hour", "24hour", "7day")\n' +
       '• Use `startTime` + `endTime` for custom date ranges (overrides period)\n\n' +
-      '**OMNIPOOL Aggregations:**\n' +
-      '• `total` (no streamType) → Returns: `{ total, asset, protocol, granular: {...} }`\n' +
-      '• `total+asset` → Returns: `{ total, asset_referral, asset_omnipool }`\n' +
-      '• `total+protocol` → Returns: `{ total, protocol_treasury, protocol_burned }`\n' +
-      '• `lp+asset_referral` → Single value\n' +
-      '• `lp+asset_omnipool` → Single value\n' +
-      '• `lp+asset` → Single value (aggregated)\n' +
-      '• `protocol+protocol_treasury` → Single value\n' +
-      '• `protocol+protocol_burned` → Single value\n' +
-      '• `protocol+protocol` → Single value (aggregated)\n\n' +
-      '**MONEY MARKET Aggregations:**\n' +
+      'Filter order: `productType → streamType → feeDestination`\n\n' +
+      '**OMNIPOOL:**\n' +
+      '• `total` → Returns: `{ total, asset, protocol, granular: {...} }`\n' +
+      '• `asset + total` → Returns: `{ total, asset_referral, asset_omnipool }`\n' +
+      '• `protocol + total` → Returns: `{ total, protocol_treasury, protocol_burned }`\n' +
+      '• `asset + lp` → Single value (referral pallet)\n' +
+      '• `asset + protocol` → Single value (omnipool pallet)\n' +
+      '• `protocol + protocol` → Single value (treasury)\n' +
+      '• `protocol + burned` → Single value (burned)\n\n' +
+      '**MONEY MARKET:**\n' +
       '• `total` → Returns all fee types breakdown\n' +
-      '• `protocol+liquidation_penalty` → Single value\n' +
-      '• `protocol+pepl_liquidation_profit` → Single value\n' +
-      '• `protocol+asset_reserve` → Single value\n\n' +
-      '**HOLLAR Aggregations:**\n' +
+      '• `liquidation_penalty + protocol` → Single value\n' +
+      '• `pepl_liquidation_profit + protocol` → Single value\n' +
+      '• `asset_reserve + protocol` → Single value\n\n' +
+      '**HOLLAR:**\n' +
       '• `total` → Returns all fee types breakdown\n' +
-      '• `protocol+borrow_apr` → Single value\n' +
-      '• `protocol+hsm_revenue` → Single value',
+      '• `borrow_apr + protocol` → Single value\n' +
+      '• `hsm_revenue + protocol` → Single value',
   })
   @ApiResponse({
     status: 200,
