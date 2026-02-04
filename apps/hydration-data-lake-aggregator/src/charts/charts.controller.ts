@@ -63,8 +63,8 @@ export class ChartsController {
       'Filter order: `productType → streamType → feeDestination`\n\n' +
       '**OMNIPOOL:**\n' +
       '• `total` → Returns: `{ total, asset, protocol, granular: {...} }`\n' +
-      '• `asset + total` → Returns: `{ total, asset_referral, asset_omnipool }`\n' +
-      '• `protocol + total` → Returns: `{ total, protocol_treasury, protocol_burned }`\n' +
+      '• `asset + total` → Returns: `{ total, asset_lp, asset_protocol }`\n' +
+      '• `protocol + total` → Returns: `{ total, protocol_protocol, protocol_burned }`\n' +
       '• `asset + lp` → Single value (referral pallet)\n' +
       '• `asset + protocol` → Single value (omnipool pallet)\n' +
       '• `protocol + protocol` → Single value (treasury)\n' +

@@ -138,14 +138,13 @@ export class ChartsService {
           bucket as timestamp,
           total_fee_usd as total,
           -- Granular fee types
-          (fees_by_type->>'asset_referral')::numeric as asset_referral,
-          (fees_by_type->>'asset_omnipool')::numeric as asset_omnipool,
-          (fees_by_type->>'protocol_treasury')::numeric as protocol_treasury,
+          (fees_by_type->>'asset_referral')::numeric as asset_lp,
+          (fees_by_type->>'asset_omnipool')::numeric as asset_protocol,
+          (fees_by_type->>'protocol_treasury')::numeric as protocol_protocol,
           (fees_by_type->>'protocol_burned')::numeric as protocol_burned,
-          -- Aggregated fee types (backward compatibility)
+          -- Aggregated fee types
           (fees_by_type->>'asset')::numeric as asset,
-          (fees_by_type->>'protocol')::numeric as protocol,
-          (fees_by_type->>'burned')::numeric as burned
+          (fees_by_type->>'protocol')::numeric as protocol
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
         ORDER BY bucket ASC
@@ -195,9 +194,9 @@ export class ChartsService {
         asset: [],
         protocol: [],
         granular: {
-          asset_referral: [],
-          asset_omnipool: [],
-          protocol_treasury: [],
+          asset_lp: [],
+          asset_protocol: [],
+          protocol_protocol: [],
           protocol_burned: [],
         },
       };
@@ -206,9 +205,9 @@ export class ChartsService {
         asset: 0,
         protocol: 0,
         granular: {
-          asset_referral: 0,
-          asset_omnipool: 0,
-          protocol_treasury: 0,
+          asset_lp: 0,
+          asset_protocol: 0,
+          protocol_protocol: 0,
           protocol_burned: 0,
         },
       };
@@ -224,7 +223,7 @@ export class ChartsService {
         });
 
         // Granular breakdown
-        ['asset_referral', 'asset_omnipool', 'protocol_treasury', 'protocol_burned'].forEach((type) => {
+        ['asset_lp', 'asset_protocol', 'protocol_protocol', 'protocol_burned'].forEach((type) => {
           const value = parseFloat(row[type]) || 0;
           data.granular[type].push({ timestamp, value });
           aggregates.granular[type] += value;
@@ -454,8 +453,8 @@ export class ChartsService {
   /**
    * Get aggregated granular breakdown by stream type
    * Examples:
-   * - omnipool + asset + total → { total, asset_referral, asset_omnipool }
-   * - omnipool + protocol + total → { total, protocol_treasury, protocol_burned }
+   * - omnipool + asset + total → { total, asset_lp, asset_protocol }
+   * - omnipool + protocol + total → { total, protocol_protocol, protocol_burned }
    */
   private async getAggregatedGranularByStreamType(
     productType: ProductType,
@@ -471,12 +470,12 @@ export class ChartsService {
 
     if (productType === ProductType.OMNIPOOL) {
       if (streamType === StreamType.ASSET) {
-        // omnipool + asset + total → Returns: total, asset_referral, asset_omnipool
+        // omnipool + asset + total → Returns: total, asset_lp, asset_protocol
         sql = `
           SELECT
             SUM((fees_by_type->>'asset')::numeric) as total,
-            SUM((fees_by_type->>'asset_referral')::numeric) as asset_referral,
-            SUM((fees_by_type->>'asset_omnipool')::numeric) as asset_omnipool
+            SUM((fees_by_type->>'asset_referral')::numeric) as asset_lp,
+            SUM((fees_by_type->>'asset_omnipool')::numeric) as asset_protocol
           FROM ${tableName}
           WHERE bucket >= $1 AND bucket <= $2
         `;
@@ -485,15 +484,15 @@ export class ChartsService {
 
         aggregate = {
           total: parseFloat(result[0]?.total || '0'),
-          asset_referral: parseFloat(result[0]?.asset_referral || '0'),
-          asset_omnipool: parseFloat(result[0]?.asset_omnipool || '0'),
+          asset_lp: parseFloat(result[0]?.asset_lp || '0'),
+          asset_protocol: parseFloat(result[0]?.asset_protocol || '0'),
         };
       } else if (streamType === StreamType.PROTOCOL) {
-        // omnipool + protocol + total → Returns: total, protocol_treasury, protocol_burned
+        // omnipool + protocol + total → Returns: total, protocol_protocol, protocol_burned
         sql = `
           SELECT
             SUM((fees_by_type->>'protocol')::numeric) as total,
-            SUM((fees_by_type->>'protocol_treasury')::numeric) as protocol_treasury,
+            SUM((fees_by_type->>'protocol_treasury')::numeric) as protocol_protocol,
             SUM((fees_by_type->>'protocol_burned')::numeric) as protocol_burned
           FROM ${tableName}
           WHERE bucket >= $1 AND bucket <= $2
@@ -503,7 +502,7 @@ export class ChartsService {
 
         aggregate = {
           total: parseFloat(result[0]?.total || '0'),
-          protocol_treasury: parseFloat(result[0]?.protocol_treasury || '0'),
+          protocol_protocol: parseFloat(result[0]?.protocol_protocol || '0'),
           protocol_burned: parseFloat(result[0]?.protocol_burned || '0'),
         };
       } else {
@@ -543,14 +542,13 @@ export class ChartsService {
         SELECT
           SUM(total_fee_usd) as total,
           -- Granular fee types
-          SUM((fees_by_type->>'asset_referral')::numeric) as asset_referral,
-          SUM((fees_by_type->>'asset_omnipool')::numeric) as asset_omnipool,
-          SUM((fees_by_type->>'protocol_treasury')::numeric) as protocol_treasury,
+          SUM((fees_by_type->>'asset_referral')::numeric) as asset_lp,
+          SUM((fees_by_type->>'asset_omnipool')::numeric) as asset_protocol,
+          SUM((fees_by_type->>'protocol_treasury')::numeric) as protocol_protocol,
           SUM((fees_by_type->>'protocol_burned')::numeric) as protocol_burned,
-          -- Aggregated fee types (backward compatibility)
+          -- Aggregated fee types
           SUM((fees_by_type->>'asset')::numeric) as asset,
-          SUM((fees_by_type->>'protocol')::numeric) as protocol,
-          SUM((fees_by_type->>'burned')::numeric) as burned
+          SUM((fees_by_type->>'protocol')::numeric) as protocol
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
@@ -589,9 +587,9 @@ export class ChartsService {
         asset: parseFloat(result[0]?.asset || '0'),
         protocol: parseFloat(result[0]?.protocol || '0'),
         granular: {
-          asset_referral: parseFloat(result[0]?.asset_referral || '0'),
-          asset_omnipool: parseFloat(result[0]?.asset_omnipool || '0'),
-          protocol_treasury: parseFloat(result[0]?.protocol_treasury || '0'),
+          asset_lp: parseFloat(result[0]?.asset_lp || '0'),
+          asset_protocol: parseFloat(result[0]?.asset_protocol || '0'),
+          protocol_protocol: parseFloat(result[0]?.protocol_protocol || '0'),
           protocol_burned: parseFloat(result[0]?.protocol_burned || '0'),
         },
       };
