@@ -1,16 +1,23 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { GraphQLClient, Variables } from 'graphql-request';
 import type { RequestDocument } from 'graphql-request';
-import { AppConfig } from '../../config/app.config';
+import {
+  GraphQLClient,
+  Variables,
+} from 'graphql-request';
+
+import {
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
 import { getMultiEndpointConfig } from '../config/endpoint.config';
-import { MultiEndpointConfig, NormalizedEndpointConfig } from '../types/endpoint.types';
-import { QueryAnalyzerService } from './query-analyzer.service';
-import { ResultMergerService } from './result-merger.service';
+import { MultiEndpointConfig } from '../types/endpoint.types';
 import {
   findEndpointsForBlockRange,
   getHeadEndpoint,
 } from '../utils/block-range.utils';
+import { QueryAnalyzerService } from './query-analyzer.service';
+import { ResultMergerService } from './result-merger.service';
 
 /**
  * Multi-endpoint GraphQL client service that automatically routes queries
@@ -18,7 +25,7 @@ import {
  * multiple endpoints, and merges results
  */
 @Injectable()
-export class MultiEndpointGraphqlService implements OnModuleInit {
+export class MultiEndpointGraphqlService {
   private readonly logger = new Logger(MultiEndpointGraphqlService.name);
   private config: MultiEndpointConfig;
   private clients: Map<string, GraphQLClient> = new Map();
@@ -26,32 +33,30 @@ export class MultiEndpointGraphqlService implements OnModuleInit {
   // Configuration for retry logic (matches single-endpoint client)
   private readonly retries = 3;
   private readonly retryDelay = 1000; // 1 second
-  private readonly timeout = 30000; // 30 seconds
 
   constructor(
     private configService: ConfigService,
     private queryAnalyzer: QueryAnalyzerService,
     private resultMerger: ResultMergerService,
-  ) {}
-
-  /**
-   * Initialize the service by loading configuration and creating clients
-   */
-  onModuleInit() {
+  ) {
     this.config = getMultiEndpointConfig(this.configService);
 
     if (this.config.enabled) {
-      // Create a GraphQLClient for each endpoint
       for (const endpoint of this.config.endpoints) {
         const client = new GraphQLClient(endpoint.apiUrl);
         this.clients.set(endpoint.apiUrl, client);
+      }
+
+      // Also create a client for the fallback (squid) URL — used for queries
+      // that have no block range (e.g. GetAllAssets) which reaper doesn't serve
+      if (this.config.fallbackUrl && !this.clients.has(this.config.fallbackUrl)) {
+        this.clients.set(this.config.fallbackUrl, new GraphQLClient(this.config.fallbackUrl));
       }
 
       this.logger.log(
         `Multi-endpoint mode initialized with ${this.config.endpoints.length} endpoints`,
       );
     } else {
-      // Create single client for legacy fallback
       const client = new GraphQLClient(this.config.fallbackUrl);
       this.clients.set(this.config.fallbackUrl, client);
 
@@ -84,13 +89,13 @@ export class MultiEndpointGraphqlService implements OnModuleInit {
     // Extract block range from variables
     const blockRange = this.queryAnalyzer.extractBlockRange(variables || {});
 
-    // If no block range found, query the head endpoint
+    // If no block range found, use the fallback (squid) URL — reaper endpoints
+    // only serve block-range-scoped queries, not general ones like GetAllAssets
     if (!blockRange) {
-      const headEndpoint = getHeadEndpoint(this.config.endpoints);
       this.logger.debug(
-        `No block range found in variables, querying head endpoint: ${headEndpoint.apiUrl}`,
+        `No block range found in variables, querying fallback endpoint: ${this.config.fallbackUrl}`,
       );
-      return this.querySingleEndpoint(headEndpoint.apiUrl, query, variables);
+      return this.querySingleEndpoint(this.config.fallbackUrl, query, variables);
     }
 
     // Find endpoints that cover the requested block range
@@ -183,6 +188,7 @@ export class MultiEndpointGraphqlService implements OnModuleInit {
           await this.sleep(this.retryDelay * Math.pow(2, attempt - 1));
         }
 
+        // console.log(`[MultiEndpointGraphql] Request -> ${endpointUrl}`, { variables });
         const result = await client.request<T>(query, variables as any);
         return result;
       } catch (error) {

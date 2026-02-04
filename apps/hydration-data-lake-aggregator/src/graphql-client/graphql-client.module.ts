@@ -6,26 +6,21 @@ import { ResultMergerService } from './services/result-merger.service';
 
 @Module({
   providers: [
-    // Legacy single-endpoint client (kept for backwards compatibility)
-    GraphqlClientService,
-
     // Multi-endpoint services
     QueryAnalyzerService,
     ResultMergerService,
     MultiEndpointGraphqlService,
 
-    // Provide transparent replacement via DI alias
-    // All services injecting 'GraphqlClient' will get MultiEndpointGraphqlService
+    // Override GraphqlClientService token so all existing injections
+    // transparently resolve to MultiEndpointGraphqlService
     {
-      provide: 'GraphqlClient',
+      provide: GraphqlClientService,
       useExisting: MultiEndpointGraphqlService,
     },
   ],
   exports: [
-    // Export both for flexibility
     GraphqlClientService,
     MultiEndpointGraphqlService,
-    'GraphqlClient', // Export the alias
   ],
 })
 export class GraphqlClientModule {}
