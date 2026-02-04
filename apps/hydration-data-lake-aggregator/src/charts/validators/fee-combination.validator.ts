@@ -6,56 +6,47 @@ export class IsValidFeeCombinationConstraint implements ValidatorConstraintInter
     const obj = args.object as any;
     const { productType, feeDestination, streamType } = obj;
 
-    // Define valid combinations
+    // Define valid combinations (productType → streamType → feeDestination)
     const validCombinations = [
-      // Omnipool - Liquidity Provider fees (granular)
-      { productType: 'omnipool', feeDestination: 'lp', streamType: 'asset_referral' },
-      { productType: 'omnipool', feeDestination: 'lp', streamType: 'asset_omnipool' },
+      // Omnipool - Asset fees
+      { productType: 'omnipool', streamType: 'asset', feeDestination: 'lp' },        // Referral pallet
+      { productType: 'omnipool', streamType: 'asset', feeDestination: 'protocol' },   // Omnipool pallet
+      { productType: 'omnipool', streamType: 'asset', feeDestination: 'total' },      // Referral + Omnipool
 
-      // Omnipool - Liquidity Provider fees (aggregated)
-      { productType: 'omnipool', feeDestination: 'lp', streamType: 'asset' },
+      // Omnipool - Protocol fees
+      { productType: 'omnipool', streamType: 'protocol', feeDestination: 'protocol' }, // Treasury
+      { productType: 'omnipool', streamType: 'protocol', feeDestination: 'burned' },   // Burned
+      { productType: 'omnipool', streamType: 'protocol', feeDestination: 'total' },    // Treasury + Burned
 
-      // Omnipool - Protocol fees (granular)
-      { productType: 'omnipool', feeDestination: 'protocol', streamType: 'protocol_treasury' },
-      { productType: 'omnipool', feeDestination: 'protocol', streamType: 'protocol_burned' },
-
-      // Omnipool - Protocol fees (aggregated)
-      { productType: 'omnipool', feeDestination: 'protocol', streamType: 'protocol' },
-      { productType: 'omnipool', feeDestination: 'protocol', streamType: 'burned' },
-
-      // Omnipool - Total (all fees, aggregated breakdown)
-      { productType: 'omnipool', feeDestination: 'total', streamType: undefined },
-
-      // Omnipool - Total with stream type (granular breakdown by stream type)
-      { productType: 'omnipool', feeDestination: 'total', streamType: 'asset' },
-      { productType: 'omnipool', feeDestination: 'total', streamType: 'protocol' },
+      // Omnipool - Total (all fees)
+      { productType: 'omnipool', streamType: 'total', feeDestination: undefined },
 
       // Money Market
-      { productType: 'money-market', feeDestination: 'protocol', streamType: 'liquidation_penalty' },
-      { productType: 'money-market', feeDestination: 'protocol', streamType: 'pepl_liquidation_profit' },
-      { productType: 'money-market', feeDestination: 'protocol', streamType: 'asset_reserve' },
-      { productType: 'money-market', feeDestination: 'total', streamType: undefined },
+      { productType: 'money-market', streamType: 'liquidation_penalty', feeDestination: 'protocol' },
+      { productType: 'money-market', streamType: 'pepl_liquidation_profit', feeDestination: 'protocol' },
+      { productType: 'money-market', streamType: 'asset_reserve', feeDestination: 'protocol' },
+      { productType: 'money-market', streamType: 'total', feeDestination: undefined },
 
       // Hollar
-      { productType: 'hollar', feeDestination: 'protocol', streamType: 'borrow_apr' },
-      { productType: 'hollar', feeDestination: 'protocol', streamType: 'hsm_revenue' },
-      { productType: 'hollar', feeDestination: 'total', streamType: undefined },
+      { productType: 'hollar', streamType: 'borrow_apr', feeDestination: 'protocol' },
+      { productType: 'hollar', streamType: 'hsm_revenue', feeDestination: 'protocol' },
+      { productType: 'hollar', streamType: 'total', feeDestination: undefined },
     ];
 
     // Check if current combination is valid
     return validCombinations.some(combo =>
       combo.productType === productType &&
-      combo.feeDestination === feeDestination &&
-      combo.streamType === streamType
+      combo.streamType === streamType &&
+      combo.feeDestination === feeDestination
     );
   }
 
   defaultMessage(args: ValidationArguments) {
-    return 'Invalid filter combination. Valid combinations: ' +
-      'omnipool+lp+asset_referral, omnipool+lp+asset_omnipool, omnipool+lp+asset, ' +
-      'omnipool+protocol+protocol_treasury, omnipool+protocol+protocol_burned, omnipool+protocol+protocol, omnipool+protocol+burned, ' +
-      'omnipool+total, omnipool+total+asset, omnipool+total+protocol, ' +
-      'money-market+protocol+liquidation_penalty, money-market+protocol+pepl_liquidation_profit, money-market+protocol+asset_reserve, money-market+total, ' +
-      'hollar+protocol+borrow_apr, hollar+protocol+hsm_revenue, hollar+total';
+    return 'Invalid filter combination. Valid combinations (productType+streamType+feeDestination): ' +
+      'omnipool+asset+lp, omnipool+asset+protocol, omnipool+asset+total, ' +
+      'omnipool+protocol+protocol, omnipool+protocol+burned, omnipool+protocol+total, ' +
+      'omnipool+total, ' +
+      'money-market+liquidation_penalty+protocol, money-market+pepl_liquidation_profit+protocol, money-market+asset_reserve+protocol, money-market+total, ' +
+      'hollar+borrow_apr+protocol, hollar+hsm_revenue+protocol, hollar+total';
   }
 }
