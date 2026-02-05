@@ -6,6 +6,7 @@ import {
   Validate,
 } from 'class-validator';
 
+import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsValidFeeCombinationConstraint } from '../validators/fee-combination.validator';
 
@@ -107,6 +108,7 @@ export class GetFeesQueryDto {
     example: true,
   })
   @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   decoratedData?: boolean = true;
 }
