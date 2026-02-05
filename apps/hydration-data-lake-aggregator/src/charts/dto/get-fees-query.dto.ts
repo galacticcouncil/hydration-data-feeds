@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEnum,
   IsISO8601,
   IsOptional,
@@ -99,4 +100,13 @@ export class GetFeesQueryDto {
   @IsOptional()
   @IsEnum(StreamType)
   streamType?: StreamType;
+
+  @ApiPropertyOptional({
+    description: 'When true, replaces any negative values with 0',
+    default: true,
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  decoratedData?: boolean = true;
 }
