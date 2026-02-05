@@ -117,7 +117,10 @@ export class ChartsService {
       value: parseFloat(row.value) || 0,
     }));
 
-    const periodAggregate = data.reduce((sum, point) => sum + point.value, 0);
+    // HSM revenue is a trend metric - calculate average instead of sum
+    const periodAggregate = streamType === StreamType.HSM_REVENUE
+      ? data.reduce((sum, point) => sum + point.value, 0) / (data.length || 1)
+      : data.reduce((sum, point) => sum + point.value, 0);
 
     this.logger.log(
       `Processed ${data.length} data points for ${streamType} with aggregate ${periodAggregate}`,
@@ -265,9 +268,19 @@ export class ChartsService {
         ['total', 'borrow_apr', 'hsm_revenue'].forEach((type) => {
           const value = parseFloat(row[type]) || 0;
           data[type].push({ timestamp: row.timestamp, value });
-          aggregates[type] += value;
+          // HSM revenue is a trend metric (average), not a flow metric (sum)
+          if (type === 'hsm_revenue') {
+            aggregates[type] += value;
+          } else {
+            aggregates[type] += value;
+          }
         });
       });
+
+      // Calculate average for hsm_revenue (trend metric)
+      if (rawData.length > 0) {
+        aggregates.hsm_revenue = aggregates.hsm_revenue / rawData.length;
+      }
     }
 
     this.logger.log(
@@ -434,10 +447,12 @@ export class ChartsService {
     const tableName = this.getTableName(productType, BucketSize.ONE_HOUR, streamType);
     const valueColumn = this.getValueColumn(productType, streamType, feeDestination);
 
-    const sumExpr = decoratedData ? `GREATEST(${valueColumn}, 0)` : valueColumn;
+    // HSM revenue is a trend metric - use AVG instead of SUM
+    const aggregateFunction = streamType === StreamType.HSM_REVENUE ? 'AVG' : 'SUM';
+    const aggExpr = decoratedData ? `GREATEST(${valueColumn}, 0)` : valueColumn;
     const sql = `
       SELECT
-        SUM(${sumExpr}) as aggregate
+        ${aggregateFunction}(${aggExpr}) as aggregate
       FROM ${tableName}
       WHERE bucket >= $1 AND bucket <= $2
     `;
@@ -581,11 +596,13 @@ export class ChartsService {
       `;
     } else {
       // HOLLAR
+      // Note: HSM_REVENUE uses AVG (trend metric), others use SUM (flow metrics)
+      const hsmRevenueTable = this.getTableName(productType, BucketSize.ONE_HOUR, StreamType.HSM_REVENUE);
       sql = `
         SELECT
           SUM(${g('total_liquidation_fee_usd')}) as total,
           SUM(${g(`(fees_by_type->>'BORROW_APR')::numeric`)}) as borrow_apr,
-          SUM(${g(`(fees_by_type->>'HSM_REVENUE')::numeric`)}) as hsm_revenue
+          (SELECT AVG(${g('hsm_revenue')}) FROM ${hsmRevenueTable} WHERE bucket >= $1 AND bucket <= $2) as hsm_revenue
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
