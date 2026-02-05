@@ -1,11 +1,6 @@
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
-import {
-  GraphqlClientService,
-} from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import {
   GET_AAVE_FACILITATOR_HISTORICAL_DATA_QUERY,
   GET_ACCOUNT_TOTAL_BALANCE_HISTORICAL_DATA_QUERY,
@@ -32,7 +27,8 @@ export class HsmRevenueFetcherService {
   private readonly logger = new Logger(HsmRevenueFetcherService.name);
   private readonly CONSTANT_ACCOUNT_ID =
     '0x6d6f646c70792f68736d6f640000000000000000000000000000000000000000';
-  private readonly FACILITATOR_ID = '0x6d6f646c70792f68736d6f640000000000000000'
+  private readonly FACILITATOR_ID =
+    '0x6d6f646c70792f68736d6f640000000000000000';
 
   constructor(private graphqlClient: GraphqlClientService) {}
 
@@ -133,6 +129,8 @@ export class HsmRevenueFetcherService {
           },
         );
 
+      console.dir(response, { depth: null });
+
       const nodes = response.accountTotalBalanceHistoricalData.nodes;
 
       // Map results by block height
@@ -217,7 +215,9 @@ export class HsmRevenueFetcherService {
     });
 
     const results = await Promise.all(fallbackPromises);
-    const stillMissing = results.filter(r => !r.found).map(r => r.blockHeight);
+    const stillMissing = results
+      .filter((r) => !r.found)
+      .map((r) => r.blockHeight);
 
     if (stillMissing.length > 0) {
       this.logger.warn(
