@@ -117,9 +117,9 @@ export class ChartsService {
       value: parseFloat(row.value) || 0,
     }));
 
-    // HSM revenue is a trend metric - calculate average instead of sum
+    // HSM revenue is a trend metric - return the latest value
     const periodAggregate = streamType === StreamType.HSM_REVENUE
-      ? data.reduce((sum, point) => sum + point.value, 0) / (data.length || 1)
+      ? (data.length > 0 ? data[data.length - 1].value : 0)
       : data.reduce((sum, point) => sum + point.value, 0);
 
     this.logger.log(
@@ -264,23 +264,21 @@ export class ChartsService {
       };
       aggregates = { total: 0, borrow_apr: 0, hsm_revenue: 0 };
 
-      rawData.forEach((row) => {
+      rawData.forEach((row, index) => {
         ['total', 'borrow_apr', 'hsm_revenue'].forEach((type) => {
           const value = parseFloat(row[type]) || 0;
           data[type].push({ timestamp: row.timestamp, value });
-          // HSM revenue is a trend metric (average), not a flow metric (sum)
+          // HSM revenue is a trend metric - use latest value
           if (type === 'hsm_revenue') {
-            aggregates[type] += value;
+            // Store the latest (last) value
+            if (index === rawData.length - 1) {
+              aggregates[type] = value;
+            }
           } else {
             aggregates[type] += value;
           }
         });
       });
-
-      // Calculate average for hsm_revenue (trend metric)
-      if (rawData.length > 0) {
-        aggregates.hsm_revenue = aggregates.hsm_revenue / rawData.length;
-      }
     }
 
     this.logger.log(
