@@ -47,12 +47,14 @@ export class ChartsService {
       `Processed params - productType=${productType}, bucket=${bucket}, startTime=${startTime}, endTime=${endTime}, feeDestination=${feeDestination}, streamType=${streamType}`,
     );
 
+    const decoratedData = query.decoratedData ?? true;
+
     // Route based on streamType
     if (streamType === StreamType.TOTAL) {
-      return this.getAllFeeTypes(productType, bucket, startTime, endTime);
+      return this.getAllFeeTypes(productType, bucket, startTime, endTime, decoratedData);
     } else {
       // streamType is a specific fee stream; feeDestination selects the sub-bucket
-      return this.getSingleStreamType(productType, bucket, startTime, endTime, streamType!, feeDestination!);
+      return this.getSingleStreamType(productType, bucket, startTime, endTime, streamType!, feeDestination!, decoratedData);
     }
   }
 
@@ -85,14 +87,16 @@ export class ChartsService {
     endTime: string,
     streamType: StreamType,
     feeDestination: FeeDestination,
+    decoratedData: boolean,
   ): Promise<SingleFeeTypeResponseDto> {
     const tableName = this.getTableName(productType, bucket, streamType);
     const valueColumn = this.getValueColumn(productType, streamType, feeDestination);
 
+    const selectValue = decoratedData ? `GREATEST(${valueColumn}, 0)` : valueColumn;
     const sql = `
       SELECT
         bucket as timestamp,
-        ${valueColumn} as value
+        ${selectValue} as value
       FROM ${tableName}
       WHERE bucket >= $1 AND bucket <= $2
       ORDER BY bucket ASC
@@ -127,8 +131,11 @@ export class ChartsService {
     bucket: BucketSize,
     startTime: string,
     endTime: string,
+    decoratedData: boolean,
   ): Promise<AllFeeTypesResponseDto> {
     const tableName = this.getTableName(productType, bucket);
+
+    const g = (col: string) => decoratedData ? `GREATEST(${col}, 0)` : col;
 
     // Build SQL based on product type
     let sql: string;
@@ -136,16 +143,15 @@ export class ChartsService {
       sql = `
         SELECT
           bucket as timestamp,
-          total_fee_usd as total,
+          ${g('total_fee_usd')} as total,
           -- Granular fee types
-          (fees_by_type->>'asset_referral')::numeric as asset_referral,
-          (fees_by_type->>'asset_omnipool')::numeric as asset_omnipool,
-          (fees_by_type->>'protocol_treasury')::numeric as protocol_treasury,
-          (fees_by_type->>'protocol_burned')::numeric as protocol_burned,
-          -- Aggregated fee types (backward compatibility)
-          (fees_by_type->>'asset')::numeric as asset,
-          (fees_by_type->>'protocol')::numeric as protocol,
-          (fees_by_type->>'burned')::numeric as burned
+          ${g(`(fees_by_type->>'asset_referral')::numeric`)} as asset_lp,
+          ${g(`(fees_by_type->>'asset_omnipool')::numeric`)} as asset_protocol,
+          ${g(`(fees_by_type->>'protocol_treasury')::numeric`)} as protocol_protocol,
+          ${g(`(fees_by_type->>'protocol_burned')::numeric`)} as protocol_burned,
+          -- Aggregated fee types
+          ${g(`(fees_by_type->>'asset')::numeric`)} as asset,
+          ${g(`(fees_by_type->>'protocol')::numeric`)} as protocol
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
         ORDER BY bucket ASC
@@ -154,10 +160,10 @@ export class ChartsService {
       sql = `
         SELECT
           bucket as timestamp,
-          total_liquidation_fee_usd as total,
-          (fees_by_type->>'LIQUIDATION_PENALTY')::numeric as liquidation_penalty,
-          (fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric as pepl_liquidation_profit,
-          (fees_by_type->>'ASSET_RESERVE')::numeric as asset_reserve
+          ${g('total_liquidation_fee_usd')} as total,
+          ${g(`(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`)} as liquidation_penalty,
+          ${g(`(fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric`)} as pepl_liquidation_profit,
+          ${g(`(fees_by_type->>'ASSET_RESERVE')::numeric`)} as asset_reserve
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
         ORDER BY bucket ASC
@@ -167,9 +173,9 @@ export class ChartsService {
       sql = `
         SELECT
           bucket as timestamp,
-          total_liquidation_fee_usd as total,
-          (fees_by_type->>'BORROW_APR')::numeric as borrow_apr,
-          (fees_by_type->>'HSM_REVENUE')::numeric as hsm_revenue
+          ${g('total_liquidation_fee_usd')} as total,
+          ${g(`(fees_by_type->>'BORROW_APR')::numeric`)} as borrow_apr,
+          ${g(`(fees_by_type->>'HSM_REVENUE')::numeric`)} as hsm_revenue
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
         ORDER BY bucket ASC
@@ -195,9 +201,9 @@ export class ChartsService {
         asset: [],
         protocol: [],
         granular: {
-          asset_referral: [],
-          asset_omnipool: [],
-          protocol_treasury: [],
+          asset_lp: [],
+          asset_protocol: [],
+          protocol_protocol: [],
           protocol_burned: [],
         },
       };
@@ -206,9 +212,9 @@ export class ChartsService {
         asset: 0,
         protocol: 0,
         granular: {
-          asset_referral: 0,
-          asset_omnipool: 0,
-          protocol_treasury: 0,
+          asset_lp: 0,
+          asset_protocol: 0,
+          protocol_protocol: 0,
           protocol_burned: 0,
         },
       };
@@ -224,7 +230,7 @@ export class ChartsService {
         });
 
         // Granular breakdown
-        ['asset_referral', 'asset_omnipool', 'protocol_treasury', 'protocol_burned'].forEach((type) => {
+        ['asset_lp', 'asset_protocol', 'protocol_protocol', 'protocol_burned'].forEach((type) => {
           const value = parseFloat(row[type]) || 0;
           data.granular[type].push({ timestamp, value });
           aggregates.granular[type] += value;
@@ -330,7 +336,7 @@ export class ChartsService {
       `Incoming aggregated fees request: ${JSON.stringify(query)}`,
     );
 
-    const { productType = ProductType.OMNIPOOL, period, feeDestination, streamType } = query;
+    const { productType = ProductType.OMNIPOOL, period, feeDestination, streamType, decoratedData = true } = query;
 
     // Calculate time range
     let startTime: Date;
@@ -362,7 +368,7 @@ export class ChartsService {
     // Route based on streamType and feeDestination
     if (streamType === StreamType.TOTAL) {
       // product + total → Returns full breakdown for the product
-      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
+      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period, decoratedData);
     } else if ((streamType === StreamType.ASSET || streamType === StreamType.PROTOCOL) && feeDestination === FeeDestination.TOTAL) {
       // omnipool + asset/protocol + total → Returns granular breakdown for that stream type
       return this.getAggregatedGranularByStreamType(
@@ -371,6 +377,7 @@ export class ChartsService {
         endTime,
         streamType,
         period,
+        decoratedData,
       );
     } else {
       // Single value query (e.g., omnipool + asset + lp)
@@ -381,6 +388,7 @@ export class ChartsService {
         streamType!,
         feeDestination!,
         period,
+        decoratedData,
       );
     }
   }
@@ -420,14 +428,16 @@ export class ChartsService {
     streamType: StreamType,
     feeDestination: FeeDestination,
     period?: AggregationPeriod,
+    decoratedData: boolean = true,
   ): Promise<AggregateFeeResponseDto> {
     // Use any continuous aggregate table - sum is same regardless of bucket size
     const tableName = this.getTableName(productType, BucketSize.ONE_HOUR, streamType);
     const valueColumn = this.getValueColumn(productType, streamType, feeDestination);
 
+    const sumExpr = decoratedData ? `GREATEST(${valueColumn}, 0)` : valueColumn;
     const sql = `
       SELECT
-        SUM(${valueColumn}) as aggregate
+        SUM(${sumExpr}) as aggregate
       FROM ${tableName}
       WHERE bucket >= $1 AND bucket <= $2
     `;
@@ -454,8 +464,8 @@ export class ChartsService {
   /**
    * Get aggregated granular breakdown by stream type
    * Examples:
-   * - omnipool + asset + total → { total, asset_referral, asset_omnipool }
-   * - omnipool + protocol + total → { total, protocol_treasury, protocol_burned }
+   * - omnipool + asset + total → { total, asset_lp, asset_protocol }
+   * - omnipool + protocol + total → { total, protocol_protocol, protocol_burned }
    */
   private async getAggregatedGranularByStreamType(
     productType: ProductType,
@@ -463,20 +473,23 @@ export class ChartsService {
     endTime: Date,
     streamType: StreamType,
     period?: AggregationPeriod,
+    decoratedData: boolean = true,
   ): Promise<AggregateAllFeesResponseDto> {
     const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
+
+    const g = (col: string) => decoratedData ? `GREATEST(${col}, 0)` : col;
 
     let sql: string;
     let aggregate: Record<string, number>;
 
     if (productType === ProductType.OMNIPOOL) {
       if (streamType === StreamType.ASSET) {
-        // omnipool + asset + total → Returns: total, asset_referral, asset_omnipool
+        // omnipool + asset + total → Returns: total, asset_lp, asset_protocol
         sql = `
           SELECT
-            SUM((fees_by_type->>'asset')::numeric) as total,
-            SUM((fees_by_type->>'asset_referral')::numeric) as asset_referral,
-            SUM((fees_by_type->>'asset_omnipool')::numeric) as asset_omnipool
+            SUM(${g(`(fees_by_type->>'asset')::numeric`)}) as total,
+            SUM(${g(`(fees_by_type->>'asset_referral')::numeric`)}) as asset_lp,
+            SUM(${g(`(fees_by_type->>'asset_omnipool')::numeric`)}) as asset_protocol
           FROM ${tableName}
           WHERE bucket >= $1 AND bucket <= $2
         `;
@@ -485,16 +498,16 @@ export class ChartsService {
 
         aggregate = {
           total: parseFloat(result[0]?.total || '0'),
-          asset_referral: parseFloat(result[0]?.asset_referral || '0'),
-          asset_omnipool: parseFloat(result[0]?.asset_omnipool || '0'),
+          asset_lp: parseFloat(result[0]?.asset_lp || '0'),
+          asset_protocol: parseFloat(result[0]?.asset_protocol || '0'),
         };
       } else if (streamType === StreamType.PROTOCOL) {
-        // omnipool + protocol + total → Returns: total, protocol_treasury, protocol_burned
+        // omnipool + protocol + total → Returns: total, protocol_protocol, protocol_burned
         sql = `
           SELECT
-            SUM((fees_by_type->>'protocol')::numeric) as total,
-            SUM((fees_by_type->>'protocol_treasury')::numeric) as protocol_treasury,
-            SUM((fees_by_type->>'protocol_burned')::numeric) as protocol_burned
+            SUM(${g(`(fees_by_type->>'protocol')::numeric`)}) as total,
+            SUM(${g(`(fees_by_type->>'protocol_treasury')::numeric`)}) as protocol_protocol,
+            SUM(${g(`(fees_by_type->>'protocol_burned')::numeric`)}) as protocol_burned
           FROM ${tableName}
           WHERE bucket >= $1 AND bucket <= $2
         `;
@@ -503,7 +516,7 @@ export class ChartsService {
 
         aggregate = {
           total: parseFloat(result[0]?.total || '0'),
-          protocol_treasury: parseFloat(result[0]?.protocol_treasury || '0'),
+          protocol_protocol: parseFloat(result[0]?.protocol_protocol || '0'),
           protocol_burned: parseFloat(result[0]?.protocol_burned || '0'),
         };
       } else {
@@ -533,34 +546,36 @@ export class ChartsService {
     startTime: Date,
     endTime: Date,
     period?: AggregationPeriod,
+    decoratedData: boolean = true,
   ): Promise<AggregateAllFeesResponseDto> {
     // Use any continuous aggregate table - sum is same regardless of bucket size
     const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
+
+    const g = (col: string) => decoratedData ? `GREATEST(${col}, 0)` : col;
 
     let sql: string;
     if (productType === ProductType.OMNIPOOL) {
       sql = `
         SELECT
-          SUM(total_fee_usd) as total,
+          SUM(${g('total_fee_usd')}) as total,
           -- Granular fee types
-          SUM((fees_by_type->>'asset_referral')::numeric) as asset_referral,
-          SUM((fees_by_type->>'asset_omnipool')::numeric) as asset_omnipool,
-          SUM((fees_by_type->>'protocol_treasury')::numeric) as protocol_treasury,
-          SUM((fees_by_type->>'protocol_burned')::numeric) as protocol_burned,
-          -- Aggregated fee types (backward compatibility)
-          SUM((fees_by_type->>'asset')::numeric) as asset,
-          SUM((fees_by_type->>'protocol')::numeric) as protocol,
-          SUM((fees_by_type->>'burned')::numeric) as burned
+          SUM(${g(`(fees_by_type->>'asset_referral')::numeric`)}) as asset_lp,
+          SUM(${g(`(fees_by_type->>'asset_omnipool')::numeric`)}) as asset_protocol,
+          SUM(${g(`(fees_by_type->>'protocol_treasury')::numeric`)}) as protocol_protocol,
+          SUM(${g(`(fees_by_type->>'protocol_burned')::numeric`)}) as protocol_burned,
+          -- Aggregated fee types
+          SUM(${g(`(fees_by_type->>'asset')::numeric`)}) as asset,
+          SUM(${g(`(fees_by_type->>'protocol')::numeric`)}) as protocol
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
     } else if (productType === ProductType.MONEY_MARKET) {
       sql = `
         SELECT
-          SUM(total_liquidation_fee_usd) as total,
-          SUM((fees_by_type->>'LIQUIDATION_PENALTY')::numeric) as liquidation_penalty,
-          SUM((fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric) as pepl_liquidation_profit,
-          SUM((fees_by_type->>'ASSET_RESERVE')::numeric) as asset_reserve
+          SUM(${g('total_liquidation_fee_usd')}) as total,
+          SUM(${g(`(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`)}) as liquidation_penalty,
+          SUM(${g(`(fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric`)}) as pepl_liquidation_profit,
+          SUM(${g(`(fees_by_type->>'ASSET_RESERVE')::numeric`)}) as asset_reserve
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
@@ -568,9 +583,9 @@ export class ChartsService {
       // HOLLAR
       sql = `
         SELECT
-          SUM(total_liquidation_fee_usd) as total,
-          SUM((fees_by_type->>'BORROW_APR')::numeric) as borrow_apr,
-          SUM((fees_by_type->>'HSM_REVENUE')::numeric) as hsm_revenue
+          SUM(${g('total_liquidation_fee_usd')}) as total,
+          SUM(${g(`(fees_by_type->>'BORROW_APR')::numeric`)}) as borrow_apr,
+          SUM(${g(`(fees_by_type->>'HSM_REVENUE')::numeric`)}) as hsm_revenue
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
@@ -589,9 +604,9 @@ export class ChartsService {
         asset: parseFloat(result[0]?.asset || '0'),
         protocol: parseFloat(result[0]?.protocol || '0'),
         granular: {
-          asset_referral: parseFloat(result[0]?.asset_referral || '0'),
-          asset_omnipool: parseFloat(result[0]?.asset_omnipool || '0'),
-          protocol_treasury: parseFloat(result[0]?.protocol_treasury || '0'),
+          asset_lp: parseFloat(result[0]?.asset_lp || '0'),
+          asset_protocol: parseFloat(result[0]?.asset_protocol || '0'),
+          protocol_protocol: parseFloat(result[0]?.protocol_protocol || '0'),
           protocol_burned: parseFloat(result[0]?.protocol_burned || '0'),
         },
       };
