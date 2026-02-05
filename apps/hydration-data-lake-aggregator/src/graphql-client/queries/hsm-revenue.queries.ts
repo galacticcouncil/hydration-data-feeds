@@ -38,13 +38,17 @@ export const GET_AAVE_FACILITATOR_HISTORICAL_DATA_QUERY = gql`
  * - Much more efficient than querying each block individually
  */
 export const GET_ACCOUNT_TOTAL_BALANCE_HISTORICAL_DATA_QUERY = gql`
-  query GetAccountTotalBalanceHistoricalData($accountId: String!, $blockHeights: [Int!]!) {
+  query GetAccountTotalBalanceHistoricalData(
+    $accountId: String!
+    $blockHeights: [Int!]!
+  ) {
     accountTotalBalanceHistoricalData(
       filter: {
         accountId: { equalTo: $accountId }
         paraBlockHeight: { in: $blockHeights }
       }
     ) {
+      totalCount
       nodes {
         paraBlockHeight
         totalTransferableNorm
@@ -62,7 +66,10 @@ export const GET_ACCOUNT_TOTAL_BALANCE_HISTORICAL_DATA_QUERY = gql`
  * - Limit to 1 result
  */
 export const GET_MOST_RECENT_ACCOUNT_BALANCE_QUERY = gql`
-  query GetMostRecentAccountBalance($accountId: String!, $maxBlockHeight: Int!) {
+  query GetMostRecentAccountBalance(
+    $accountId: String!
+    $maxBlockHeight: Int!
+  ) {
     accountTotalBalanceHistoricalData(
       filter: {
         accountId: { equalTo: $accountId }
@@ -71,6 +78,7 @@ export const GET_MOST_RECENT_ACCOUNT_BALANCE_QUERY = gql`
       orderBy: PARA_BLOCK_HEIGHT_DESC
       first: 1
     ) {
+      totalCount
       nodes {
         paraBlockHeight
         totalTransferableNorm

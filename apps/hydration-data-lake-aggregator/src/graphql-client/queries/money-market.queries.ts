@@ -53,6 +53,7 @@ export const GET_TREASURY_TRANSFERS_QUERY = gql`
       }
       orderBy: [PARA_BLOCK_HEIGHT_ASC, EVENT_ID_ASC]
     ) {
+      totalCount
       nodes {
         eventId
         paraBlockHeight

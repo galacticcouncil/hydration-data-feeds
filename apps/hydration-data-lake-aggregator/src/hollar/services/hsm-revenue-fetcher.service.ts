@@ -129,8 +129,6 @@ export class HsmRevenueFetcherService {
           },
         );
 
-      console.dir(response, { depth: null });
-
       const nodes = response.accountTotalBalanceHistoricalData.nodes;
 
       // Map results by block height

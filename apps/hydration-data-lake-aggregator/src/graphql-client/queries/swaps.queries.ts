@@ -48,6 +48,7 @@ export const GET_ASSET_PRICES_AT_BLOCK_QUERY = gql`
         paraBlockHeight: { equalTo: $blockHeight }
       }
     ) {
+      totalCount
       nodes {
         assetInId
         assetOutId
@@ -78,6 +79,7 @@ export const GET_NEAREST_ASSET_PRICES_QUERY = gql`
       orderBy: PARA_BLOCK_HEIGHT_DESC
       first: 500
     ) {
+      totalCount
       nodes {
         assetInId
         assetOutId
@@ -100,6 +102,7 @@ export const GET_LATEST_ASSET_PRICES_QUERY = gql`
       orderBy: PARA_BLOCK_HEIGHT_DESC
       first: 100
     ) {
+      totalCount
       nodes {
         assetInId
         assetOutId
@@ -118,6 +121,7 @@ export const GET_LATEST_ASSET_PRICES_QUERY = gql`
 export const GET_ALL_ASSETS_QUERY = gql`
   query GetAllAssets {
     assets {
+      totalCount
       nodes {
         id
         decimals

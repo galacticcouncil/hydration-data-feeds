@@ -32,8 +32,6 @@ export class ResultMergerService {
       return this.mergeArrayStructure(results, structure.dataKey);
     } else {
       this.logger.warn('Unknown response structure, returning first result');
-      console.log('structure - ', structure);
-      console.dir(results, { depth: null });
       return results[0];
     }
   }
