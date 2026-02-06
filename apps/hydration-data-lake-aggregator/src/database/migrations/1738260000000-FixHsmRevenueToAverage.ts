@@ -8,9 +8,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *
  * This migration:
  * 1. Drops existing hsm_revenue_* continuous aggregates (1min through 30day)
- * 2. Recreates them with AVG aggregation
- * 3. Uses hierarchical continuous aggregates for 7-day and 30-day buckets
- * 4. Restores refresh policies and retention policies
+ * 2. Recreates them with AVG aggregation directly from hsm_revenue_raw
+ * 3. Restores refresh policies and retention policies
  */
 export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -70,7 +69,7 @@ export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
         refreshInterval: '1 day',
         lag: '1 hour',
         startOffset: '180 days',
-        sourceView: 'hsm_revenue_24hour', // Hierarchical aggregation
+        retentionPolicy: '365 days',
       },
       {
         name: 'hsm_revenue_30day',
@@ -78,7 +77,7 @@ export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
         refreshInterval: '1 day',
         lag: '1 hour',
         startOffset: '365 days',
-        sourceView: 'hsm_revenue_7day', // Hierarchical aggregation
+        retentionPolicy: '730 days',
       },
     ];
 
@@ -91,21 +90,15 @@ export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
 
     // Recreate continuous aggregates with AVG instead of SUM
     for (const config of hsmRevenueIntervals) {
-      // Determine source table/view and bucket column
-      const sourceTable = config.sourceView || 'hsm_revenue_raw';
-      const sourceAlias = config.sourceView ? 'agg' : 'h';
-      const timeColumn = config.sourceView ? 'bucket' : 'time';
-      const eventCountAgg = config.sourceView ? 'SUM(event_count)' : 'COUNT(*)';
-
       await queryRunner.query(`
         CREATE MATERIALIZED VIEW ${config.name}
         WITH (timescaledb.continuous) AS
         SELECT
-          time_bucket('${config.interval}', ${sourceAlias}.${timeColumn}) AS bucket,
-          AVG(${sourceAlias}.hsm_revenue) AS hsm_revenue,
-          ${eventCountAgg} AS event_count
-        FROM ${sourceTable} ${sourceAlias}
-        GROUP BY time_bucket('${config.interval}', ${sourceAlias}.${timeColumn})
+          time_bucket('${config.interval}', h.time) AS bucket,
+          AVG(h.hsm_revenue) AS hsm_revenue,
+          COUNT(*) AS event_count
+        FROM hsm_revenue_raw h
+        GROUP BY bucket
         WITH NO DATA;
       `);
 
@@ -116,6 +109,13 @@ export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
           end_offset => INTERVAL '${config.lag}',
           schedule_interval => INTERVAL '${config.refreshInterval}');
       `);
+
+      // Add retention policy if specified
+      if (config.retentionPolicy) {
+        await queryRunner.query(`
+          SELECT add_retention_policy('${config.name}', INTERVAL '${config.retentionPolicy}');
+        `);
+      }
     }
   }
 
