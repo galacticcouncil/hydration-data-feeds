@@ -117,9 +117,9 @@ export class ChartsService {
       value: parseFloat(row.value) || 0,
     }));
 
-    // HSM revenue is a trend metric - return the latest value
+    // HSM revenue is a trend metric - return average of all data points
     const periodAggregate = streamType === StreamType.HSM_REVENUE
-      ? (data.length > 0 ? data[data.length - 1].value : 0)
+      ? data.reduce((sum, point) => sum + point.value, 0) / (data.length || 1)
       : data.reduce((sum, point) => sum + point.value, 0);
 
     this.logger.log(
@@ -264,21 +264,19 @@ export class ChartsService {
       };
       aggregates = { total: 0, borrow_apr: 0, hsm_revenue: 0 };
 
-      rawData.forEach((row, index) => {
+      rawData.forEach((row) => {
         ['total', 'borrow_apr', 'hsm_revenue'].forEach((type) => {
           const value = parseFloat(row[type]) || 0;
           data[type].push({ timestamp: row.timestamp, value });
-          // HSM revenue is a trend metric - use latest value
-          if (type === 'hsm_revenue') {
-            // Store the latest (last) value
-            if (index === rawData.length - 1) {
-              aggregates[type] = value;
-            }
-          } else {
-            aggregates[type] += value;
-          }
+          // HSM revenue is a trend metric - accumulate for average
+          aggregates[type] += value;
         });
       });
+
+      // Calculate average for HSM revenue
+      if (rawData.length > 0) {
+        aggregates.hsm_revenue = aggregates.hsm_revenue / rawData.length;
+      }
     }
 
     this.logger.log(
@@ -430,6 +428,31 @@ export class ChartsService {
   }
 
   /**
+   * Select optimal bucket size based on query period length
+   * Only used for HSM revenue aggregation to balance performance and spike smoothing
+   */
+  private selectBucketForPeriod(startTime: Date, endTime: Date): BucketSize {
+    const periodMs = endTime.getTime() - startTime.getTime();
+
+    const ONE_HOUR = 60 * 60 * 1000;
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+    const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+    if (periodMs < ONE_HOUR) {
+      return BucketSize.ONE_MIN;
+    } else if (periodMs < SIX_HOURS) {
+      return BucketSize.FIVE_MIN;
+    } else if (periodMs < THREE_DAYS) {
+      return BucketSize.ONE_HOUR;
+    } else if (periodMs < THIRTY_DAYS) {
+      return BucketSize.SIX_HOUR;
+    } else {
+      return BucketSize.TWENTY_FOUR_HOUR;
+    }
+  }
+
+  /**
    * Get aggregated value for single stream type
    */
   private async getAggregatedSingleStreamType(
@@ -441,24 +464,27 @@ export class ChartsService {
     period?: AggregationPeriod,
     decoratedData: boolean = true,
   ): Promise<AggregateFeeResponseDto> {
-    // Use any continuous aggregate table - sum is same regardless of bucket size
-    const tableName = this.getTableName(productType, BucketSize.ONE_HOUR, streamType);
+    let sql: string;
+    let tableName: string;
     const valueColumn = this.getValueColumn(productType, streamType, feeDestination);
-
     const aggExpr = decoratedData ? `GREATEST(${valueColumn}, 0)` : valueColumn;
 
-    // HSM revenue is a trend metric - return the latest available value
-    let sql: string;
+    // HSM revenue is a trend metric - return average over the period
     if (streamType === StreamType.HSM_REVENUE) {
+      // Dynamically select bucket size based on period length
+      const bucketSize = this.selectBucketForPeriod(startTime, endTime);
+      tableName = this.getTableName(productType, bucketSize, StreamType.HSM_REVENUE);
+
       sql = `
-        SELECT ${aggExpr} as aggregate
+        SELECT AVG(${aggExpr}) as aggregate
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
-        ORDER BY bucket DESC
-        LIMIT 1
       `;
     } else {
       // Flow metrics - sum over the period
+      // Use any continuous aggregate table - sum is same regardless of bucket size
+      tableName = this.getTableName(productType, BucketSize.ONE_HOUR, streamType);
+
       sql = `
         SELECT SUM(${aggExpr}) as aggregate
         FROM ${tableName}
@@ -605,17 +631,19 @@ export class ChartsService {
       `;
     } else {
       // HOLLAR
-      // Note: HSM_REVENUE returns latest value (trend metric), others use SUM (flow metrics)
+      // Note: HSM_REVENUE returns average (trend metric), others use SUM (flow metrics)
+      // Dynamically select bucket size for HSM revenue based on period
+      const hsmBucketSize = this.selectBucketForPeriod(startTime, endTime);
       const hsmRevenueTable = this.getTableName(
         productType,
-        BucketSize.ONE_HOUR,
+        hsmBucketSize,
         StreamType.HSM_REVENUE,
       );
       sql = `
         SELECT
           SUM(${g('total_liquidation_fee_usd')}) as total,
           SUM(${g(`(fees_by_type->>'BORROW_APR')::numeric`)}) as borrow_apr,
-          (SELECT ${g('hsm_revenue')} FROM ${hsmRevenueTable} WHERE bucket >= $1 AND bucket <= $2 ORDER BY bucket DESC LIMIT 1) as hsm_revenue
+          (SELECT AVG(${g('hsm_revenue')}) FROM ${hsmRevenueTable} WHERE bucket >= $1 AND bucket <= $2) as hsm_revenue
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
