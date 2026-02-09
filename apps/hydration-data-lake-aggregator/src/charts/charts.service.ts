@@ -358,7 +358,7 @@ export class ChartsService {
       `Incoming aggregated fees request: ${JSON.stringify(query)}`,
     );
 
-    const { productType = ProductType.OMNIPOOL, period, feeDestination, streamType, decoratedData = true } = query;
+    const { productType = ProductType.OMNIPOOL, period, feeDestination, streamType, decoratedData = true, hsmAggregationType = HsmAggregationType.DELTA } = query;
 
     // Calculate time range
     let startTime: Date;
@@ -390,7 +390,7 @@ export class ChartsService {
     // Route based on streamType and feeDestination
     if (streamType === StreamType.TOTAL) {
       // product + total → Returns full breakdown for the product
-      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period, decoratedData);
+      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period, decoratedData, hsmAggregationType);
     } else if ((streamType === StreamType.ASSET || streamType === StreamType.PROTOCOL) && feeDestination === FeeDestination.TOTAL) {
       // omnipool + asset/protocol + total → Returns granular breakdown for that stream type
       return this.getAggregatedGranularByStreamType(
@@ -400,6 +400,7 @@ export class ChartsService {
         streamType,
         period,
         decoratedData,
+        hsmAggregationType,
       );
     } else {
       // Single value query (e.g., omnipool + asset + lp)
@@ -411,6 +412,7 @@ export class ChartsService {
         feeDestination!,
         period,
         decoratedData,
+        hsmAggregationType,
       );
     }
   }
@@ -476,17 +478,18 @@ export class ChartsService {
     feeDestination: FeeDestination,
     period?: AggregationPeriod,
     decoratedData: boolean = true,
+    hsmAggregationType: HsmAggregationType = HsmAggregationType.DELTA,
   ): Promise<AggregateFeeResponseDto> {
     let sql: string;
     let tableName: string;
-    const valueColumn = this.getValueColumn(productType, streamType, feeDestination);
+    const valueColumn = this.getValueColumn(productType, streamType, feeDestination, hsmAggregationType);
     const aggExpr = decoratedData ? `GREATEST(${valueColumn}, 0)` : valueColumn;
 
     // HSM revenue is a trend metric - return average over the period
     if (streamType === StreamType.HSM_REVENUE) {
       // Dynamically select bucket size based on period length
       const bucketSize = this.selectBucketForPeriod(startTime, endTime);
-      tableName = this.getTableName(productType, bucketSize, StreamType.HSM_REVENUE);
+      tableName = this.getTableName(productType, bucketSize, StreamType.HSM_REVENUE, hsmAggregationType);
 
       sql = `
         SELECT AVG(${aggExpr}) as aggregate
@@ -496,7 +499,7 @@ export class ChartsService {
     } else {
       // Flow metrics - sum over the period
       // Use any continuous aggregate table - sum is same regardless of bucket size
-      tableName = this.getTableName(productType, BucketSize.ONE_HOUR, streamType);
+      tableName = this.getTableName(productType, BucketSize.ONE_HOUR, streamType, hsmAggregationType);
 
       sql = `
         SELECT SUM(${aggExpr}) as aggregate
@@ -537,6 +540,7 @@ export class ChartsService {
     streamType: StreamType,
     period?: AggregationPeriod,
     decoratedData: boolean = true,
+    hsmAggregationType: HsmAggregationType = HsmAggregationType.DELTA,
   ): Promise<AggregateAllFeesResponseDto> {
     const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
 
@@ -583,10 +587,10 @@ export class ChartsService {
           protocol_burned: parseFloat(result[0]?.protocol_burned || '0'),
         };
       } else {
-        return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
+        return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period, decoratedData, hsmAggregationType);
       }
     } else {
-      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period);
+      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period, decoratedData, hsmAggregationType);
     }
 
     this.logger.log(
@@ -610,6 +614,7 @@ export class ChartsService {
     endTime: Date,
     period?: AggregationPeriod,
     decoratedData: boolean = true,
+    hsmAggregationType: HsmAggregationType = HsmAggregationType.DELTA,
   ): Promise<AggregateAllFeesResponseDto> {
     // Use any continuous aggregate table - sum is same regardless of bucket size
     const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
@@ -652,11 +657,13 @@ export class ChartsService {
         productType,
         hsmBucketSize,
         StreamType.HSM_REVENUE,
+        hsmAggregationType,
       );
+      const hsmColumnName = hsmAggregationType === HsmAggregationType.DELTA ? 'hsm_revenue_delta' : 'hsm_revenue';
       sql = `
         SELECT
           SUM(${g(`(fees_by_type->>'BORROW_APR')::numeric`)}) as borrow_apr,
-          (SELECT AVG(${g('hsm_revenue')}) FROM ${hsmRevenueTable} WHERE bucket >= $1 AND bucket <= $2) as hsm_revenue
+          (SELECT AVG(${g(hsmColumnName)}) FROM ${hsmRevenueTable} WHERE bucket >= $1 AND bucket <= $2) as hsm_revenue
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;

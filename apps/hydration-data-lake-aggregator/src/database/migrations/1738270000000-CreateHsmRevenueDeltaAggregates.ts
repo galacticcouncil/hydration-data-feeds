@@ -106,7 +106,7 @@ export class CreateHsmRevenueDeltaAggregates1738270000000
       // `);
     }
 
-    // Create stored procedure to compute deltas for a specific aggregate
+    // Create stored procedure to compute deltas for a specific aggregate (incremental refresh)
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION refresh_hsm_revenue_delta(
         source_table TEXT,
@@ -115,6 +115,7 @@ export class CreateHsmRevenueDeltaAggregates1738270000000
       ) RETURNS VOID AS $$
       BEGIN
         -- Compute deltas using LAG() window function and insert/update
+        -- Only processes last 2 intervals for incremental updates
         EXECUTE format('
           WITH deltas AS (
             SELECT
@@ -136,7 +137,35 @@ export class CreateHsmRevenueDeltaAggregates1738270000000
       $$ LANGUAGE plpgsql;
     `);
 
-    // Create master refresh procedure that updates all delta tables
+    // Create stored procedure for initial full population of deltas
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION populate_hsm_revenue_delta_full(
+        source_table TEXT,
+        delta_table TEXT
+      ) RETURNS VOID AS $$
+      BEGIN
+        -- Compute deltas for ALL historical data (no time filter)
+        EXECUTE format('
+          WITH deltas AS (
+            SELECT
+              bucket,
+              hsm_revenue - LAG(hsm_revenue) OVER (ORDER BY bucket) AS hsm_revenue_delta,
+              event_count
+            FROM %I
+          )
+          INSERT INTO %I (bucket, hsm_revenue_delta, event_count)
+          SELECT bucket, hsm_revenue_delta, event_count
+          FROM deltas
+          WHERE hsm_revenue_delta IS NOT NULL
+          ON CONFLICT (bucket) DO UPDATE SET
+            hsm_revenue_delta = EXCLUDED.hsm_revenue_delta,
+            event_count = EXCLUDED.event_count
+        ', source_table, delta_table);
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Create master refresh procedure that updates all delta tables (incremental)
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION refresh_all_hsm_revenue_deltas() RETURNS VOID AS $$
       BEGIN
@@ -152,6 +181,13 @@ export class CreateHsmRevenueDeltaAggregates1738270000000
       END;
       $$ LANGUAGE plpgsql;
     `);
+
+    // Initial population of all historical delta data
+    for (const config of deltaIntervals) {
+      await queryRunner.query(`
+        SELECT populate_hsm_revenue_delta_full('${config.sourceName}', '${config.name}');
+      `);
+    }
 
     // Create TimescaleDB background job to refresh deltas every minute
     await queryRunner.query(`
@@ -190,6 +226,10 @@ export class CreateHsmRevenueDeltaAggregates1738270000000
 
     await queryRunner.query(`
       DROP FUNCTION IF EXISTS refresh_hsm_revenue_delta(TEXT, TEXT, INTERVAL);
+    `);
+
+    await queryRunner.query(`
+      DROP FUNCTION IF EXISTS populate_hsm_revenue_delta_full(TEXT, TEXT);
     `);
 
     // Drop delta hypertables
