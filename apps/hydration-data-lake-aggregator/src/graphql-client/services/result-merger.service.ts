@@ -12,9 +12,13 @@ export class ResultMergerService {
    * Merge results from multiple endpoint queries into a single unified result
    *
    * @param results - Array of results from different endpoints
+   * @param sortOrder - Sort order for merging: 'asc' (default), 'desc', or 'none'
    * @returns Merged result with combined data
    */
-  mergeResults<T = any>(results: T[]): T {
+  mergeResults<T = any>(
+    results: T[],
+    sortOrder: 'asc' | 'desc' | 'none' = 'asc',
+  ): T {
     if (results.length === 0) {
       throw new Error('Cannot merge empty results array');
     }
@@ -27,9 +31,9 @@ export class ResultMergerService {
     const structure = this.detectResponseStructure(results[0]);
 
     if (structure.type === 'standard' && structure.dataKey) {
-      return this.mergeStandardStructure(results, structure.dataKey);
+      return this.mergeStandardStructure(results, structure.dataKey, sortOrder);
     } else if (structure.type === 'array' && structure.dataKey) {
-      return this.mergeArrayStructure(results, structure.dataKey);
+      return this.mergeArrayStructure(results, structure.dataKey, sortOrder);
     } else {
       this.logger.warn('Unknown response structure, returning first result');
       return results[0];
@@ -80,9 +84,14 @@ export class ResultMergerService {
    *
    * @param results - Array of results to merge
    * @param dataKey - The key containing the data (e.g., 'swaps')
+   * @param sortOrder - Sort order: 'asc', 'desc', or 'none'
    * @returns Merged result
    */
-  private mergeStandardStructure<T = any>(results: T[], dataKey: string): T {
+  private mergeStandardStructure<T = any>(
+    results: T[],
+    dataKey: string,
+    sortOrder: 'asc' | 'desc' | 'none',
+  ): T {
     const allNodes: any[] = [];
 
     for (const result of results) {
@@ -92,8 +101,16 @@ export class ResultMergerService {
       }
     }
 
-    // Sort by paraBlockHeight (ascending) to maintain temporal order
-    const sortedNodes = this.sortByBlockHeight(allNodes);
+    // Sort based on explicitly provided order
+    let sortedNodes: any[];
+    if (sortOrder === 'desc') {
+      sortedNodes = this.sortByBlockHeightDescending(allNodes);
+    } else if (sortOrder === 'asc') {
+      sortedNodes = this.sortByBlockHeight(allNodes);
+    } else {
+      // 'none' - preserve order from endpoints
+      sortedNodes = allNodes;
+    }
 
     // Build merged result
     const merged = {
@@ -112,9 +129,14 @@ export class ResultMergerService {
    *
    * @param results - Array of results to merge
    * @param dataKey - The key containing the array
+   * @param sortOrder - Sort order: 'asc', 'desc', or 'none'
    * @returns Merged result
    */
-  private mergeArrayStructure<T = any>(results: T[], dataKey: string): T {
+  private mergeArrayStructure<T = any>(
+    results: T[],
+    dataKey: string,
+    sortOrder: 'asc' | 'desc' | 'none',
+  ): T {
     const allItems: any[] = [];
 
     for (const result of results) {
@@ -124,8 +146,16 @@ export class ResultMergerService {
       }
     }
 
-    // Sort by paraBlockHeight (ascending) to maintain temporal order
-    const sortedItems = this.sortByBlockHeight(allItems);
+    // Sort based on explicitly provided order
+    let sortedItems: any[];
+    if (sortOrder === 'desc') {
+      sortedItems = this.sortByBlockHeightDescending(allItems);
+    } else if (sortOrder === 'asc') {
+      sortedItems = this.sortByBlockHeight(allItems);
+    } else {
+      // 'none' - preserve order from endpoints
+      sortedItems = allItems;
+    }
 
     // Build merged result
     const merged = {
@@ -148,6 +178,22 @@ export class ResultMergerService {
       const aHeight = a.paraBlockHeight ?? a.blockHeight ?? 0;
       const bHeight = b.paraBlockHeight ?? b.blockHeight ?? 0;
       return aHeight - bHeight;
+    });
+  }
+
+  /**
+   * Sort array of items by paraBlockHeight in DESCENDING order
+   * Used for queries with ORDER BY DESC (like maxBlockHeight/nearest queries)
+   * Falls back to blockHeight if paraBlockHeight is not available
+   *
+   * @param items - Array of items to sort
+   * @returns Sorted array (newest first)
+   */
+  private sortByBlockHeightDescending(items: any[]): any[] {
+    return items.sort((a, b) => {
+      const aHeight = a.paraBlockHeight ?? a.blockHeight ?? 0;
+      const bHeight = b.paraBlockHeight ?? b.blockHeight ?? 0;
+      return bHeight - aHeight; // Descending: newest first
     });
   }
 

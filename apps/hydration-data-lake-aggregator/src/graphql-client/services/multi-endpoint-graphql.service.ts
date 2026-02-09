@@ -105,11 +105,15 @@ export class MultiEndpointGraphqlService {
         blockRange,
       );
 
+      this.logger.debug(
+        `[Router] Query with variables ${JSON.stringify(variables)} → Detected block range [${blockRange.fromBlock}, ${blockRange.toBlock}] → Routing to ${assignments.length} endpoint(s)`,
+      );
+
       // Single endpoint - direct query
       if (assignments.length === 1) {
         const assignment = assignments[0];
         this.logger.debug(
-          `Querying single endpoint ${assignment.endpoint.apiUrl} for blocks ${assignment.blockRange.fromBlock}-${assignment.blockRange.toBlock}`,
+          `[Router] Querying single endpoint ${assignment.endpoint.apiUrl} (covers ${assignment.endpoint.fromBlockHeight}-${assignment.endpoint.toBlockHeight}) for blocks ${assignment.blockRange.fromBlock}-${assignment.blockRange.toBlock}`,
         );
         return this.querySingleEndpoint(
           assignment.endpoint.apiUrl,
@@ -120,32 +124,43 @@ export class MultiEndpointGraphqlService {
 
       // Multiple endpoints - split query and merge results
       this.logger.log(
-        `Splitting query across ${assignments.length} endpoints for block range ${blockRange.fromBlock}-${blockRange.toBlock}`,
+        `[Router] Splitting query across ${assignments.length} endpoints for block range ${blockRange.fromBlock}-${blockRange.toBlock}`,
       );
 
       const results = await Promise.all(
-        assignments.map((assignment) => {
+        assignments.map(async (assignment) => {
           const updatedVariables = this.queryAnalyzer.updateBlockRangeVariables(
             variables || {},
             assignment.blockRange,
           );
 
           this.logger.debug(
-            `Querying endpoint ${assignment.endpoint.apiUrl} for blocks ${assignment.blockRange.fromBlock}-${assignment.blockRange.toBlock}`,
+            `[Router] Querying endpoint ${assignment.endpoint.apiUrl} (covers ${assignment.endpoint.fromBlockHeight}-${assignment.endpoint.toBlockHeight}) for blocks ${assignment.blockRange.fromBlock}-${assignment.blockRange.toBlock} with variables ${JSON.stringify(updatedVariables)}`,
           );
 
-          return this.querySingleEndpoint(
+          const result = await this.querySingleEndpoint(
             assignment.endpoint.apiUrl,
             query,
             updatedVariables as V,
           );
+
+          // Log what this endpoint returned
+          const resultInfo = this.getResultInfo(result);
+          this.logger.debug(
+            `[Router] Endpoint ${assignment.endpoint.apiUrl} returned ${resultInfo}`,
+          );
+
+          return result;
         }),
       );
 
-      // Merge results
-      const merged = this.resultMerger.mergeResults<T>(results);
+      // Detect sort order from the GraphQL query AST
+      const sortOrder = this.detectSortOrder(query);
+
+      // Merge results with appropriate sort order
+      const merged = this.resultMerger.mergeResults<T>(results, sortOrder);
       this.logger.log(
-        `Successfully merged results from ${assignments.length} endpoints`,
+        `Successfully merged results from ${assignments.length} endpoints (sort: ${sortOrder})`,
       );
 
       return merged;
@@ -159,14 +174,37 @@ export class MultiEndpointGraphqlService {
   }
 
   /**
+   * Helper to extract useful info from query result for logging
+   */
+  private getResultInfo(result: any): string {
+    if (!result) return '0 results';
+
+    // Handle different response structures
+    for (const key of Object.keys(result)) {
+      const value = result[key];
+      if (value && typeof value === 'object') {
+        if ('nodes' in value && Array.isArray(value.nodes)) {
+          return `${value.nodes.length} nodes`;
+        }
+        if (Array.isArray(value)) {
+          return `${value.length} items`;
+        }
+      }
+    }
+    return 'unknown result structure';
+  }
+
+  /**
    * Query a single endpoint with retry logic
+   * Made public to allow direct endpoint queries (bypassing multi-endpoint routing)
+   * for scenarios like historical fallback queries in HSM revenue ingestion
    *
    * @param endpointUrl - Endpoint URL to query
    * @param query - GraphQL query document
    * @param variables - Query variables
    * @returns Query result
    */
-  private async querySingleEndpoint<T = any, V extends Variables = Variables>(
+  public async querySingleEndpoint<T = any, V extends Variables = Variables>(
     endpointUrl: string,
     query: RequestDocument,
     variables?: V,
@@ -253,6 +291,49 @@ export class MultiEndpointGraphqlService {
     } catch (error) {
       this.logger.error('Failed to get current block height', error.stack);
       throw error;
+    }
+  }
+
+  /**
+   * Detect sort order from GraphQL query document
+   * Analyzes the query AST to find orderBy directives and determine if DESC is used
+   *
+   * @param query - GraphQL query document
+   * @returns 'asc', 'desc', or 'none'
+   */
+  private detectSortOrder(
+    query: RequestDocument,
+  ): 'asc' | 'desc' | 'none' {
+    try {
+      // Convert query to string if it's a DocumentNode
+      let queryString: string;
+      if (typeof query === 'string') {
+        queryString = query;
+      } else if (query && typeof query === 'object' && 'loc' in query) {
+        // It's a DocumentNode from graphql-tag
+        queryString = query.loc?.source.body || '';
+      } else {
+        return 'asc'; // Default to ascending if we can't parse
+      }
+
+      // Look for orderBy pattern in the query string
+      // Patterns: orderBy: PARA_BLOCK_HEIGHT_DESC or orderBy: [PARA_BLOCK_HEIGHT_DESC, ...]
+      const orderByDescPattern = /_DESC/;
+      const orderByAscPattern = /_ASC/;
+
+      if (orderByDescPattern.test(queryString)) {
+        return 'desc';
+      } else if (orderByAscPattern.test(queryString)) {
+        return 'asc';
+      }
+
+      // No explicit ordering found, default to ascending
+      return 'asc';
+    } catch (error) {
+      this.logger.warn(
+        `Failed to detect sort order from query: ${error.message}`,
+      );
+      return 'asc'; // Safe default
     }
   }
 

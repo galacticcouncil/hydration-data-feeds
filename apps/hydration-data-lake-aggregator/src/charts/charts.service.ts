@@ -173,10 +173,10 @@ export class ChartsService {
       `;
     } else {
       // HOLLAR
+      // Note: No 'total' field - borrow_apr (SUM) and hsm_revenue (AVG) cannot be meaningfully combined
       sql = `
         SELECT
           bucket as timestamp,
-          ${g('total_liquidation_fee_usd')} as total,
           ${g(`(fees_by_type->>'BORROW_APR')::numeric`)} as borrow_apr,
           ${g(`(fees_by_type->>'HSM_REVENUE')::numeric`)} as hsm_revenue
         FROM ${tableName}
@@ -256,24 +256,26 @@ export class ChartsService {
         });
       });
     } else {
-      // HOLLAR
+      // HOLLAR - no 'total' field (borrow_apr and hsm_revenue use different aggregation methods)
       data = {
-        total: [],
         borrow_apr: [],
         hsm_revenue: [],
       };
-      aggregates = { total: 0, borrow_apr: 0, hsm_revenue: 0 };
+      aggregates = { borrow_apr: 0, hsm_revenue: 0 };
 
       rawData.forEach((row) => {
-        ['total', 'borrow_apr', 'hsm_revenue'].forEach((type) => {
-          const value = parseFloat(row[type]) || 0;
-          data[type].push({ timestamp: row.timestamp, value });
-          // HSM revenue is a trend metric - accumulate for average
-          aggregates[type] += value;
-        });
+        // Borrow APR - flow metric (SUM)
+        const borrowAprValue = parseFloat(row.borrow_apr) || 0;
+        data.borrow_apr.push({ timestamp: row.timestamp, value: borrowAprValue });
+        aggregates.borrow_apr += borrowAprValue;
+
+        // HSM revenue - trend metric (AVG)
+        const hsmRevenueValue = parseFloat(row.hsm_revenue) || 0;
+        data.hsm_revenue.push({ timestamp: row.timestamp, value: hsmRevenueValue });
+        aggregates.hsm_revenue += hsmRevenueValue;
       });
 
-      // Calculate average for HSM revenue
+      // Calculate average for HSM revenue (trend metric)
       if (rawData.length > 0) {
         aggregates.hsm_revenue = aggregates.hsm_revenue / rawData.length;
       }
@@ -631,7 +633,8 @@ export class ChartsService {
       `;
     } else {
       // HOLLAR
-      // Note: HSM_REVENUE returns average (trend metric), others use SUM (flow metrics)
+      // Note: No 'total' field - borrow_apr (SUM flow metric) and hsm_revenue (AVG trend metric)
+      // cannot be meaningfully combined
       // Dynamically select bucket size for HSM revenue based on period
       const hsmBucketSize = this.selectBucketForPeriod(startTime, endTime);
       const hsmRevenueTable = this.getTableName(
@@ -641,7 +644,6 @@ export class ChartsService {
       );
       sql = `
         SELECT
-          SUM(${g('total_liquidation_fee_usd')}) as total,
           SUM(${g(`(fees_by_type->>'BORROW_APR')::numeric`)}) as borrow_apr,
           (SELECT AVG(${g('hsm_revenue')}) FROM ${hsmRevenueTable} WHERE bucket >= $1 AND bucket <= $2) as hsm_revenue
         FROM ${tableName}
@@ -676,9 +678,8 @@ export class ChartsService {
         asset_reserve: parseFloat(result[0]?.asset_reserve || '0'),
       };
     } else {
-      // HOLLAR
+      // HOLLAR - no 'total' field (different aggregation methods for borrow_apr vs hsm_revenue)
       aggregate = {
-        total: parseFloat(result[0]?.total || '0'),
         borrow_apr: parseFloat(result[0]?.borrow_apr || '0'),
         hsm_revenue: parseFloat(result[0]?.hsm_revenue || '0'),
       };
