@@ -176,10 +176,10 @@ export class UpdateFeeTypesGranular1738200000000 implements MigrationInterface {
       `);
 
       // Add retention policy (30 days for 1min, 90 days for others)
-      const retentionDays = config.name === 'fees_1min' ? 30 : 90;
-      await queryRunner.query(`
-        SELECT add_retention_policy('${config.name}', INTERVAL '${retentionDays} days');
-      `);
+      // const retentionDays = config.name === 'fees_1min' ? 30 : 90;
+      // await queryRunner.query(`
+      //   SELECT add_retention_policy('${config.name}', INTERVAL '${retentionDays} days');
+      // `);
     }
   }
 

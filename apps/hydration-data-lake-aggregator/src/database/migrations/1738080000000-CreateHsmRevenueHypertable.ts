@@ -1,7 +1,4 @@
-import {
-  MigrationInterface,
-  QueryRunner,
-} from 'typeorm';
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
  * Migration to create HSM revenue hypertable and continuous aggregates
@@ -16,9 +13,7 @@ import {
  * - No JSONB structure - direct hsm_revenue column
  * - No USD conversion needed (assetId 10 is USDT)
  */
-export class CreateHsmRevenueHypertable1738080000000
-  implements MigrationInterface
-{
+export class CreateHsmRevenueHypertable1738080000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // ========================================
     // 1. Create hsm_revenue_raw table
@@ -43,11 +38,6 @@ export class CreateHsmRevenueHypertable1738080000000
     // Create index on block_height for efficient querying
     await queryRunner.query(`
       CREATE INDEX idx_hsm_revenue_raw_block_height ON hsm_revenue_raw (block_height);
-    `);
-
-    // Add retention policy (keep 90 days)
-    await queryRunner.query(`
-      SELECT add_retention_policy('hsm_revenue_raw', INTERVAL '90 days');
     `);
 
     // ========================================

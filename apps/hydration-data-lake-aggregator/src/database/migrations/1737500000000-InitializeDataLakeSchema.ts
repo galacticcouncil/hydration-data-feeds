@@ -1,7 +1,4 @@
-import {
-  MigrationInterface,
-  QueryRunner,
-} from 'typeorm';
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
  * Consolidated migration for hydration data lake
@@ -14,9 +11,7 @@ import {
  *
  * This design embeds prices directly in fee tables for simplicity and reliability
  */
-export class InitializeDataLakeSchema1737500000000
-  implements MigrationInterface
-{
+export class InitializeDataLakeSchema1737500000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // ========================================
     // 1. Enable TimescaleDB Extension
@@ -64,11 +59,6 @@ export class InitializeDataLakeSchema1737500000000
       CREATE INDEX idx_swaps_raw_fee_by_recipient ON swaps_raw USING GIN(fee_by_recipient);
     `);
 
-    // Add retention policy to swaps_raw (keep 90 days)
-    await queryRunner.query(`
-      SELECT add_retention_policy('swaps_raw', INTERVAL '90 days');
-    `);
-
     // ========================================
     // 3. Create money_market_raw table
     // ========================================
@@ -107,11 +97,6 @@ export class InitializeDataLakeSchema1737500000000
 
     await queryRunner.query(`
       CREATE INDEX idx_money_market_raw_fee_by_transfer ON money_market_raw USING GIN(fee_by_transfer);
-    `);
-
-    // Add retention policy to money_market_raw (keep 90 days)
-    await queryRunner.query(`
-      SELECT add_retention_policy('money_market_raw', INTERVAL '90 days');
     `);
 
     // ========================================

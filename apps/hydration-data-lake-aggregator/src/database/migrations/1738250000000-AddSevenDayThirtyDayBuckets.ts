@@ -120,9 +120,9 @@ export class AddSevenDayThirtyDayBuckets1738250000000 implements MigrationInterf
         schedule_interval => INTERVAL '1 day');
     `);
 
-    await queryRunner.query(`
-      SELECT add_retention_policy('fees_7day', INTERVAL '365 days');
-    `);
+    // await queryRunner.query(`
+    //   SELECT add_retention_policy('fees_7day', INTERVAL '365 days');
+    // `);
 
     // fees_30day
     await queryRunner.query(`
@@ -224,9 +224,9 @@ export class AddSevenDayThirtyDayBuckets1738250000000 implements MigrationInterf
         schedule_interval => INTERVAL '1 day');
     `);
 
-    await queryRunner.query(`
-      SELECT add_retention_policy('fees_30day', INTERVAL '730 days');
-    `);
+    // await queryRunner.query(`
+    //   SELECT add_retention_policy('fees_30day', INTERVAL '730 days');
+    // `);
 
     // ============================================================
     // MONEY MARKET LIQUIDATION FEES - 7 DAY AND 30 DAY
@@ -311,9 +311,9 @@ export class AddSevenDayThirtyDayBuckets1738250000000 implements MigrationInterf
         schedule_interval => INTERVAL '1 day');
     `);
 
-    await queryRunner.query(`
-      SELECT add_retention_policy('liquidation_fees_7day', INTERVAL '365 days');
-    `);
+    // await queryRunner.query(`
+    //   SELECT add_retention_policy('liquidation_fees_7day', INTERVAL '365 days');
+    // `);
 
     // liquidation_fees_30day
     await queryRunner.query(`
@@ -394,9 +394,9 @@ export class AddSevenDayThirtyDayBuckets1738250000000 implements MigrationInterf
         schedule_interval => INTERVAL '1 day');
     `);
 
-    await queryRunner.query(`
-      SELECT add_retention_policy('liquidation_fees_30day', INTERVAL '730 days');
-    `);
+    // await queryRunner.query(`
+    //   SELECT add_retention_policy('liquidation_fees_30day', INTERVAL '730 days');
+    // `);
 
     // ============================================================
     // HSM REVENUE - 7 DAY AND 30 DAY

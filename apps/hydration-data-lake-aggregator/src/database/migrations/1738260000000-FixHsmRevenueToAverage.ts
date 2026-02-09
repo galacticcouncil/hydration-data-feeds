@@ -69,7 +69,6 @@ export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
         refreshInterval: '1 day',
         lag: '1 hour',
         startOffset: '180 days',
-        retentionPolicy: '365 days',
       },
       {
         name: 'hsm_revenue_30day',
@@ -77,7 +76,6 @@ export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
         refreshInterval: '1 day',
         lag: '1 hour',
         startOffset: '365 days',
-        retentionPolicy: '730 days',
       },
     ];
 
@@ -111,11 +109,11 @@ export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
       `);
 
       // Add retention policy if specified
-      if (config.retentionPolicy) {
-        await queryRunner.query(`
-          SELECT add_retention_policy('${config.name}', INTERVAL '${config.retentionPolicy}');
-        `);
-      }
+      // if (config.retentionPolicy) {
+      //   await queryRunner.query(`
+      //     SELECT add_retention_policy('${config.name}', INTERVAL '${config.retentionPolicy}');
+      //   `);
+      // }
     }
   }
 
@@ -176,7 +174,6 @@ export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
         refreshInterval: '1 day',
         lag: '1 hour',
         startOffset: '180 days',
-        retentionPolicy: '365 days',
       },
       {
         name: 'hsm_revenue_30day',
@@ -184,7 +181,6 @@ export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
         refreshInterval: '1 day',
         lag: '1 hour',
         startOffset: '365 days',
-        retentionPolicy: '730 days',
       },
     ];
 
@@ -216,13 +212,6 @@ export class FixHsmRevenueToAverage1738260000000 implements MigrationInterface {
           end_offset => INTERVAL '${config.lag}',
           schedule_interval => INTERVAL '${config.refreshInterval}');
       `);
-
-      // Add retention policy if specified
-      if (config.retentionPolicy) {
-        await queryRunner.query(`
-          SELECT add_retention_policy('${config.name}', INTERVAL '${config.retentionPolicy}');
-        `);
-      }
     }
   }
 }
