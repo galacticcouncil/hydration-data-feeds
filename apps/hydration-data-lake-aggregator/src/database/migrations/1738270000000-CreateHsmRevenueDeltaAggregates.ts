@@ -114,17 +114,7 @@ export class CreateHsmRevenueDeltaAggregates1738270000000
         bucket_interval INTERVAL
       ) RETURNS VOID AS $$
       BEGIN
-        -- Compute deltas using LAG() window function
-        -- Insert or update on conflict
-        INSERT INTO hsm_revenue_delta_temp
-        SELECT
-          bucket,
-          hsm_revenue - LAG(hsm_revenue) OVER (ORDER BY bucket) AS hsm_revenue_delta,
-          event_count
-        FROM hsm_revenue_source
-        WHERE bucket >= NOW() - bucket_interval * 2; -- Process last 2 intervals to ensure we have previous bucket
-
-        -- Use dynamic SQL to handle table names
+        -- Compute deltas using LAG() window function and insert/update
         EXECUTE format('
           WITH deltas AS (
             SELECT
