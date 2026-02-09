@@ -37,9 +37,9 @@ export class ChartsController {
       '• `asset_reserve + protocol` - Asset reserve fees\n' +
       '• `total` - All money market fees\n\n' +
       '**HOLLAR:**\n' +
-      '• `borrow_apr + protocol` - Borrow APR fees\n' +
-      '• `hsm_revenue + protocol` - HSM revenue\n' +
-      '• `total` - All Hollar fees',
+      '• `borrow_apr + protocol` - Borrow APR fees (accumulated/SUM)\n' +
+      '• `hsm_revenue + protocol` - HSM revenue (average trend/AVG)\n' +
+      '• `total` - Not available (borrow_apr and hsm_revenue use different aggregation methods)',
   })
   @ApiResponse({
     status: 200,
@@ -75,9 +75,9 @@ export class ChartsController {
       '• `pepl_liquidation_profit + protocol` → Single value\n' +
       '• `asset_reserve + protocol` → Single value\n\n' +
       '**HOLLAR:**\n' +
-      '• `total` → Returns all fee types breakdown\n' +
-      '• `borrow_apr + protocol` → Single value\n' +
-      '• `hsm_revenue + protocol` → Single value',
+      '• `total` → Returns {borrow_apr, hsm_revenue} (no total - different aggregation methods)\n' +
+      '• `borrow_apr + protocol` → Single value (accumulated/SUM)\n' +
+      '• `hsm_revenue + protocol` → Single value (average trend/AVG)',
   })
   @ApiResponse({
     status: 200,
