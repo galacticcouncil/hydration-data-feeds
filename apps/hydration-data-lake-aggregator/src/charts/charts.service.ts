@@ -16,6 +16,7 @@ import {
   StreamType,
   ProductType,
   GetFeesQueryDto,
+  HsmAggregationType,
 } from './dto/get-fees-query.dto';
 import {
   AggregationPeriod,
@@ -40,21 +41,21 @@ export class ChartsService {
   ): Promise<SingleFeeTypeResponseDto | AllFeeTypesResponseDto> {
     this.logger.log(`Incoming request with query: ${JSON.stringify(query)}`);
 
-    const { productType, bucket, startTime, endTime, feeDestination, streamType } =
+    const { productType, bucket, startTime, endTime, feeDestination, streamType, hsmAggregationType } =
       this.buildQueryParams(query);
 
     this.logger.log(
-      `Processed params - productType=${productType}, bucket=${bucket}, startTime=${startTime}, endTime=${endTime}, feeDestination=${feeDestination}, streamType=${streamType}`,
+      `Processed params - productType=${productType}, bucket=${bucket}, startTime=${startTime}, endTime=${endTime}, feeDestination=${feeDestination}, streamType=${streamType}, hsmAggregationType=${hsmAggregationType}`,
     );
 
     const decoratedData = query.decoratedData ?? true;
 
     // Route based on streamType
     if (streamType === StreamType.TOTAL) {
-      return this.getAllFeeTypes(productType, bucket, startTime, endTime, decoratedData);
+      return this.getAllFeeTypes(productType, bucket, startTime, endTime, decoratedData, hsmAggregationType);
     } else {
       // streamType is a specific fee stream; feeDestination selects the sub-bucket
-      return this.getSingleStreamType(productType, bucket, startTime, endTime, streamType!, feeDestination!, decoratedData);
+      return this.getSingleStreamType(productType, bucket, startTime, endTime, streamType!, feeDestination!, decoratedData, hsmAggregationType);
     }
   }
 
@@ -76,7 +77,8 @@ export class ChartsService {
       startTime,
       endTime,
       feeDestination: query.feeDestination,
-      streamType: query.streamType
+      streamType: query.streamType,
+      hsmAggregationType: query.hsmAggregationType || HsmAggregationType.DELTA,
     };
   }
 
@@ -88,9 +90,10 @@ export class ChartsService {
     streamType: StreamType,
     feeDestination: FeeDestination,
     decoratedData: boolean,
+    hsmAggregationType: HsmAggregationType = HsmAggregationType.CUMULATIVE,
   ): Promise<SingleFeeTypeResponseDto> {
-    const tableName = this.getTableName(productType, bucket, streamType);
-    const valueColumn = this.getValueColumn(productType, streamType, feeDestination);
+    const tableName = this.getTableName(productType, bucket, streamType, hsmAggregationType);
+    const valueColumn = this.getValueColumn(productType, streamType, feeDestination, hsmAggregationType);
 
     const selectValue = decoratedData ? `GREATEST(${valueColumn}, 0)` : valueColumn;
     const sql = `
@@ -135,8 +138,9 @@ export class ChartsService {
     startTime: string,
     endTime: string,
     decoratedData: boolean,
+    hsmAggregationType: HsmAggregationType = HsmAggregationType.CUMULATIVE,
   ): Promise<AllFeeTypesResponseDto> {
-    const tableName = this.getTableName(productType, bucket);
+    const tableName = this.getTableName(productType, bucket, undefined, hsmAggregationType);
 
     const g = (col: string) => decoratedData ? `GREATEST(${col}, 0)` : col;
 
@@ -288,7 +292,7 @@ export class ChartsService {
     return { data, periodAggregate: aggregates };
   }
 
-  private getTableName(productType: ProductType, bucket: BucketSize, streamType?: StreamType): string {
+  private getTableName(productType: ProductType, bucket: BucketSize, streamType?: StreamType, hsmAggregationType: HsmAggregationType = HsmAggregationType.CUMULATIVE): string {
     // Convert product type and bucket to table name
     if (productType === ProductType.OMNIPOOL) {
       return `fees_${bucket}`;
@@ -297,6 +301,10 @@ export class ChartsService {
     } else if (productType === ProductType.HOLLAR) {
       // HSM revenue has its own table
       if (streamType === StreamType.HSM_REVENUE) {
+        // Use delta table if aggregationType is DELTA
+        if (hsmAggregationType === HsmAggregationType.DELTA) {
+          return `hsm_revenue_delta_${bucket}`;
+        }
         return `hsm_revenue_${bucket}`;
       }
       // Borrow APR uses liquidation_fees tables
@@ -306,7 +314,7 @@ export class ChartsService {
     return `liquidation_fees_${bucket}`;
   }
 
-  private getValueColumn(productType: ProductType, streamType: StreamType, feeDestination: FeeDestination): string {
+  private getValueColumn(productType: ProductType, streamType: StreamType, feeDestination: FeeDestination, hsmAggregationType: HsmAggregationType = HsmAggregationType.CUMULATIVE): string {
     // Omnipool: feeDestination selects the sub-bucket within the stream
     if (productType === ProductType.OMNIPOOL) {
       if (streamType === StreamType.ASSET) {
@@ -331,7 +339,10 @@ export class ChartsService {
     // Hollar
     if (productType === ProductType.HOLLAR) {
       if (streamType === StreamType.BORROW_APR) return `(fees_by_type->>'BORROW_APR')::numeric`;
-      if (streamType === StreamType.HSM_REVENUE) return `hsm_revenue`; // direct column
+      if (streamType === StreamType.HSM_REVENUE) {
+        // Use delta column if aggregationType is DELTA
+        return hsmAggregationType === HsmAggregationType.DELTA ? `hsm_revenue_delta` : `hsm_revenue`;
+      }
     }
 
     return `(fees_by_type->>'${streamType}')::numeric`;

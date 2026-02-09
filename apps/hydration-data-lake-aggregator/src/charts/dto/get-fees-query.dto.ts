@@ -46,6 +46,11 @@ export enum StreamType {
   HSM_REVENUE = 'hsm_revenue',                  // Hollar
 }
 
+export enum HsmAggregationType {
+  CUMULATIVE = 'cumulative',  // Average of cumulative balance snapshots (default)
+  DELTA = 'delta',            // Difference between consecutive bucket averages
+}
+
 export class GetFeesQueryDto {
   @ApiPropertyOptional({
     enum: ProductType,
@@ -86,7 +91,8 @@ export class GetFeesQueryDto {
 
   @ApiPropertyOptional({
     enum: FeeDestination,
-    description: 'Fee destination filter: "lp" (liquidity providers), "protocol", or "total" (all fees)',
+    description:
+      'Fee destination filter: "lp" (liquidity providers), "protocol", or "total" (all fees)',
     example: FeeDestination.TOTAL,
   })
   @IsOptional()
@@ -95,7 +101,8 @@ export class GetFeesQueryDto {
 
   @ApiPropertyOptional({
     enum: StreamType,
-    description: 'Fee stream type. Use "total" for full product breakdown, or combine with feeDestination for specific sub-buckets.',
+    description:
+      'Fee stream type. Use "total" for full product breakdown, or combine with feeDestination for specific sub-buckets.',
     example: StreamType.ASSET,
   })
   @IsOptional()
@@ -111,4 +118,15 @@ export class GetFeesQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   decoratedData?: boolean = true;
+
+  @ApiPropertyOptional({
+    enum: HsmAggregationType,
+    default: HsmAggregationType.DELTA,
+    description:
+      'HSM revenue aggregation type: "cumulative" (average balance) or "delta" (change between buckets). Only applies to HSM_REVENUE stream type.',
+    example: HsmAggregationType.DELTA,
+  })
+  @IsOptional()
+  @IsEnum(HsmAggregationType)
+  hsmAggregationType?: HsmAggregationType = HsmAggregationType.DELTA;
 }

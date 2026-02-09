@@ -8,7 +8,7 @@ import {
 
 import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ProductType, FeeDestination, StreamType } from './get-fees-query.dto';
+import { ProductType, FeeDestination, StreamType, HsmAggregationType } from './get-fees-query.dto';
 import { IsValidFeeCombinationConstraint } from '../validators/fee-combination.validator';
 
 export enum AggregationPeriod {
@@ -40,7 +40,8 @@ export class GetAggregatedFeesQueryDto {
 
   @ApiPropertyOptional({
     enum: AggregationPeriod,
-    description: 'Time period to aggregate (e.g., "1hour" = last 1 hour, "7day" = last 7 days)',
+    description:
+      'Time period to aggregate (e.g., "1hour" = last 1 hour, "7day" = last 7 days)',
     example: AggregationPeriod.TWENTY_FOUR_HOUR,
   })
   @IsOptional()
@@ -48,7 +49,8 @@ export class GetAggregatedFeesQueryDto {
   period?: AggregationPeriod;
 
   @ApiPropertyOptional({
-    description: 'Custom start time (ISO 8601 format). Overrides period parameter.',
+    description:
+      'Custom start time (ISO 8601 format). Overrides period parameter.',
     example: '2026-01-01T00:00:00Z',
   })
   @IsOptional()
@@ -56,7 +58,8 @@ export class GetAggregatedFeesQueryDto {
   startTime?: string;
 
   @ApiPropertyOptional({
-    description: 'Custom end time (ISO 8601 format). Overrides period parameter.',
+    description:
+      'Custom end time (ISO 8601 format). Overrides period parameter.',
     example: '2026-01-31T23:59:59Z',
   })
   @IsOptional()
@@ -65,7 +68,8 @@ export class GetAggregatedFeesQueryDto {
 
   @ApiPropertyOptional({
     enum: FeeDestination,
-    description: 'Fee destination filter: "lp" (liquidity providers), "protocol", or "total" (all fees)',
+    description:
+      'Fee destination filter: "lp" (liquidity providers), "protocol", or "total" (all fees)',
     example: FeeDestination.TOTAL,
   })
   @IsOptional()
@@ -74,7 +78,8 @@ export class GetAggregatedFeesQueryDto {
 
   @ApiPropertyOptional({
     enum: StreamType,
-    description: 'Specific fee stream type. Combine with feeDestination for granular filtering.',
+    description:
+      'Specific fee stream type. Combine with feeDestination for granular filtering.',
     example: StreamType.ASSET,
   })
   @IsOptional()
@@ -90,4 +95,15 @@ export class GetAggregatedFeesQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   decoratedData?: boolean = true;
+
+  @ApiPropertyOptional({
+    enum: HsmAggregationType,
+    default: HsmAggregationType.DELTA,
+    description:
+      'HSM revenue aggregation type: "cumulative" (average balance) or "delta" (change between buckets). Only applies to HSM_REVENUE stream type.',
+    example: HsmAggregationType.DELTA,
+  })
+  @IsOptional()
+  @IsEnum(HsmAggregationType)
+  hsmAggregationType?: HsmAggregationType = HsmAggregationType.DELTA;
 }
