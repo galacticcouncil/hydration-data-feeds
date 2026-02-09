@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { MultiEndpointGraphqlService } from '../../graphql-client/services/multi-endpoint-graphql.service';
 import {
   GET_AAVE_FACILITATOR_HISTORICAL_DATA_QUERY,
   GET_ACCOUNT_TOTAL_BALANCE_HISTORICAL_DATA_QUERY,
@@ -10,7 +10,9 @@ import {
   AaveFacilitatorHistoricalDataNode,
   GetAaveFacilitatorHistoricalDataResponse,
   GetAccountTotalBalanceHistoricalDataResponse,
+  AccountTotalBalanceHistoricalDataNode,
 } from '../../graphql-client/types/graphql-response.types';
+import { NormalizedEndpointConfig } from '../../graphql-client/types/endpoint.types';
 
 export interface FetchedHsmRevenueData {
   facilitatorEvents: AaveFacilitatorHistoricalDataNode[];
@@ -30,7 +32,7 @@ export class HsmRevenueFetcherService {
   private readonly FACILITATOR_ID =
     '0x6d6f646c70792f68736d6f640000000000000000';
 
-  constructor(private graphqlClient: GraphqlClientService) {}
+  constructor(private graphqlClient: MultiEndpointGraphqlService) {}
 
   /**
    * Fetch HSM revenue data from both GraphQL sources
@@ -168,6 +170,9 @@ export class HsmRevenueFetcherService {
    * Fallback method to fetch the most recent balance for blocks with no exact match
    * Queries for balance at or before the requested block height
    *
+   * Enhanced with multi-endpoint support: If balance not found in the target endpoint,
+   * sequentially queries previous endpoints until balance is found
+   *
    * Uses individual queries for each missing block to get the most recent balance
    * This is acceptable since missing blocks are typically rare (<5%)
    */
@@ -180,6 +185,11 @@ export class HsmRevenueFetcherService {
     // Query each missing block individually to get most recent balance
     const fallbackPromises = missingBlocks.map(async (blockHeight) => {
       try {
+        this.logger.debug(
+          `[Fallback] Querying for nearest balance at or before block ${blockHeight}`,
+        );
+
+        // Try primary query first (existing behavior - uses multi-endpoint routing)
         const response =
           await this.graphqlClient.query<GetAccountTotalBalanceHistoricalDataResponse>(
             GET_MOST_RECENT_ACCOUNT_BALANCE_QUERY,
@@ -191,19 +201,56 @@ export class HsmRevenueFetcherService {
 
         const nodes = response.accountTotalBalanceHistoricalData.nodes;
 
+        this.logger.debug(
+          `[Fallback] Primary query returned ${nodes.length} nodes for block ${blockHeight}`,
+        );
+
         if (nodes.length > 0) {
+          // Log all returned nodes for debugging
+          if (nodes.length > 1) {
+            this.logger.debug(
+              `[Fallback] All nodes returned: ${nodes.map((n) => `block ${n.paraBlockHeight}`).join(', ')}`,
+            );
+          }
+
+          // Found balance in primary query (same endpoint or correct routing)
           const mostRecentBalance = nodes[0];
           balanceMap.set(blockHeight, mostRecentBalance.totalTransferableNorm);
           this.logger.debug(
-            `Using balance from block ${mostRecentBalance.paraBlockHeight} for missing block ${blockHeight}`,
+            `[Fallback] ✓ Using balance from block ${mostRecentBalance.paraBlockHeight} for missing block ${blockHeight} (via primary query)`,
           );
           return { blockHeight, found: true };
-        } else {
-          this.logger.warn(
-            `No fallback balance found for block ${blockHeight}`,
-          );
-          return { blockHeight, found: false };
         }
+
+        // NOT FOUND in primary query - Need to query previous endpoints sequentially
+        // This handles the case where the nearest balance is in a different endpoint
+        this.logger.debug(
+          `No balance found in primary query for block ${blockHeight}, trying sequential endpoint fallback`,
+        );
+
+        // Get all endpoints covering [0, blockHeight] in reverse chronological order
+        const endpoints = this.getEndpointsForFallbackQuery(blockHeight);
+
+        for (const endpoint of endpoints) {
+          const result = await this.queryEndpointForNearestBalance(
+            endpoint,
+            blockHeight,
+          );
+
+          if (result) {
+            balanceMap.set(blockHeight, result.totalTransferableNorm);
+            this.logger.debug(
+              `Using balance from block ${result.paraBlockHeight} (endpoint ${endpoint.apiUrl}) for missing block ${blockHeight} via sequential fallback`,
+            );
+            return { blockHeight, found: true };
+          }
+        }
+
+        // Still not found after checking all endpoints
+        this.logger.warn(
+          `No fallback balance found for block ${blockHeight} after checking all ${endpoints.length} endpoints`,
+        );
+        return { blockHeight, found: false };
       } catch (error) {
         this.logger.error(
           `Failed to fetch fallback balance for block ${blockHeight}: ${error.message}`,
@@ -225,6 +272,69 @@ export class HsmRevenueFetcherService {
       this.logger.log(
         `Successfully fetched fallback balances for all ${missingBlocks.length} missing blocks`,
       );
+    }
+  }
+
+  /**
+   * Get endpoints that cover blocks [0, maxBlock] in reverse chronological order
+   * Allows querying for nearest balance across endpoint boundaries
+   *
+   * @param maxBlock - Maximum block height to query up to
+   * @returns Array of endpoints sorted newest first
+   */
+  private getEndpointsForFallbackQuery(
+    maxBlock: number,
+  ): NormalizedEndpointConfig[] {
+    const config = this.graphqlClient.getConfig();
+
+    if (!config.enabled) {
+      // Single-endpoint mode - return fallback endpoint
+      return [
+        {
+          apiUrl: config.fallbackUrl,
+          fromBlockHeight: 0,
+          toBlockHeight: Number.MAX_SAFE_INTEGER,
+          isHeadEndpoint: true,
+        },
+      ];
+    }
+
+    // Filter endpoints that cover blocks <= maxBlock and sort newest first
+    return config.endpoints
+      .filter((ep) => ep.fromBlockHeight <= maxBlock)
+      .sort((a, b) => b.fromBlockHeight - a.fromBlockHeight);
+  }
+
+  /**
+   * Query a specific endpoint for nearest balance at or before blockHeight
+   * Bypasses multi-endpoint routing to query a single endpoint directly
+   *
+   * @param endpoint - Endpoint configuration to query
+   * @param maxBlockHeight - Maximum block height to look for balance
+   * @returns Balance node if found, null otherwise
+   */
+  private async queryEndpointForNearestBalance(
+    endpoint: NormalizedEndpointConfig,
+    maxBlockHeight: number,
+  ): Promise<AccountTotalBalanceHistoricalDataNode | null> {
+    try {
+      const response =
+        await this.graphqlClient.querySingleEndpoint<GetAccountTotalBalanceHistoricalDataResponse>(
+          endpoint.apiUrl,
+          GET_MOST_RECENT_ACCOUNT_BALANCE_QUERY,
+          {
+            accountId: this.CONSTANT_ACCOUNT_ID,
+            maxBlockHeight,
+          },
+        );
+
+      const nodes = response.accountTotalBalanceHistoricalData.nodes;
+      return nodes.length > 0 ? nodes[0] : null;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to query endpoint ${endpoint.apiUrl} for balance at/before block ${maxBlockHeight}: ${error.message}`,
+      );
+      return null;
     }
   }
 
