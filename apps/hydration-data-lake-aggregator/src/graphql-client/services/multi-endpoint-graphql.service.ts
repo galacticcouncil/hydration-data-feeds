@@ -1,13 +1,7 @@
 import type { RequestDocument } from 'graphql-request';
-import {
-  GraphQLClient,
-  Variables,
-} from 'graphql-request';
+import { GraphQLClient, Variables } from 'graphql-request';
 
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { getMultiEndpointConfig } from '../config/endpoint.config';
@@ -41,6 +35,19 @@ export class MultiEndpointGraphqlService {
   ) {
     this.config = getMultiEndpointConfig(this.configService);
 
+    const enforcedUrls: { hsmBalances: string | null } = this.configService.get(
+      'graphql.enforcedEndpoints',
+    ) || { hsmBalances: null };
+
+    for (const key in enforcedUrls) {
+      if (enforcedUrls[key]) {
+        this.clients.set(
+          enforcedUrls[key],
+          new GraphQLClient(enforcedUrls[key]),
+        );
+      }
+    }
+
     if (this.config.enabled) {
       for (const endpoint of this.config.endpoints) {
         const client = new GraphQLClient(endpoint.apiUrl);
@@ -49,8 +56,14 @@ export class MultiEndpointGraphqlService {
 
       // Also create a client for the fallback (squid) URL — used for queries
       // that have no block range (e.g. GetAllAssets) which reaper doesn't serve
-      if (this.config.fallbackUrl && !this.clients.has(this.config.fallbackUrl)) {
-        this.clients.set(this.config.fallbackUrl, new GraphQLClient(this.config.fallbackUrl));
+      if (
+        this.config.fallbackUrl &&
+        !this.clients.has(this.config.fallbackUrl)
+      ) {
+        this.clients.set(
+          this.config.fallbackUrl,
+          new GraphQLClient(this.config.fallbackUrl),
+        );
       }
 
       this.logger.log(
@@ -71,12 +84,23 @@ export class MultiEndpointGraphqlService {
    *
    * @param query - GraphQL query document
    * @param variables - Query variables
+   * @param options - Optional configuration for query execution
+   * @param options.targetUrl - Override URL to query specific endpoint (bypasses routing)
    * @returns Query result
    */
   async query<T = any, V extends Variables = Variables>(
     query: RequestDocument,
     variables?: V,
+    options?: { targetUrl?: string },
   ): Promise<T> {
+    // If targetUrl is explicitly provided, bypass all routing and query that endpoint
+    if (options?.targetUrl) {
+      this.logger.debug(
+        `Querying specific endpoint via override: ${options.targetUrl}`,
+      );
+      return this.querySingleEndpoint(options.targetUrl, query, variables);
+    }
+
     // If multi-endpoint mode is disabled, use legacy single endpoint
     if (!this.config.enabled) {
       return this.querySingleEndpoint(
@@ -95,7 +119,11 @@ export class MultiEndpointGraphqlService {
       this.logger.debug(
         `No block range found in variables, querying fallback endpoint: ${this.config.fallbackUrl}`,
       );
-      return this.querySingleEndpoint(this.config.fallbackUrl, query, variables);
+      return this.querySingleEndpoint(
+        this.config.fallbackUrl,
+        query,
+        variables,
+      );
     }
 
     // Find endpoints that cover the requested block range
@@ -301,9 +329,7 @@ export class MultiEndpointGraphqlService {
    * @param query - GraphQL query document
    * @returns 'asc', 'desc', or 'none'
    */
-  private detectSortOrder(
-    query: RequestDocument,
-  ): 'asc' | 'desc' | 'none' {
+  private detectSortOrder(query: RequestDocument): 'asc' | 'desc' | 'none' {
     try {
       // Convert query to string if it's a DocumentNode
       let queryString: string;
@@ -353,6 +379,41 @@ export class MultiEndpointGraphqlService {
    */
   isMultiEndpointEnabled(): boolean {
     return this.config.enabled;
+  }
+
+  /**
+   * Get the head endpoint URL (most recent data)
+   * Useful for queries that should always target the latest endpoint
+   *
+   * @returns URL of the head endpoint
+   */
+  getHeadEndpointUrl(): string {
+    if (!this.config.enabled) {
+      return this.config.fallbackUrl;
+    }
+    const headEndpoint = getHeadEndpoint(this.config.endpoints);
+    return headEndpoint.apiUrl;
+  }
+
+  /**
+   * Get a specific endpoint URL by block height
+   * Useful for targeting queries to specific historical endpoints
+   *
+   * @param blockHeight - Block height to find endpoint for
+   * @returns URL of the endpoint covering that block, or fallback URL if not found
+   */
+  getEndpointUrlForBlock(blockHeight: number): string {
+    if (!this.config.enabled) {
+      return this.config.fallbackUrl;
+    }
+
+    const endpoint = this.config.endpoints.find(
+      (ep) =>
+        ep.fromBlockHeight <= blockHeight &&
+        (ep.toBlockHeight >= blockHeight || ep.isHeadEndpoint),
+    );
+
+    return endpoint ? endpoint.apiUrl : this.config.fallbackUrl;
   }
 
   /**

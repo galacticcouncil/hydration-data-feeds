@@ -13,6 +13,7 @@ import {
   AccountTotalBalanceHistoricalDataNode,
 } from '../../graphql-client/types/graphql-response.types';
 import { NormalizedEndpointConfig } from '../../graphql-client/types/endpoint.types';
+import { ConfigService } from '@nestjs/config';
 
 export interface FetchedHsmRevenueData {
   facilitatorEvents: AaveFacilitatorHistoricalDataNode[];
@@ -32,7 +33,10 @@ export class HsmRevenueFetcherService {
   private readonly FACILITATOR_ID =
     '0x6d6f646c70792f68736d6f640000000000000000';
 
-  constructor(private graphqlClient: MultiEndpointGraphqlService) {}
+  constructor(
+    private graphqlClient: MultiEndpointGraphqlService,
+    private configService: ConfigService,
+  ) {}
 
   /**
    * Fetch HSM revenue data from both GraphQL sources
@@ -121,6 +125,9 @@ export class HsmRevenueFetcherService {
     );
 
     try {
+      const hsmBalanceEnforcedUrl: string | undefined = this.configService.get(
+        `graphql.enforcedEndpoints.hsmBalances`,
+      );
       // Primary query: Fetch exact matches
       const response =
         await this.graphqlClient.query<GetAccountTotalBalanceHistoricalDataResponse>(
@@ -128,6 +135,11 @@ export class HsmRevenueFetcherService {
           {
             accountId: this.CONSTANT_ACCOUNT_ID,
             blockHeights,
+          },
+          {
+            ...(hsmBalanceEnforcedUrl
+              ? { targetUrl: hsmBalanceEnforcedUrl }
+              : {}),
           },
         );
 
@@ -188,7 +200,8 @@ export class HsmRevenueFetcherService {
         this.logger.debug(
           `[Fallback] Querying for nearest balance at or before block ${blockHeight}`,
         );
-
+        const hsmBalanceEnforcedUrl: string | undefined =
+          this.configService.get(`graphql.enforcedEndpoints.hsmBalances`);
         // Try primary query first (existing behavior - uses multi-endpoint routing)
         const response =
           await this.graphqlClient.query<GetAccountTotalBalanceHistoricalDataResponse>(
@@ -196,6 +209,11 @@ export class HsmRevenueFetcherService {
             {
               accountId: this.CONSTANT_ACCOUNT_ID,
               maxBlockHeight: blockHeight,
+            },
+            {
+              ...(hsmBalanceEnforcedUrl
+                ? { targetUrl: hsmBalanceEnforcedUrl }
+                : {}),
             },
           );
 
@@ -220,6 +238,13 @@ export class HsmRevenueFetcherService {
             `[Fallback] ✓ Using balance from block ${mostRecentBalance.paraBlockHeight} for missing block ${blockHeight} (via primary query)`,
           );
           return { blockHeight, found: true };
+        }
+
+        if (hsmBalanceEnforcedUrl) {
+          this.logger.warn(
+            `No fallback balance found for block ${blockHeight} after checking enforced endpoint`,
+          );
+          return { blockHeight, found: false };
         }
 
         // NOT FOUND in primary query - Need to query previous endpoints sequentially

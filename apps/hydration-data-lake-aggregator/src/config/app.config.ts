@@ -9,6 +9,9 @@ export interface AppConfig {
       enabled: boolean;
       endpoints: string;
     };
+    enforcedEndpoints: {
+      hsmBalances: string | null;
+    };
   };
   database: {
     host: string;
@@ -84,6 +87,7 @@ export const configValidationSchema = Joi.object({
   GRAPHQL_ENDPOINT: Joi.string().uri().required(),
   GRAPHQL_MULTI_ENDPOINT_ENABLED: Joi.boolean().default(false),
   GRAPHQL_ENDPOINTS: Joi.string().optional().default('[]'),
+  ENFORCED_GRAPHQL_ENDPOINT_HSM_BALANCES: Joi.string().uri().optional(),
 
   // Database
   DB_HOST: Joi.string().default('localhost'),
@@ -157,6 +161,9 @@ export const getAppConfig = (): AppConfig => ({
       enabled: process.env.GRAPHQL_MULTI_ENDPOINT_ENABLED === 'true',
       endpoints: process.env.GRAPHQL_ENDPOINTS || '[]',
     },
+    enforcedEndpoints: {
+      hsmBalances: process.env.ENFORCED_GRAPHQL_ENDPOINT_HSM_BALANCES || null,
+    },
   },
   database: {
     host: process.env.DB_HOST || 'localhost',
@@ -179,8 +186,7 @@ export const getAppConfig = (): AppConfig => ({
       process.env.INGESTION_INTERVAL_SECONDS || '60',
       10,
     ),
-    backfillOnStartup:
-      process.env.INGESTION_BACKFILL_ON_STARTUP !== 'false',
+    backfillOnStartup: process.env.INGESTION_BACKFILL_ON_STARTUP !== 'false',
   },
   moneyMarket: {
     startBlock: parseInt(process.env.MONEY_MARKET_START_BLOCK || '121', 10),
@@ -189,18 +195,14 @@ export const getAppConfig = (): AppConfig => ({
       process.env.MONEY_MARKET_INTERVAL_SECONDS || '60',
       10,
     ),
-    backfillOnStartup:
-      process.env.MONEY_MARKET_BACKFILL_ON_STARTUP !== 'false',
+    backfillOnStartup: process.env.MONEY_MARKET_BACKFILL_ON_STARTUP !== 'false',
   },
   peplLiquidation: {
     startBlock: parseInt(
       process.env.PEPL_LIQUIDATION_START_BLOCK || '1000000',
       10,
     ),
-    batchSize: parseInt(
-      process.env.PEPL_LIQUIDATION_BATCH_SIZE || '500',
-      10,
-    ),
+    batchSize: parseInt(process.env.PEPL_LIQUIDATION_BATCH_SIZE || '500', 10),
     intervalSeconds: parseInt(
       process.env.PEPL_LIQUIDATION_INTERVAL_SECONDS || '300',
       10,
@@ -213,10 +215,7 @@ export const getAppConfig = (): AppConfig => ({
       process.env.ASSET_RESERVE_START_BLOCK || '1000000',
       10,
     ),
-    batchSize: parseInt(
-      process.env.ASSET_RESERVE_BATCH_SIZE || '500',
-      10,
-    ),
+    batchSize: parseInt(process.env.ASSET_RESERVE_BATCH_SIZE || '500', 10),
     intervalSeconds: parseInt(
       process.env.ASSET_RESERVE_INTERVAL_SECONDS || '300',
       10,
@@ -225,20 +224,13 @@ export const getAppConfig = (): AppConfig => ({
       process.env.ASSET_RESERVE_BACKFILL_ON_STARTUP !== 'false',
   },
   hsmRevenue: {
-    startBlock: parseInt(
-      process.env.HSM_REVENUE_START_BLOCK || '1000000',
-      10,
-    ),
-    batchSize: parseInt(
-      process.env.HSM_REVENUE_BATCH_SIZE || '100',
-      10,
-    ),
+    startBlock: parseInt(process.env.HSM_REVENUE_START_BLOCK || '1000000', 10),
+    batchSize: parseInt(process.env.HSM_REVENUE_BATCH_SIZE || '100', 10),
     intervalSeconds: parseInt(
       process.env.HSM_REVENUE_INTERVAL_SECONDS || '300',
       10,
     ),
-    backfillOnStartup:
-      process.env.HSM_REVENUE_BACKFILL_ON_STARTUP !== 'false',
+    backfillOnStartup: process.env.HSM_REVENUE_BACKFILL_ON_STARTUP !== 'false',
   },
   enrichment: {
     batchSize: parseInt(process.env.ENRICHMENT_BATCH_SIZE || '1000', 10),
@@ -249,7 +241,10 @@ export const getAppConfig = (): AppConfig => ({
     maxRetries: parseInt(process.env.ENRICHMENT_MAX_RETRIES || '3', 10),
   },
   assetRegistry: {
-    refreshIntervalSeconds: parseInt(process.env.ASSET_REGISTRY_REFRESH_INTERVAL || '43200', 10),
+    refreshIntervalSeconds: parseInt(
+      process.env.ASSET_REGISTRY_REFRESH_INTERVAL || '43200',
+      10,
+    ),
   },
   cache: {
     ttl1Min: parseInt(process.env.CACHE_TTL_1MIN || '60', 10),
