@@ -183,3 +183,24 @@ export interface AccountTotalBalanceHistoricalDataConnection {
 export interface GetAccountTotalBalanceHistoricalDataResponse {
   accountTotalBalanceHistoricalData: AccountTotalBalanceHistoricalDataConnection;
 }
+
+// Borrow APR Transfer Types
+
+export interface BorrowAprTransferNode {
+  amount: string;
+  assetId: string;
+  assetType: string;
+  eventId: string;
+  paraBlockHeight: number;
+  paraTimestamp: string; // ISO8601 timestamp
+  toId: string;
+}
+
+export interface BorrowAprTransfersConnection {
+  totalCount: number;
+  nodes: BorrowAprTransferNode[];
+}
+
+export interface GetBorrowAprTransfersResponse {
+  transfers: BorrowAprTransfersConnection;
+}

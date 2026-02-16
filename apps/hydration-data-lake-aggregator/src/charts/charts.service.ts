@@ -178,14 +178,17 @@ export class ChartsService {
     } else {
       // HOLLAR
       // Note: No 'total' field - borrow_apr (SUM) and hsm_revenue (AVG) cannot be meaningfully combined
+      // borrow_apr comes from borrow_apr_${bucket}, hsm_revenue from hsm_revenue_${bucket}
+      const hsmRevenueTable = this.getTableName(productType, bucket, StreamType.HSM_REVENUE, hsmAggregationType);
       sql = `
         SELECT
-          bucket as timestamp,
-          ${g(`(fees_by_type->>'BORROW_APR')::numeric`)} as borrow_apr,
-          ${g(`(fees_by_type->>'HSM_REVENUE')::numeric`)} as hsm_revenue
-        FROM ${tableName}
-        WHERE bucket >= $1 AND bucket <= $2
-        ORDER BY bucket ASC
+          b.bucket as timestamp,
+          ${g('b.borrow_apr')} as borrow_apr,
+          ${g('h.hsm_revenue')} as hsm_revenue
+        FROM ${tableName} b
+        LEFT JOIN ${hsmRevenueTable} h ON b.bucket = h.bucket
+        WHERE b.bucket >= $1 AND b.bucket <= $2
+        ORDER BY b.bucket ASC
       `;
     }
 
@@ -307,8 +310,11 @@ export class ChartsService {
         }
         return `hsm_revenue_${bucket}`;
       }
-      // Borrow APR uses liquidation_fees tables
-      return `liquidation_fees_${bucket}`;
+      // Borrow APR has its own dedicated table
+      if (streamType === StreamType.BORROW_APR) {
+        return `borrow_apr_${bucket}`;
+      }
+      return `borrow_apr_${bucket}`;
     }
     // Fallback to liquidation_fees for any other product type
     return `liquidation_fees_${bucket}`;
@@ -338,7 +344,7 @@ export class ChartsService {
 
     // Hollar
     if (productType === ProductType.HOLLAR) {
-      if (streamType === StreamType.BORROW_APR) return `(fees_by_type->>'BORROW_APR')::numeric`;
+      if (streamType === StreamType.BORROW_APR) return `borrow_apr`;
       if (streamType === StreamType.HSM_REVENUE) {
         // Use delta column if aggregationType is DELTA
         return hsmAggregationType === HsmAggregationType.DELTA ? `hsm_revenue_delta` : `hsm_revenue`;
@@ -662,7 +668,7 @@ export class ChartsService {
       const hsmColumnName = hsmAggregationType === HsmAggregationType.DELTA ? 'hsm_revenue_delta' : 'hsm_revenue';
       sql = `
         SELECT
-          SUM(${g(`(fees_by_type->>'BORROW_APR')::numeric`)}) as borrow_apr,
+          SUM(${g('borrow_apr')}) as borrow_apr,
           (SELECT AVG(${g(hsmColumnName)}) FROM ${hsmRevenueTable} WHERE bucket >= $1 AND bucket <= $2) as hsm_revenue
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
