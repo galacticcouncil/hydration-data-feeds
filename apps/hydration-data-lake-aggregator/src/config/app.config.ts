@@ -71,6 +71,9 @@ export interface AppConfig {
   assetRegistry: {
     refreshIntervalSeconds: number;
   };
+  price: {
+    spotPriceBaseAssetId: string;
+  };
   cache: {
     ttl1Min: number;
     ttl1Hour: number;
@@ -88,6 +91,9 @@ export const configValidationSchema = Joi.object({
     .valid('development', 'production', 'test')
     .default('development'),
   PORT: Joi.number().default(3000),
+
+  // This ID must be the same as in data source indexer
+  ASSET_PRICE_BASE_ASSET_ID: Joi.string().default('10'),
 
   // GraphQL
   GRAPHQL_ENDPOINT: Joi.string().uri().required(),
@@ -167,6 +173,9 @@ export const configValidationSchema = Joi.object({
 export const getAppConfig = (): AppConfig => ({
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '3000', 10),
+  price: {
+    spotPriceBaseAssetId: process.env.ASSET_PRICE_BASE_ASSET_ID || '10',
+  },
   graphql: {
     endpoint: process.env.GRAPHQL_ENDPOINT || '',
     multiEndpoint: {
@@ -245,20 +254,13 @@ export const getAppConfig = (): AppConfig => ({
     backfillOnStartup: process.env.HSM_REVENUE_BACKFILL_ON_STARTUP !== 'false',
   },
   borrowApr: {
-    startBlock: parseInt(
-      process.env.BORROW_APR_START_BLOCK || '1000000',
-      10,
-    ),
-    batchSize: parseInt(
-      process.env.BORROW_APR_BATCH_SIZE || '100',
-      10,
-    ),
+    startBlock: parseInt(process.env.BORROW_APR_START_BLOCK || '1000000', 10),
+    batchSize: parseInt(process.env.BORROW_APR_BATCH_SIZE || '100', 10),
     intervalSeconds: parseInt(
       process.env.BORROW_APR_INTERVAL_SECONDS || '300',
       10,
     ),
-    backfillOnStartup:
-      process.env.BORROW_APR_BACKFILL_ON_STARTUP !== 'false',
+    backfillOnStartup: process.env.BORROW_APR_BACKFILL_ON_STARTUP !== 'false',
   },
   enrichment: {
     batchSize: parseInt(process.env.ENRICHMENT_BATCH_SIZE || '1000', 10),

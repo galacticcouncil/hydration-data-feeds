@@ -1,11 +1,6 @@
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
-import {
-  GraphqlClientService,
-} from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import {
   GET_ASSET_PRICES_AT_BLOCK_QUERY,
   GET_NEAREST_ASSET_PRICES_QUERY,
@@ -17,6 +12,7 @@ import {
   GetSwapsResponse,
   SwapNode,
 } from '../../graphql-client/types/graphql-response.types';
+import { ConfigService } from '@nestjs/config';
 
 export interface FetchedSwapsData {
   swaps: SwapNode[];
@@ -31,7 +27,10 @@ export interface AssetPriceMap {
 export class GraphqlFetcherService {
   private readonly logger = new Logger(GraphqlFetcherService.name);
 
-  constructor(private graphqlClient: GraphqlClientService) {}
+  constructor(
+    private graphqlClient: GraphqlClientService,
+    private configService: ConfigService,
+  ) {}
 
   /**
    * Fetch Omnipool swaps for a given block range
@@ -52,11 +51,10 @@ export class GraphqlFetcherService {
     };
 
     try {
-      const response =
-        await this.graphqlClient.query<GetSwapsResponse>(
-          GET_SWAPS_QUERY,
-          variables,
-        );
+      const response = await this.graphqlClient.query<GetSwapsResponse>(
+        GET_SWAPS_QUERY,
+        variables,
+      );
 
       this.logger.log(
         `Fetched ${response.swaps.nodes.length} swaps (total: ${response.swaps.totalCount})`,
@@ -165,10 +163,7 @@ export class GraphqlFetcherService {
         const existing = assetPricesByBlock.get(assetId);
 
         // Keep the price with the highest block number (most recent)
-        if (
-          !existing ||
-          priceNode.paraBlockHeight > existing.paraBlockHeight
-        ) {
+        if (!existing || priceNode.paraBlockHeight > existing.paraBlockHeight) {
           assetPricesByBlock.set(assetId, priceNode);
         }
       });
@@ -177,6 +172,18 @@ export class GraphqlFetcherService {
       assetPricesByBlock.forEach((priceNode, assetId) => {
         priceMap[assetId] = priceNode.priceNormalised;
       });
+
+      const spotPriceBaseAssetId: string = this.configService.get(
+        `price.spotPriceBaseAssetId`,
+      )!;
+
+      // Price of SPot Price Base asset is always 1:1
+      if (
+        assetIds.includes(spotPriceBaseAssetId) &&
+        !priceMap[spotPriceBaseAssetId]
+      ) {
+        priceMap[spotPriceBaseAssetId] = '1';
+      }
 
       this.logger.debug(
         `Fetched nearest prices for ${Object.keys(priceMap).length}/${assetIds.length} assets`,
