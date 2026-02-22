@@ -17,7 +17,7 @@ export const GET_BORROW_APR_TRANSFERS_QUERY = gql`
   query GetBorrowAprTransfers($fromBlock: Int!, $toBlock: Int!, $first: Int!) {
     transfers(
       filter: {
-        toId: { includesInsensitive: "0x8C0f3b9602374198974d2B2679d14a386f5b108e" }
+        toId: { includesInsensitive: "8C0f3b9602374198974d2B2679d14a386f5b108e" }
         assetId: { equalTo: "0x531a654d1696ed52e7275a8cede955e82620f99a" }
         paraBlockHeight: { greaterThan: $fromBlock, lessThanOrEqualTo: $toBlock }
       }
