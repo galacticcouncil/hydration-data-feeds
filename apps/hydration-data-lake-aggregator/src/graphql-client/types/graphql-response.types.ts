@@ -194,6 +194,7 @@ export interface BorrowAprTransferNode {
   paraBlockHeight: number;
   paraTimestamp: string; // ISO8601 timestamp
   toId: string;
+  fromId: string;
 }
 
 export interface BorrowAprTransfersConnection {

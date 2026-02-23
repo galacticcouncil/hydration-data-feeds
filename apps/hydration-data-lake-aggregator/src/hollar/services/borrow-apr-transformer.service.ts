@@ -8,11 +8,18 @@ import {
 } from '../../ingestion/services/graphql-fetcher.service';
 import { BorrowAprTransferNode } from '../../graphql-client/types/graphql-response.types';
 
+// Treasury and zero address constants for direction detection
+const BORROW_APR_TREASURY_ADDRESS = '8c0f3b9602374198974d2b2679d14a386f5b108e';
+const ZERO_ADDRESS = '0000000000000000000000000000000000000000000000000000000000000000';
+
 /**
  * Service responsible for transforming Borrow APR transfers into database entities
  * - Normalizes raw amount using asset decimals (via AssetRegistryService)
  * - Fetches nearest spot prices (via GraphqlFetcherService)
- * - USD value is computed at query time in continuous aggregates: amount * price
+ * - Computes SIGNED amounts based on transfer direction:
+ *   - Incoming (TO treasury): positive amount, direction = 'IN'
+ *   - Outgoing (FROM treasury TO zero): negative amount, direction = 'OUT'
+ * - Net Borrow APR = SUM(signed amount * price) in continuous aggregates
  */
 @Injectable()
 export class BorrowAprTransformerService {
@@ -105,11 +112,21 @@ export class BorrowAprTransformerService {
       const normalizedAmount = this.normalizeAmount(transfer.amount, decimals);
       const spotPrice = priceMap[transfer.assetId] || '0';
 
+      // Determine direction: incoming (TO treasury) or outgoing (FROM treasury TO zero)
+      const isIncoming = transfer.toId.toLowerCase().includes(BORROW_APR_TREASURY_ADDRESS);
+      const direction = isIncoming ? 'IN' : 'OUT';
+
+      // Sign the amount: positive for incoming, negative for outgoing
+      const signedAmount = isIncoming
+        ? normalizedAmount
+        : (-parseFloat(normalizedAmount)).toString();
+
       const entity = new BorrowAprRaw();
       entity.time = new Date(transfer.paraTimestamp);
       entity.block_height = transfer.paraBlockHeight;
       entity.event_id = transfer.eventId;
-      entity.amount = normalizedAmount;
+      entity.amount = signedAmount;
+      entity.direction = direction;
       entity.asset_id = transfer.assetId;
       entity.fee_spot_prices = { [transfer.assetId]: spotPrice };
 

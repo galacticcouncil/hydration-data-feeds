@@ -46,6 +46,16 @@ async function refreshAllAggregates() {
     'hsm_revenue_24hour',
     'hsm_revenue_7day',
     'hsm_revenue_30day',
+    // Hollar Borrow APR
+    'borrow_apr_1min',
+    'borrow_apr_5min',
+    'borrow_apr_10min',
+    'borrow_apr_30min',
+    'borrow_apr_1hour',
+    'borrow_apr_6hour',
+    'borrow_apr_24hour',
+    'borrow_apr_7day',
+    'borrow_apr_30day',
   ];
 
   try {

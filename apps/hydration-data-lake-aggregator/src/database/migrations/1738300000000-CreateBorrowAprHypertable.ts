@@ -24,6 +24,7 @@ export class CreateBorrowAprHypertable1738300000000 implements MigrationInterfac
         block_height INTEGER NOT NULL,
         event_id VARCHAR(255) NOT NULL,
         amount NUMERIC(78, 18) NOT NULL,
+        direction VARCHAR(10) NOT NULL,
         asset_id VARCHAR(255) NOT NULL,
         fee_spot_prices JSONB NOT NULL DEFAULT '{}',
         ingested_at TIMESTAMPTZ DEFAULT NOW(),

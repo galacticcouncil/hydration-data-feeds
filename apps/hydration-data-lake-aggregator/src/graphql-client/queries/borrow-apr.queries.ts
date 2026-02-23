@@ -1,25 +1,37 @@
 import { gql } from 'graphql-tag';
 
 /**
- * Query to fetch Borrow APR transfers using block-based pagination
+ * Query to fetch Borrow APR transfers (both incoming and outgoing)
  *
- * Strategy: Pagination-based fetching (matches existing patterns in codebase)
- * 1. Filter paraBlockHeight > lastProcessedBlock (from state)
- * 2. Filter toId includes the treasury address (case-insensitive)
- * 3. Filter assetId matches the Borrow APR asset
- * 4. Order by paraBlockHeight ASC, eventId ASC
- * 5. Use first: N to limit batch size
+ * Strategy: Bidirectional net flow tracking
+ * 1. Incoming: Transfers TO treasury address (positive contribution)
+ * 2. Outgoing: Transfers FROM treasury TO zero address (negative contribution)
+ * 3. Net Borrow APR = SUM(incoming) - SUM(outgoing)
  *
- * Address: 0x8C0f3b9602374198974d2B2679d14a386f5b108e (Borrow APR treasury)
- * Asset: 0x531a654d1696ed52e7275a8cede955e82620f99a (Borrow APR asset)
+ * Filters:
+ * - assetId matches Borrow APR asset
+ * - paraBlockHeight within query range
+ * - OR condition:
+ *   a) toId includes treasury (incoming)
+ *   b) fromId includes treasury AND toId includes zero address (outgoing)
+ *
+ * Treasury: 0x8C0f3b9602374198974d2B2679d14a386f5b108e
+ * Zero Address: 0x0000000000000000000000000000000000000000000000000000000000000000
+ * Asset: 0x531a654d1696ed52e7275a8cede955e82620f99a
  */
 export const GET_BORROW_APR_TRANSFERS_QUERY = gql`
   query GetBorrowAprTransfers($fromBlock: Int!, $toBlock: Int!, $first: Int!) {
     transfers(
       filter: {
-        toId: { includesInsensitive: "8C0f3b9602374198974d2B2679d14a386f5b108e" }
         assetId: { equalTo: "0x531a654d1696ed52e7275a8cede955e82620f99a" }
         paraBlockHeight: { greaterThan: $fromBlock, lessThanOrEqualTo: $toBlock }
+        or: [
+          { toId: { includesInsensitive: "8C0f3b9602374198974d2B2679d14a386f5b108e" } }
+          {
+            fromId: { includesInsensitive: "8C0f3b9602374198974d2B2679d14a386f5b108e" }
+            toId: { includesInsensitive: "0000000000000000000000000000000000000000000000000000000000000000" }
+          }
+        ]
       }
       orderBy: [PARA_BLOCK_HEIGHT_ASC, EVENT_ID_ASC]
       first: $first
@@ -33,6 +45,7 @@ export const GET_BORROW_APR_TRANSFERS_QUERY = gql`
         paraBlockHeight
         paraTimestamp
         toId
+        fromId
       }
     }
   }

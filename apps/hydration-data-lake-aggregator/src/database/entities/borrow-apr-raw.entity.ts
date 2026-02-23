@@ -2,8 +2,10 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 /**
  * Entity for raw Borrow APR transfer data
- * Stores normalized transfer amounts and spot prices
- * USD value is computed in continuous aggregates: amount * (fee_spot_prices->>'assetId')::numeric
+ * Stores normalized transfer amounts (SIGNED for net flow) and spot prices
+ * - Incoming transfers (TO treasury): positive amount
+ * - Outgoing transfers (FROM treasury TO zero address): negative amount
+ * - Net Borrow APR = SUM(amount * price) in continuous aggregates
  * Used as the base table for borrow_apr_* continuous aggregates
  */
 @Entity('borrow_apr_raw')
@@ -18,7 +20,10 @@ export class BorrowAprRaw {
   event_id: string;
 
   @Column({ type: 'numeric', precision: 78, scale: 18 })
-  amount: string; // normalized to asset decimals
+  amount: string; // SIGNED: positive for IN, negative for OUT
+
+  @Column({ type: 'varchar', length: 10 })
+  direction: string; // 'IN' or 'OUT' for debugging/auditing
 
   @Column({ type: 'varchar', length: 255 })
   asset_id: string;
