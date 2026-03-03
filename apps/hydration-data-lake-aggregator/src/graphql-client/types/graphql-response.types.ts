@@ -205,3 +205,56 @@ export interface BorrowAprTransfersConnection {
 export interface GetBorrowAprTransfersResponse {
   transfers: BorrowAprTransfersConnection;
 }
+
+// Routed Trade Types (post-runtime-upgrade)
+
+export interface SwapInputNode {
+  assetId: string;
+  amount: string; // Raw amount
+}
+
+export interface SwapOutputNode {
+  assetId: string;
+  amount: string; // Raw amount
+}
+
+export interface SwapInputsConnection {
+  nodes: SwapInputNode[];
+}
+
+export interface SwapOutputsConnection {
+  nodes: SwapOutputNode[];
+}
+
+export interface NestedSwapNode {
+  id: string;
+  operationId: string;
+  paraTimestamp: string; // ISO8601 timestamp
+  fillerId: string;
+  fillerType: string; // "Omnipool"
+  swapInputs: SwapInputsConnection;
+  swapOutputs: SwapOutputsConnection;
+  swapFees: SwapFeesConnection;
+}
+
+export interface NestedSwapsConnection {
+  nodes: NestedSwapNode[];
+}
+
+export interface RoutedTradeNode {
+  id: string;
+  paraBlockHeight: number;
+  inputAssetIds: string[]; // Array of input asset IDs
+  outputAssetIds: string[]; // Array of output asset IDs
+  swaps: NestedSwapsConnection; // Nested swaps with inputs/outputs
+  // Note: paraTimestamp, fillerId, fillerType are on nested swaps, not here
+}
+
+export interface RoutedTradesConnection {
+  totalCount: number;
+  nodes: RoutedTradeNode[];
+}
+
+export interface GetRoutedTradesResponse {
+  routedTrades: RoutedTradesConnection;
+}

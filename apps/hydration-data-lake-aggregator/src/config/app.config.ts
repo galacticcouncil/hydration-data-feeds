@@ -32,6 +32,7 @@ export interface AppConfig {
     batchSize: number;
     intervalSeconds: number;
     backfillOnStartup: boolean;
+    omnipoolRuntimeUpgradeBlock: number;
   };
   moneyMarket: {
     startBlock: number;
@@ -120,6 +121,7 @@ export const configValidationSchema = Joi.object({
   INGESTION_BATCH_SIZE: Joi.number().default(100),
   INGESTION_INTERVAL_SECONDS: Joi.number().default(60),
   INGESTION_BACKFILL_ON_STARTUP: Joi.boolean().default(true),
+  OMNIPOOL_RUNTIME_UPGRADE_BLOCK: Joi.number().default(11394694),
 
   // Money Market
   MONEY_MARKET_START_BLOCK: Joi.number().default(121),
@@ -208,6 +210,10 @@ export const getAppConfig = (): AppConfig => ({
       10,
     ),
     backfillOnStartup: process.env.INGESTION_BACKFILL_ON_STARTUP !== 'false',
+    omnipoolRuntimeUpgradeBlock: parseInt(
+      process.env.OMNIPOOL_RUNTIME_UPGRADE_BLOCK || '11394694',
+      10,
+    ),
   },
   moneyMarket: {
     startBlock: parseInt(process.env.MONEY_MARKET_START_BLOCK || '121', 10),

@@ -5,17 +5,30 @@ import {
   GET_ASSET_PRICES_AT_BLOCK_QUERY,
   GET_NEAREST_ASSET_PRICES_QUERY,
   GET_SWAPS_QUERY,
+  GET_ROUTED_TRADES_QUERY,
 } from '../../graphql-client/queries/swaps.queries';
 import {
   AssetSpotPriceNode,
   GetAssetPricesAtBlockResponse,
   GetSwapsResponse,
+  GetRoutedTradesResponse,
   SwapNode,
+  RoutedTradeNode,
 } from '../../graphql-client/types/graphql-response.types';
 import { ConfigService } from '@nestjs/config';
 
+// Union type to handle both legacy swaps and new routed trades
+export type SwapOrRoutedTradeNode = SwapNode | RoutedTradeNode;
+
+// Type guard to check if node is a RoutedTradeNode
+export function isRoutedTradeNode(
+  node: SwapOrRoutedTradeNode,
+): node is RoutedTradeNode {
+  return 'inputAssetIds' in node && 'outputAssetIds' in node && 'swaps' in node;
+}
+
 export interface FetchedSwapsData {
-  swaps: SwapNode[];
+  swaps: SwapOrRoutedTradeNode[];
   totalCount: number;
 }
 
@@ -200,15 +213,130 @@ export class GraphqlFetcherService {
   }
 
   /**
-   * Extract unique asset IDs from swaps' fee data
+   * Fetch Omnipool routed trades for a given block range
+   * Used for blocks >= OMNIPOOL_RUNTIME_UPGRADE_BLOCK
+   * Filters out routed trades with no Omnipool swaps (empty swaps array)
    */
-  extractUniqueAssetIds(swaps: SwapNode[]): string[] {
+  async fetchRoutedTrades(
+    fromBlock: number,
+    toBlock: number,
+    limit: number = 1000,
+  ): Promise<FetchedSwapsData> {
+    this.logger.debug(
+      `Fetching routed trades from block ${fromBlock} to ${toBlock} (limit: ${limit})`,
+    );
+
+    const variables = {
+      fromBlock,
+      toBlock,
+      first: limit,
+    };
+
+    try {
+      const response =
+        await this.graphqlClient.query<GetRoutedTradesResponse>(
+          GET_ROUTED_TRADES_QUERY,
+          variables,
+        );
+
+      // Filter out routed trades with no Omnipool swaps
+      // (These can occur when a routed trade has only non-Omnipool swaps)
+      const omnipoolRoutedTrades = response.routedTrades.nodes.filter(
+        (trade) => trade.swaps.nodes.length > 0,
+      );
+
+      const filteredCount = response.routedTrades.nodes.length - omnipoolRoutedTrades.length;
+      if (filteredCount > 0) {
+        this.logger.debug(
+          `Filtered out ${filteredCount} routed trades with no Omnipool swaps`,
+        );
+      }
+
+      this.logger.log(
+        `Fetched ${omnipoolRoutedTrades.length} Omnipool routed trades (total before filter: ${response.routedTrades.totalCount})`,
+      );
+
+      return {
+        swaps: omnipoolRoutedTrades as SwapOrRoutedTradeNode[],
+        totalCount: response.routedTrades.totalCount,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch routed trades for blocks ${fromBlock}-${toBlock}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch swaps or routed trades based on block height
+   * Automatically selects the correct query based on runtime upgrade block
+   */
+  async fetchSwapsOrRoutedTrades(
+    fromBlock: number,
+    toBlock: number,
+    limit: number = 1000,
+  ): Promise<FetchedSwapsData> {
+    const upgradeBlock =
+      this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
+        infer: true,
+      }) || 11394694;
+
+    // If the entire range is before the upgrade, use legacy swaps query
+    if (toBlock < upgradeBlock) {
+      return this.fetchSwaps(fromBlock, toBlock, limit);
+    }
+
+    // If the entire range is after the upgrade, use routed trades query
+    if (fromBlock >= upgradeBlock) {
+      return this.fetchRoutedTrades(fromBlock, toBlock, limit);
+    }
+
+    // If the range spans the upgrade block, split into two queries
+    this.logger.log(
+      `Block range spans runtime upgrade at ${upgradeBlock}, splitting query`,
+    );
+
+    const preUpgradeData = await this.fetchSwaps(
+      fromBlock,
+      upgradeBlock - 1,
+      limit,
+    );
+
+    const postUpgradeData = await this.fetchRoutedTrades(
+      upgradeBlock,
+      toBlock,
+      limit,
+    );
+
+    return {
+      swaps: [...preUpgradeData.swaps, ...postUpgradeData.swaps],
+      totalCount: preUpgradeData.totalCount + postUpgradeData.totalCount,
+    };
+  }
+
+  /**
+   * Extract unique asset IDs from swaps' fee data
+   * Works with both SwapNode and RoutedTradeNode
+   */
+  extractUniqueAssetIds(swaps: SwapOrRoutedTradeNode[]): string[] {
     const assetIdSet = new Set<string>();
 
     swaps.forEach((swap) => {
-      swap.swapFees.nodes.forEach((fee) => {
-        assetIdSet.add(fee.assetId);
-      });
+      if (isRoutedTradeNode(swap)) {
+        // For routed trades, extract from nested swaps
+        swap.swaps.nodes.forEach((nestedSwap) => {
+          nestedSwap.swapFees.nodes.forEach((fee) => {
+            assetIdSet.add(fee.assetId);
+          });
+        });
+      } else {
+        // For regular swaps
+        swap.swapFees.nodes.forEach((fee) => {
+          assetIdSet.add(fee.assetId);
+        });
+      }
     });
 
     return Array.from(assetIdSet);
@@ -217,19 +345,20 @@ export class GraphqlFetcherService {
   /**
    * Fetch swaps with pagination support
    * Handles cases where totalCount > limit
+   * Block-aware: uses appropriate query based on block height
    */
   async fetchAllSwapsInRange(
     fromBlock: number,
     toBlock: number,
-  ): Promise<SwapNode[]> {
-    const allSwaps: SwapNode[] = [];
+  ): Promise<SwapOrRoutedTradeNode[]> {
+    const allSwaps: SwapOrRoutedTradeNode[] = [];
     const batchSize = 1000;
 
     let hasMore = true;
     let currentFromBlock = fromBlock;
 
     while (hasMore && currentFromBlock <= toBlock) {
-      const { swaps, totalCount } = await this.fetchSwaps(
+      const { swaps, totalCount } = await this.fetchSwapsOrRoutedTrades(
         currentFromBlock,
         toBlock,
         batchSize,
@@ -247,7 +376,7 @@ export class GraphqlFetcherService {
     }
 
     this.logger.log(
-      `Fetched total of ${allSwaps.length} swaps for blocks ${fromBlock}-${toBlock}`,
+      `Fetched total of ${allSwaps.length} swaps/trades for blocks ${fromBlock}-${toBlock}`,
     );
 
     return allSwaps;

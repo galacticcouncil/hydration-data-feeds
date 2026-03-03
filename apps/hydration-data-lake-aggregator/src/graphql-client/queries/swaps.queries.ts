@@ -129,3 +129,61 @@ export const GET_ALL_ASSETS_QUERY = gql`
     }
   }
 `;
+
+/**
+ * Query to fetch Omnipool routed trades within a block range
+ * Used for blocks >= OMNIPOOL_RUNTIME_UPGRADE_BLOCK (11394694)
+ * RoutedTrades group multiple swaps from a single user transaction
+ * Includes swap inputs/outputs for H2O special case handling
+ *
+ * Note: We filter for Omnipool at the swap level using the filter parameter
+ */
+export const GET_ROUTED_TRADES_QUERY = gql`
+  query GetRoutedTrades($fromBlock: Int!, $toBlock: Int!, $first: Int!) {
+    routedTrades(
+      filter: {
+        paraBlockHeight: { lessThan: $toBlock, greaterThanOrEqualTo: $fromBlock }
+      }
+      first: $first
+      orderBy: PARA_BLOCK_HEIGHT_ASC
+    ) {
+      totalCount
+      nodes {
+        id
+        paraBlockHeight
+        inputAssetIds
+        outputAssetIds
+        swaps(filter: { fillerType: { equalTo: "Omnipool" } }) {
+          nodes {
+            id
+            operationId
+            paraTimestamp
+            fillerId
+            fillerType
+            swapInputs {
+              nodes {
+                assetId
+                amount
+              }
+            }
+            swapOutputs {
+              nodes {
+                assetId
+                amount
+              }
+            }
+            swapFees {
+              nodes {
+                id
+                amount
+                assetId
+                destinationType
+                recipientId
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;

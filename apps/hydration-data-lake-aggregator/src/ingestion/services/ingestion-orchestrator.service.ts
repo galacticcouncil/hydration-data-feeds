@@ -106,6 +106,22 @@ export class IngestionOrchestratorService implements OnModuleInit {
     const startTime = Date.now();
 
     try {
+      // Log if we're crossing the runtime upgrade boundary
+      const upgradeBlock =
+        this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
+          infer: true,
+        }) || 11394694;
+
+      if (fromBlock < upgradeBlock && toBlock >= upgradeBlock) {
+        this.logger.log(
+          `⚠️  Processing batch spans Omnipool runtime upgrade at block ${upgradeBlock}`,
+        );
+      } else if (fromBlock === upgradeBlock) {
+        this.logger.log(
+          `🔄 Starting to process post-upgrade blocks (>= ${upgradeBlock}) using routedTrades query`,
+        );
+      }
+
       this.logger.log(`Processing batch: blocks ${fromBlock} to ${toBlock}`);
 
       // Step 1: Fetch swaps

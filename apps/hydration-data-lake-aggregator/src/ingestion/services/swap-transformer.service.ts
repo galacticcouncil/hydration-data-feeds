@@ -2,7 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { SwapNode } from '../../graphql-client/types/graphql-response.types';
 import { SwapRaw } from '../../database/entities/swap-raw.entity';
 import { FeeCalculatorService, CalculatedFeeData } from './fee-calculator.service';
-import { AssetPriceMap, GraphqlFetcherService } from './graphql-fetcher.service';
+import {
+  AssetPriceMap,
+  GraphqlFetcherService,
+  SwapOrRoutedTradeNode,
+  isRoutedTradeNode,
+} from './graphql-fetcher.service';
 
 @Injectable()
 export class SwapTransformerService {
@@ -14,19 +19,41 @@ export class SwapTransformerService {
   ) {}
 
   /**
-   * Transform GraphQL SwapNode to SwapRaw entity
+   * Transform GraphQL SwapNode or RoutedTradeNode to SwapRaw entity
    * Fetches decimals from asset registry and prices from GraphQL
+   * Works with both pre-upgrade swaps and post-upgrade routed trades
    */
   async transformSwap(
-    swap: SwapNode,
+    swap: SwapOrRoutedTradeNode,
     priceMap?: AssetPriceMap,
   ): Promise<SwapRaw> {
     // Calculate fees (no USD conversion) - now async
     const feeData: CalculatedFeeData =
       await this.feeCalculator.calculateSwapFees(swap);
 
+    // Extract timestamp, fillerId, fillerType (handle both node types)
+    let paraTimestamp: string;
+    let fillerId: string;
+    let fillerType: string;
+
+    if (isRoutedTradeNode(swap)) {
+      // For routed trades, get from first nested swap (all swaps in a routed trade share these values)
+      const firstSwap = swap.swaps.nodes[0];
+      if (!firstSwap) {
+        throw new Error(`RoutedTrade ${swap.id} has no swaps`);
+      }
+      paraTimestamp = firstSwap.paraTimestamp;
+      fillerId = firstSwap.fillerId;
+      fillerType = firstSwap.fillerType;
+    } else {
+      // For regular swaps, get directly
+      paraTimestamp = swap.paraTimestamp;
+      fillerId = swap.fillerId;
+      fillerType = swap.fillerType;
+    }
+
     // Parse timestamp to Date
-    const time = new Date(swap.paraTimestamp);
+    const time = new Date(paraTimestamp);
 
     // Fetch nearest prices if not provided
     let spotPrices: Record<string, string> = {};
@@ -76,8 +103,8 @@ export class SwapTransformerService {
     swapRaw.swap_id = swap.id;
     swapRaw.time = time;
     swapRaw.block_height = swap.paraBlockHeight;
-    swapRaw.filler_id = swap.fillerId;
-    swapRaw.filler_type = swap.fillerType;
+    swapRaw.filler_id = fillerId;
+    swapRaw.filler_type = fillerType;
     swapRaw.fee_asset_ids = feeData.feeAssetIds;
     swapRaw.fee_amounts_raw = feeData.feeAmountsRaw;
     swapRaw.fee_by_recipient = feeData.feeByRecipient;
@@ -89,20 +116,35 @@ export class SwapTransformerService {
   /**
    * Transform multiple swaps in batch
    * Fetches prices once for all swaps for efficiency
+   * Works with both SwapNode and RoutedTradeNode
    */
   async transformSwapsBatch(
-    swaps: SwapNode[],
+    swaps: SwapOrRoutedTradeNode[],
     blockHeight?: number,
   ): Promise<SwapRaw[]> {
-    this.logger.debug(`Transforming ${swaps.length} swaps`);
+    this.logger.debug(`Transforming ${swaps.length} swaps/trades`);
 
     // Fetch prices once for all swaps if block height is provided
     let priceMap: AssetPriceMap | undefined;
     if (blockHeight && swaps.length > 0) {
-      // Collect all unique asset IDs
+      // Collect all unique asset IDs (handle both swap types)
       const allAssetIds = new Set<string>();
       for (const swap of swaps) {
-        swap.swapFees.nodes.forEach((fee) => allAssetIds.add(fee.assetId));
+        if (isRoutedTradeNode(swap)) {
+          // For routed trades, extract from nested swaps
+          swap.swaps.nodes.forEach((nestedSwap) => {
+            nestedSwap.swapFees.nodes.forEach((fee) =>
+              allAssetIds.add(fee.assetId),
+            );
+            // Also add input assets for H2O special case
+            nestedSwap.swapInputs.nodes.forEach((input) =>
+              allAssetIds.add(input.assetId),
+            );
+          });
+        } else {
+          // For regular swaps
+          swap.swapFees.nodes.forEach((fee) => allAssetIds.add(fee.assetId));
+        }
       }
 
       try {
@@ -158,7 +200,7 @@ export class SwapTransformerService {
     });
 
     this.logger.log(
-      `Transformed ${validSwaps.length}/${swaps.length} swaps successfully`,
+      `Transformed ${validSwaps.length}/${swaps.length} swaps/trades successfully`,
     );
 
     return validSwaps;
