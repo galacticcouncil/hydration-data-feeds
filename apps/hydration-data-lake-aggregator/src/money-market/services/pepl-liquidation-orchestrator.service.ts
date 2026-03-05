@@ -114,7 +114,7 @@ export class PeplLiquidationOrchestratorService implements OnModuleInit {
       let currentFromBlock = lastProcessedBlock;
 
       while (hasMore) {
-        const result = await this.processBatch(currentFromBlock, this.batchSize);
+        const result = await this.processBatch(currentFromBlock, currentBlock, this.batchSize);
 
         if (!result.hasMore) {
           hasMore = false;
@@ -144,6 +144,7 @@ export class PeplLiquidationOrchestratorService implements OnModuleInit {
    */
   private async processBatch(
     fromBlock: number,
+    currentBlock: number,
     batchSize: number,
   ): Promise<{ hasMore: boolean; highestBlock: number }> {
     const startTime = Date.now();
@@ -155,7 +156,7 @@ export class PeplLiquidationOrchestratorService implements OnModuleInit {
 
       // Step 1: Fetch events using pagination
       const { events, totalCount } =
-        await this.fetcher.fetchPeplLiquidationEvents(fromBlock, batchSize);
+        await this.fetcher.fetchPeplLiquidationEvents(fromBlock, currentBlock, batchSize);
 
       if (events.length === 0) {
         this.logger.debug(`No PEPL events found after block ${fromBlock}`);

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { MultiEndpointGraphqlService } from '../../graphql-client/services/multi-endpoint-graphql.service';
 import { GET_PEPL_LIQUIDATION_EVENTS_QUERY } from '../../graphql-client/queries/pepl-liquidation.queries';
 import {
   GetPeplLiquidationEventsResponse,
@@ -13,71 +13,146 @@ export interface FetchedPeplData {
 }
 
 /**
- * Service responsible for fetching PEPL liquidation events from GraphQL
- * Uses pagination-based approach for efficient data retrieval
+ * Service responsible for fetching PEPL liquidation events from GraphQL.
+ * Iterates reaper endpoints sequentially in block order, accumulating up to
+ * batchSize events — mirrors the BorrowAprFetcherService strategy.
  */
 @Injectable()
 export class PeplLiquidationFetcherService {
   private readonly logger = new Logger(PeplLiquidationFetcherService.name);
 
-  constructor(private graphqlClient: GraphqlClientService) {}
+  constructor(private graphqlClient: MultiEndpointGraphqlService) {}
 
   /**
-   * Fetch PEPL liquidation events from liquidationLiquidatedEvents table using pagination
-   * Fetches events where protocol profits from liquidation
+   * Fetch PEPL liquidation events by iterating reaper endpoints sequentially
+   * in block order, accumulating up to batchSize events.
    *
-   * Strategy: Pagination-based fetching (more efficient than block range filtering)
-   * - Filter: paraBlockHeight > fromBlock
-   * - Order: paraBlockHeight ASC, id ASC
-   * - Limit: batchSize records per query
+   * Strategy:
+   * - Sort endpoints by fromBlockHeight ASC
+   * - Skip endpoints whose entire block range is <= fromBlock
+   * - For each endpoint, query with: fromBlock > max(fromBlock, endpoint.fromBlockHeight-1)
+   *   and toBlock <= min(endpoint.toBlockHeight, currentBlock)
+   * - Accumulate results until batchSize is reached, then stop
    *
-   * @param fromBlock - Last processed block (exclusive - will fetch > fromBlock)
-   * @param batchSize - Number of events to fetch per batch (default: 500)
-   * @returns PEPL liquidation events
+   * @param fromBlock - Last processed block (exclusive)
+   * @param currentBlock - Current chain tip block (upper bound for all queries)
+   * @param batchSize - Max events to accumulate across all endpoints
+   * @returns Accumulated events and combined totalCount
    */
   async fetchPeplLiquidationEvents(
     fromBlock: number,
+    currentBlock: number,
     batchSize: number = 500,
   ): Promise<FetchedPeplData> {
     this.logger.debug(
-      `Fetching PEPL liquidations after block ${fromBlock} (limit: ${batchSize})`,
+      `Fetching PEPL liquidations after block ${fromBlock} up to ${currentBlock} (limit: ${batchSize})`,
     );
 
+    const config = this.graphqlClient.getConfig();
+
+    // If multi-endpoint mode is disabled, use fallback directly
+    if (!config.enabled || config.endpoints.length === 0) {
+      return this.fetchFromSingleEndpoint(
+        config.fallbackUrl,
+        fromBlock,
+        currentBlock,
+        batchSize,
+      );
+    }
+
+    // Sort endpoints by fromBlockHeight ASC to process in chronological order
+    const endpoints = [...config.endpoints].sort(
+      (a, b) => a.fromBlockHeight - b.fromBlockHeight,
+    );
+
+    const accumulated: PeplLiquidationEventNode[] = [];
+    let totalCount = 0;
+
+    for (const endpoint of endpoints) {
+      // Skip endpoints whose entire range is already processed
+      if (endpoint.toBlockHeight <= fromBlock) {
+        continue;
+      }
+
+      // Stop if this endpoint starts beyond current block
+      if (endpoint.fromBlockHeight > currentBlock) {
+        break;
+      }
+
+      const remaining = batchSize - accumulated.length;
+      if (remaining <= 0) {
+        break;
+      }
+
+      const effectiveFromBlock = Math.max(fromBlock, endpoint.fromBlockHeight - 1);
+      const effectiveToBlock = Math.min(endpoint.toBlockHeight, currentBlock);
+
+      this.logger.debug(
+        `Querying endpoint ${endpoint.apiUrl} for blocks ${effectiveFromBlock + 1}-${effectiveToBlock} (remaining: ${remaining})`,
+      );
+
+      const result = await this.fetchFromSingleEndpoint(
+        endpoint.apiUrl,
+        effectiveFromBlock,
+        effectiveToBlock,
+        remaining,
+      );
+
+      if (result.events.length > 0) {
+        accumulated.push(...result.events);
+        totalCount += result.totalCount;
+        this.logger.debug(
+          `Endpoint ${endpoint.apiUrl} returned ${result.events.length} events (accumulated: ${accumulated.length}/${batchSize})`,
+        );
+      }
+
+      if (accumulated.length >= batchSize) {
+        break;
+      }
+    }
+
+    this.logger.log(
+      `Fetched ${accumulated.length} PEPL liquidation events (total: ${totalCount})`,
+    );
+
+    return { events: accumulated, totalCount };
+  }
+
+  private async fetchFromSingleEndpoint(
+    endpointUrl: string,
+    fromBlock: number,
+    toBlock: number,
+    limit: number,
+  ): Promise<FetchedPeplData> {
     const variables = {
       fromBlock,
-      first: batchSize,
+      toBlock,
+      first: limit,
     };
 
     try {
       const response =
-        await this.graphqlClient.query<GetPeplLiquidationEventsResponse>(
+        await this.graphqlClient.querySingleEndpoint<GetPeplLiquidationEventsResponse>(
+          endpointUrl,
           GET_PEPL_LIQUIDATION_EVENTS_QUERY,
           variables,
         );
 
-      const events = response.liquidationLiquidatedEvents.nodes;
-      const totalCount = response.liquidationLiquidatedEvents.totalCount;
-
-      this.logger.log(
-        `Fetched ${events.length} PEPL liquidation events (total: ${totalCount})`,
-      );
-
-      return { events, totalCount };
+      return {
+        events: response.liquidationLiquidatedEvents.nodes,
+        totalCount: response.liquidationLiquidatedEvents.totalCount,
+      };
     } catch (error) {
-      this.logger.error(
-        `Failed to fetch PEPL liquidations after block ${fromBlock}`,
-        error.stack,
+      this.logger.warn(
+        `Endpoint ${endpointUrl} failed for blocks ${fromBlock}-${toBlock}: ${error.message}`,
       );
-      throw error;
+      return { events: [], totalCount: 0 };
     }
   }
 
   /**
    * Extract unique block heights from PEPL events
    * Used for batch-fetching asset prices
-   *
-   * @param events - Array of PEPL liquidation events
-   * @returns Sorted array of unique block heights
    */
   extractUniqueBlockHeights(events: PeplLiquidationEventNode[]): number[] {
     const blockSet = new Set<number>();
@@ -88,9 +163,6 @@ export class PeplLiquidationFetcherService {
   /**
    * Get highest block height from batch of events
    * Used for state tracking
-   *
-   * @param events - Array of PEPL liquidation events
-   * @returns Highest block height in batch
    */
   getMaxBlockHeight(events: PeplLiquidationEventNode[]): number {
     return Math.max(...events.map((e) => e.paraBlockHeight));

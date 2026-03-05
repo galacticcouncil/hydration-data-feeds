@@ -19,10 +19,10 @@ import { gql } from 'graphql-tag';
  * - event.block.timestamp: Accessed via event for timestamp
  */
 export const GET_PEPL_LIQUIDATION_EVENTS_QUERY = gql`
-  query GetPeplLiquidationEvents($fromBlock: Int!, $first: Int!) {
+  query GetPeplLiquidationEvents($fromBlock: Int!, $toBlock: Int!, $first: Int!) {
     liquidationLiquidatedEvents(
       filter: {
-        paraBlockHeight: { greaterThan: $fromBlock }
+        paraBlockHeight: { greaterThan: $fromBlock, lessThanOrEqualTo: $toBlock }
       }
       orderBy: [PARA_BLOCK_HEIGHT_ASC, ID_ASC]
       first: $first
