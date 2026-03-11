@@ -65,9 +65,8 @@ export const GET_ASSET_PRICES_AT_BLOCK_QUERY = gql`
  * Uses lessThanOrEqualTo filter to get the most recent price at or before the target block
  * This handles sparse price data where prices only update when they change
  *
- * Note: first: 500 ensures we get prices for all assets even when some assets
- * have many historical price updates. With ~15 assets per query, this gives
- * ~33 price records per asset on average, ensuring at least one price per asset.
+ * Note: first: 500 is sufficient per-call because fetchNearestAssetPrices issues a
+ * second targeted request for any assets that weren't covered in the first pass.
  */
 export const GET_NEAREST_ASSET_PRICES_QUERY = gql`
   query GetNearestAssetPrices($assetIds: [String!]!, $blockHeight: Int!) {

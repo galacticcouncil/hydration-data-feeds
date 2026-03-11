@@ -138,9 +138,43 @@ export class GraphqlFetcherService {
   }
 
   /**
-   * Fetch nearest historical asset prices for a given block height
-   * Uses lessThanOrEqualTo filter to get the most recent price at or before the target block
-   * This handles sparse price data where prices only update when they change
+   * Single-pass price fetch: queries up to 500 rows ordered by block desc.
+   * Returns whatever assets were covered — callers handle missing ones.
+   */
+  private async fetchNearestPricesOnce(
+    assetIds: string[],
+    blockHeight: number,
+  ): Promise<AssetPriceMap> {
+    const response =
+      await this.graphqlClient.query<GetAssetPricesAtBlockResponse>(
+        GET_NEAREST_ASSET_PRICES_QUERY,
+        { assetIds, blockHeight },
+      );
+
+    const assetPricesByBlock = new Map<string, AssetSpotPriceNode>();
+
+    response.assetSpotPriceHistoricalData.nodes.forEach((priceNode) => {
+      const existing = assetPricesByBlock.get(priceNode.assetInId);
+      if (!existing || priceNode.paraBlockHeight > existing.paraBlockHeight) {
+        assetPricesByBlock.set(priceNode.assetInId, priceNode);
+      }
+    });
+
+    const priceMap: AssetPriceMap = {};
+    assetPricesByBlock.forEach((priceNode, assetId) => {
+      priceMap[assetId] = priceNode.priceNormalised;
+    });
+
+    return priceMap;
+  }
+
+  /**
+   * Fetch nearest historical asset prices for a given block height.
+   * Uses lessThanOrEqualTo filter to get the most recent price at or before the target block.
+   *
+   * Two-pass strategy: first request covers all assets with a 500-row budget. High-frequency
+   * assets can crowd out low-frequency ones in that window, so any assets not covered in the
+   * first pass get a dedicated second request where all 500 rows belong to them alone.
    */
   async fetchNearestAssetPrices(
     assetIds: string[],
@@ -154,47 +188,35 @@ export class GraphqlFetcherService {
       `Fetching nearest prices for ${assetIds.length} assets at or before block ${blockHeight}`,
     );
 
-    const variables = {
-      assetIds,
-      blockHeight,
-    };
+    const spotPriceBaseAssetId: string = this.configService.get(
+      `price.spotPriceBaseAssetId`,
+    )!;
 
     try {
-      const response =
-        await this.graphqlClient.query<GetAssetPricesAtBlockResponse>(
-          GET_NEAREST_ASSET_PRICES_QUERY,
-          variables,
+      // First pass: all assets together
+      const priceMap = await this.fetchNearestPricesOnce(assetIds, blockHeight);
+
+      // Second pass: re-fetch only the assets that weren't covered
+      // (exclude the base asset — it's always set to 1:1 below)
+      const missingAssetIds = assetIds.filter(
+        (id) => !priceMap[id] && id !== spotPriceBaseAssetId,
+      );
+
+      if (missingAssetIds.length > 0) {
+        this.logger.debug(
+          `Re-fetching prices for ${missingAssetIds.length} assets not covered in first pass: ${missingAssetIds.join(', ')}`,
         );
 
-      const priceMap: AssetPriceMap = {};
+        const fallbackMap = await this.fetchNearestPricesOnce(
+          missingAssetIds,
+          blockHeight,
+        );
 
-      // Group prices by asset ID and take the most recent (highest block number)
-      const assetPricesByBlock = new Map<string, AssetSpotPriceNode>();
+        Object.assign(priceMap, fallbackMap);
+      }
 
-      response.assetSpotPriceHistoricalData.nodes.forEach((priceNode) => {
-        const assetId = priceNode.assetInId;
-        const existing = assetPricesByBlock.get(assetId);
-
-        // Keep the price with the highest block number (most recent)
-        if (!existing || priceNode.paraBlockHeight > existing.paraBlockHeight) {
-          assetPricesByBlock.set(assetId, priceNode);
-        }
-      });
-
-      // Convert to price map
-      assetPricesByBlock.forEach((priceNode, assetId) => {
-        priceMap[assetId] = priceNode.priceNormalised;
-      });
-
-      const spotPriceBaseAssetId: string = this.configService.get(
-        `price.spotPriceBaseAssetId`,
-      )!;
-
-      // Price of SPot Price Base asset is always 1:1
-      if (
-        assetIds.includes(spotPriceBaseAssetId) &&
-        !priceMap[spotPriceBaseAssetId]
-      ) {
+      // Spot price base asset is always 1:1
+      if (assetIds.includes(spotPriceBaseAssetId) && !priceMap[spotPriceBaseAssetId]) {
         priceMap[spotPriceBaseAssetId] = '1';
       }
 

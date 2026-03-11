@@ -49,6 +49,14 @@ export class FeeCalculatorService {
   // H2O asset ID - special handling for protocol fees
   private readonly H2O_ASSET_ID = '1';
 
+  /**
+   * Feature flag: when true, the H2O input amount is attributed to the omnipool
+   * as a synthetic protocol_treasury fee entry for post-upgrade routed trades.
+   * Set to false to keep the detection/calculation logic without counting it.
+   * Re-enable by setting this to true (or wiring to config) when ready.
+   */
+  private readonly H2O_OMNIPOOL_ATTRIBUTION_ENABLED = false;
+
   constructor(
     private readonly assetRegistry: AssetRegistryService,
     private readonly configService: ConfigService,
@@ -240,29 +248,35 @@ export class FeeCalculatorService {
             h2oDecimals,
           );
 
-          // Add to fee amounts
-          if (feeAmountsRaw[this.H2O_ASSET_ID]) {
-            feeAmountsRaw[this.H2O_ASSET_ID] = this.addDecimalNumbers(
-              feeAmountsRaw[this.H2O_ASSET_ID],
-              normalizedH2OAmount,
+          if (this.H2O_OMNIPOOL_ATTRIBUTION_ENABLED) {
+            // Add to fee amounts
+            if (feeAmountsRaw[this.H2O_ASSET_ID]) {
+              feeAmountsRaw[this.H2O_ASSET_ID] = this.addDecimalNumbers(
+                feeAmountsRaw[this.H2O_ASSET_ID],
+                normalizedH2OAmount,
+              );
+            } else {
+              feeAmountsRaw[this.H2O_ASSET_ID] = normalizedH2OAmount;
+              feeAssetIds.push(this.H2O_ASSET_ID);
+            }
+
+            // Create synthetic fee entry attributing H2O input to omnipool
+            feeByRecipient.push({
+              recipientId: this.ASSET_FEES_OMNIPOOL_RECIPIENT,
+              destinationType: 'Treasury',
+              assetId: this.H2O_ASSET_ID,
+              amount: normalizedH2OAmount,
+              feeType: 'protocol_treasury',
+            });
+
+            this.logger.debug(
+              `H2O special case: Added ${normalizedH2OAmount} H2O as protocol_treasury for routed trade ${swap.id}`,
             );
           } else {
-            feeAmountsRaw[this.H2O_ASSET_ID] = normalizedH2OAmount;
-            feeAssetIds.push(this.H2O_ASSET_ID);
+            this.logger.debug(
+              `H2O special case: Detected ${normalizedH2OAmount} H2O input for routed trade ${swap.id} — omnipool attribution disabled`,
+            );
           }
-
-          // Create synthetic fee entry
-          feeByRecipient.push({
-            recipientId: this.ASSET_FEES_OMNIPOOL_RECIPIENT, // Omnipool address per requirements
-            destinationType: 'Treasury',
-            assetId: this.H2O_ASSET_ID,
-            amount: normalizedH2OAmount,
-            feeType: 'protocol_treasury',
-          });
-
-          this.logger.debug(
-            `H2O special case: Added ${normalizedH2OAmount} H2O as protocol_treasury for routed trade ${swap.id}`,
-          );
         }
       }
     }
