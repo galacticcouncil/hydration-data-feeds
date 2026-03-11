@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { saveInChunks } from '../../common/utils/repository.utils';
 import { AppConfig } from '../../config/app.config';
 import { SwapRaw } from '../../database/entities/swap-raw.entity';
 import { GraphqlFetcherService } from './graphql-fetcher.service';
@@ -168,19 +169,8 @@ export class IngestionOrchestratorService implements OnModuleInit {
    * Save swaps to database in batch
    */
   private async saveSwapsBatch(swaps: SwapRaw[]): Promise<void> {
-    try {
-      // Use TypeORM's save method with chunks for large batches
-      const chunkSize = 500;
-      for (let i = 0; i < swaps.length; i += chunkSize) {
-        const chunk = swaps.slice(i, i + chunkSize);
-        await this.swapRawRepository.save(chunk, { chunk: chunkSize });
-      }
-
-      this.logger.debug(`Saved ${swaps.length} swaps to database`);
-    } catch (error) {
-      this.logger.error('Failed to save swaps to database', error.stack);
-      throw error;
-    }
+    await saveInChunks(this.swapRawRepository, swaps);
+    this.logger.debug(`Saved ${swaps.length} swaps to database`);
   }
 
   /**

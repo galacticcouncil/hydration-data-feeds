@@ -3,10 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AssetRegistryService } from '../../common/services/asset-registry.service';
 import { normalizeAmount } from '../../common/utils/amount.utils';
 import { BorrowAprRaw } from '../../database/entities/borrow-apr-raw.entity';
-import {
-  AssetPriceMap,
-  GraphqlFetcherService,
-} from '../../ingestion/services/graphql-fetcher.service';
+import { GraphqlFetcherService } from '../../ingestion/services/graphql-fetcher.service';
 import { BorrowAprTransferNode } from '../../graphql-client/types/graphql-response.types';
 
 // Treasury and zero address constants for direction detection
@@ -54,31 +51,7 @@ export class BorrowAprTransformerService {
     const decimalsMap = await this.assetRegistry.getDecimalsBatch(assetIds);
 
     // Batch-fetch nearest spot prices at the highest block in the batch
-    let priceMap: AssetPriceMap = {};
-    try {
-      const fetchedPrices = await this.graphqlFetcher.fetchNearestAssetPrices(
-        assetIds,
-        highestBlockHeight,
-      );
-
-      const missingAssetIds = assetIds.filter((id) => !fetchedPrices[id]);
-      if (missingAssetIds.length > 0) {
-        this.logger.warn(
-          `Block ${highestBlockHeight}: ${missingAssetIds.length}/${assetIds.length} assets have no historical prices: ${missingAssetIds.join(', ')}`,
-        );
-      }
-
-      for (const assetId of assetIds) {
-        priceMap[assetId] = fetchedPrices[assetId] || '0';
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch batch prices for block ${highestBlockHeight}: ${error.message}`,
-      );
-      for (const assetId of assetIds) {
-        priceMap[assetId] = '0';
-      }
-    }
+    const priceMap = await this.graphqlFetcher.buildBatchPriceMap(assetIds, highestBlockHeight);
 
     const entities: BorrowAprRaw[] = [];
 

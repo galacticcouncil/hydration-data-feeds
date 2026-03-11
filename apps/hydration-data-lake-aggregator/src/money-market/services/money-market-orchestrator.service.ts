@@ -13,6 +13,7 @@ import {
   extractUniqueBlockHeights,
   getMaxBlockHeight,
 } from '../../common/utils/block-height.utils';
+import { saveInChunks } from '../../common/utils/repository.utils';
 
 /**
  * Orchestrator for money market liquidation fee ingestion
@@ -224,22 +225,8 @@ export class MoneyMarketOrchestratorService implements OnModuleInit {
   private async saveLiquidationsBatch(
     liquidations: MoneyMarketRaw[],
   ): Promise<void> {
-    try {
-      // Use TypeORM's save method with chunks for large batches
-      const chunkSize = 500;
-      for (let i = 0; i < liquidations.length; i += chunkSize) {
-        const chunk = liquidations.slice(i, i + chunkSize);
-        await this.moneyMarketRawRepository.save(chunk, { chunk: chunkSize });
-      }
-
-      this.logger.debug(`Saved ${liquidations.length} liquidations to database`);
-    } catch (error) {
-      this.logger.error(
-        'Failed to save liquidations to database',
-        error.stack,
-      );
-      throw error;
-    }
+    await saveInChunks(this.moneyMarketRawRepository, liquidations);
+    this.logger.debug(`Saved ${liquidations.length} liquidations to database`);
   }
 
   /**

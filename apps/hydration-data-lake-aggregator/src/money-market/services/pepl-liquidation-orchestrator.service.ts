@@ -24,6 +24,7 @@ import {
 } from './pepl-profit-transformer.service';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
+import { saveInChunks } from '../../common/utils/repository.utils';
 
 /**
  * Orchestrator for PEPL liquidation profit ingestion
@@ -218,22 +219,8 @@ export class PeplLiquidationOrchestratorService implements OnModuleInit {
    * Save PEPL events to database in batch
    */
   private async savePeplEventsBatch(events: MoneyMarketRaw[]): Promise<void> {
-    try {
-      // Use TypeORM's save method with chunks for large batches
-      const chunkSize = 500;
-      for (let i = 0; i < events.length; i += chunkSize) {
-        const chunk = events.slice(i, i + chunkSize);
-        await this.moneyMarketRepository.save(chunk, { chunk: chunkSize });
-      }
-
-      this.logger.debug(`Saved ${events.length} PEPL events to database`);
-    } catch (error) {
-      this.logger.error(
-        'Failed to save PEPL events to database',
-        error.stack,
-      );
-      throw error;
-    }
+    await saveInChunks(this.moneyMarketRepository, events);
+    this.logger.debug(`Saved ${events.length} PEPL events to database`);
   }
 
   /**
