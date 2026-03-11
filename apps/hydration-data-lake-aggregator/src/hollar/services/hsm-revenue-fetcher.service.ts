@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { MultiEndpointGraphqlService } from '../../graphql-client/services/multi-endpoint-graphql.service';
+import { extractUniqueBlockHeights } from '../../common/utils/block-height.utils';
 import {
   GET_AAVE_FACILITATOR_HISTORICAL_DATA_QUERY,
   GET_ACCOUNT_TOTAL_BALANCE_HISTORICAL_DATA_QUERY,
@@ -82,8 +83,7 @@ export class HsmRevenueFetcherService {
     );
 
     // Step 2: Fetch account balances for unique block heights
-    const uniqueBlockHeights =
-      this.extractUniqueBlockHeights(facilitatorEvents);
+    const uniqueBlockHeights = extractUniqueBlockHeights(facilitatorEvents);
     const accountBalances =
       await this.fetchAccountBalancesForBlocks(uniqueBlockHeights);
 
@@ -92,17 +92,6 @@ export class HsmRevenueFetcherService {
     );
 
     return { facilitatorEvents, accountBalances, totalCount };
-  }
-
-  /**
-   * Extract unique block heights from facilitator events
-   */
-  private extractUniqueBlockHeights(
-    events: AaveFacilitatorHistoricalDataNode[],
-  ): number[] {
-    const blockSet = new Set<number>();
-    events.forEach((event) => blockSet.add(event.paraBlockHeight));
-    return Array.from(blockSet).sort((a, b) => a - b);
   }
 
   /**
@@ -363,11 +352,4 @@ export class HsmRevenueFetcherService {
     }
   }
 
-  /**
-   * Get highest block height from batch of events
-   * Used for state tracking
-   */
-  getMaxBlockHeight(events: AaveFacilitatorHistoricalDataNode[]): number {
-    return Math.max(...events.map((e) => e.paraBlockHeight));
-  }
 }

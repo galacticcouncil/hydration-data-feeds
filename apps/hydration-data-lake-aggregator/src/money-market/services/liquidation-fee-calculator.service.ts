@@ -7,6 +7,10 @@ import {
   AssetRegistryService,
 } from '../../common/services/asset-registry.service';
 import {
+  addNormalizedAmounts,
+  normalizeAmount,
+} from '../../common/utils/amount.utils';
+import {
   LiquidationEventNode,
   TransferNode,
 } from '../../graphql-client/types/graphql-response.types';
@@ -108,7 +112,7 @@ export class LiquidationFeeCalculatorService {
       }
 
       // Normalize amount by dividing by 10^decimals
-      const normalizedAmount = this.normalizeAmount(transfer.amount, decimals);
+      const normalizedAmount = normalizeAmount(transfer.amount, decimals);
 
       feeByTransfer.push({
         fromId: transfer.fromId,
@@ -131,7 +135,7 @@ export class LiquidationFeeCalculatorService {
       assetIdSet.add(fee.assetId);
 
       if (feeAmountsRaw[fee.assetId]) {
-        feeAmountsRaw[fee.assetId] = this.addDecimalNumbers(
+        feeAmountsRaw[fee.assetId] = addNormalizedAmounts(
           feeAmountsRaw[fee.assetId],
           fee.amount,
         );
@@ -229,53 +233,4 @@ export class LiquidationFeeCalculatorService {
     return Array.from(assetIdSet);
   }
 
-  /**
-   * Normalize amount by dividing by 10^decimals
-   * Converts raw blockchain value to human-readable amount
-   * Example: 1500000000000 with 12 decimals -> "1.5"
-   */
-  private normalizeAmount(rawAmount: string, decimals: number): string {
-    try {
-      const amount = BigInt(rawAmount);
-      const divisor = BigInt(10 ** decimals);
-
-      // Integer division
-      const integerPart = amount / divisor;
-
-      // Remainder for decimal part
-      const remainder = amount % divisor;
-
-      // Convert remainder to decimal string
-      const decimalPart = remainder.toString().padStart(decimals, '0');
-
-      // Trim trailing zeros
-      const trimmedDecimal = decimalPart.replace(/0+$/, '');
-
-      if (trimmedDecimal.length === 0) {
-        return integerPart.toString();
-      }
-
-      return `${integerPart}.${trimmedDecimal}`;
-    } catch (error) {
-      this.logger.error(
-        `Error normalizing amount: ${rawAmount} with ${decimals} decimals`,
-        error.stack,
-      );
-      return '0';
-    }
-  }
-
-  /**
-   * Add two decimal number strings
-   */
-  private addDecimalNumbers(a: string, b: string): string {
-    try {
-      const aNum = parseFloat(a);
-      const bNum = parseFloat(b);
-      return (aNum + bNum).toString();
-    } catch (error) {
-      this.logger.error(`Error adding decimal numbers: ${a} + ${b}`, error.stack);
-      return a;
-    }
-  }
 }

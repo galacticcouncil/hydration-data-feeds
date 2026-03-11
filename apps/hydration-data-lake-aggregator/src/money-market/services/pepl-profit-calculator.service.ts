@@ -6,6 +6,7 @@ import {
 import {
   AssetRegistryService,
 } from '../../common/services/asset-registry.service';
+import { normalizeAmount } from '../../common/utils/amount.utils';
 import {
   PeplLiquidationEventNode,
 } from '../../graphql-client/types/graphql-response.types';
@@ -19,25 +20,6 @@ export class PeplProfitCalculatorService {
   private readonly logger = new Logger(PeplProfitCalculatorService.name);
 
   constructor(private readonly assetRegistry: AssetRegistryService) {}
-
-  /**
-   * Normalize raw profit amount using collateral asset decimals
-   * Converts blockchain raw values to human-readable format
-   */
-  private normalizeAmount(rawAmount: string, decimals: number): string {
-    const amount = BigInt(rawAmount);
-    const divisor = BigInt(10 ** decimals);
-
-    const integerPart = amount / divisor;
-    const remainder = amount % divisor;
-
-    const decimalPart = remainder.toString().padStart(decimals, '0');
-    const trimmedDecimal = decimalPart.replace(/0+$/, '');
-
-    return trimmedDecimal.length === 0
-      ? integerPart.toString()
-      : `${integerPart}.${trimmedDecimal}`;
-  }
 
   /**
    * Calculate normalized profit for a single event
@@ -62,7 +44,7 @@ export class PeplProfitCalculatorService {
       decimals = fetchedDecimals;
     }
 
-    const normalizedAmount = this.normalizeAmount(event.profit, decimals);
+    const normalizedAmount = normalizeAmount(event.profit, decimals);
 
     return {
       assetId: event.debtAssetId,

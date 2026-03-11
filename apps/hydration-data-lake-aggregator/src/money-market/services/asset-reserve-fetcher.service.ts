@@ -62,28 +62,4 @@ export class AssetReserveFetcherService {
       throw error;
     }
   }
-
-  /**
-   * Extract unique block heights from Asset Reserve events
-   * Used for batch-fetching asset prices
-   *
-   * @param events - Array of Asset Reserve events
-   * @returns Sorted array of unique block heights
-   */
-  extractUniqueBlockHeights(events: AssetReserveEventNode[]): number[] {
-    const blockSet = new Set<number>();
-    events.forEach(event => blockSet.add(event.paraBlockHeight));
-    return Array.from(blockSet).sort((a, b) => a - b);
-  }
-
-  /**
-   * Get highest block height from batch of events
-   * Used for state tracking
-   *
-   * @param events - Array of Asset Reserve events
-   * @returns Highest block height in batch
-   */
-  getMaxBlockHeight(events: AssetReserveEventNode[]): number {
-    return Math.max(...events.map(e => e.paraBlockHeight));
-  }
 }

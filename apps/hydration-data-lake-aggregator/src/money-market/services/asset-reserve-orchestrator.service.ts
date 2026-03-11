@@ -23,6 +23,7 @@ import {
   AssetReserveTransformerService,
 } from './asset-reserve-transformer.service';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 
 /**
  * Orchestrator for Asset Reserve fee ingestion
@@ -175,7 +176,7 @@ export class AssetReserveOrchestratorService implements OnModuleInit {
       );
 
       // Step 3: Transform to entities with batch price fetching
-      const highestBlockInBatch = this.fetcher.getMaxBlockHeight(events);
+      const highestBlockInBatch = getMaxBlockHeight(events, fromBlock);
 
       const transformedEvents = await this.transformer.transformToEntities(
         events,

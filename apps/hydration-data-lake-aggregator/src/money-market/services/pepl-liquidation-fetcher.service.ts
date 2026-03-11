@@ -150,21 +150,4 @@ export class PeplLiquidationFetcherService {
     }
   }
 
-  /**
-   * Extract unique block heights from PEPL events
-   * Used for batch-fetching asset prices
-   */
-  extractUniqueBlockHeights(events: PeplLiquidationEventNode[]): number[] {
-    const blockSet = new Set<number>();
-    events.forEach((event) => blockSet.add(event.paraBlockHeight));
-    return Array.from(blockSet).sort((a, b) => a - b);
-  }
-
-  /**
-   * Get highest block height from batch of events
-   * Used for state tracking
-   */
-  getMaxBlockHeight(events: PeplLiquidationEventNode[]): number {
-    return Math.max(...events.map((e) => e.paraBlockHeight));
-  }
 }

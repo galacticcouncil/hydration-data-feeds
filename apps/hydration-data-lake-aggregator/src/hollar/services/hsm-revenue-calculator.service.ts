@@ -6,6 +6,7 @@ import {
 import {
   AaveFacilitatorHistoricalDataNode,
 } from '../../graphql-client/types/graphql-response.types';
+import { normalizeAmount } from '../../common/utils/amount.utils';
 
 export interface CalculatedHsmRevenue {
   bucketLevel: string; // Normalized to 18 decimals
@@ -20,28 +21,7 @@ export interface CalculatedHsmRevenue {
 @Injectable()
 export class HsmRevenueCalculatorService {
   private readonly logger = new Logger(HsmRevenueCalculatorService.name);
-  private readonly BUCKET_LEVEL_DECIMALS = 18; // Normalize to 18 decimals
-
-  /**
-   * Normalize bucket level to 18 decimals
-   * bucketLevel comes as raw integer value, divide by 10^18
-   */
-  private normalizeBucketLevel(rawBucketLevel: string): string {
-    const amount = BigInt(rawBucketLevel);
-    const divisor = BigInt(10 ** this.BUCKET_LEVEL_DECIMALS);
-
-    const integerPart = amount / divisor;
-    const remainder = amount % divisor;
-
-    const decimalPart = remainder
-      .toString()
-      .padStart(this.BUCKET_LEVEL_DECIMALS, '0');
-    const trimmedDecimal = decimalPart.replace(/0+$/, '');
-
-    return trimmedDecimal.length === 0
-      ? integerPart.toString()
-      : `${integerPart}.${trimmedDecimal}`;
-  }
+  private readonly BUCKET_LEVEL_DECIMALS = 18;
 
   /**
    * Calculate HSM revenue for a single event
@@ -54,8 +34,7 @@ export class HsmRevenueCalculatorService {
     event: AaveFacilitatorHistoricalDataNode,
     totalTransferableNorm: string | undefined,
   ): CalculatedHsmRevenue {
-    // Normalize bucket level
-    const normalizedBucketLevel = this.normalizeBucketLevel(event.bucketLevel);
+    const normalizedBucketLevel = normalizeAmount(event.bucketLevel, this.BUCKET_LEVEL_DECIMALS);
 
     // If account balance is missing, save with null values for later enrichment
     if (!totalTransferableNorm) {

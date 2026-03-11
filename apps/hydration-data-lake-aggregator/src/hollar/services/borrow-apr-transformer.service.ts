@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { AssetRegistryService } from '../../common/services/asset-registry.service';
+import { normalizeAmount } from '../../common/utils/amount.utils';
 import { BorrowAprRaw } from '../../database/entities/borrow-apr-raw.entity';
 import {
   AssetPriceMap,
@@ -29,24 +30,6 @@ export class BorrowAprTransformerService {
     private readonly assetRegistry: AssetRegistryService,
     private readonly graphqlFetcher: GraphqlFetcherService,
   ) {}
-
-  /**
-   * Normalize a raw integer amount using asset decimals
-   */
-  private normalizeAmount(rawAmount: string, decimals: number): string {
-    const amount = BigInt(rawAmount);
-    const divisor = BigInt(10 ** decimals);
-
-    const integerPart = amount / divisor;
-    const remainder = amount % divisor;
-
-    const decimalPart = remainder.toString().padStart(decimals, '0');
-    const trimmedDecimal = decimalPart.replace(/0+$/, '');
-
-    return trimmedDecimal.length === 0
-      ? integerPart.toString()
-      : `${integerPart}.${trimmedDecimal}`;
-  }
 
   /**
    * Transform Borrow APR transfers into BorrowAprRaw entities
@@ -109,7 +92,7 @@ export class BorrowAprTransformerService {
         continue;
       }
 
-      const normalizedAmount = this.normalizeAmount(transfer.amount, decimals);
+      const normalizedAmount = normalizeAmount(transfer.amount, decimals);
       const spotPrice = priceMap[transfer.assetId] || '0';
 
       // Determine direction: incoming (TO treasury) or outgoing (FROM treasury TO zero)

@@ -1,30 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AssetReserveEventNode } from '../../graphql-client/types/graphql-response.types';
 import { AssetRegistryService } from '../../common/services/asset-registry.service';
+import { normalizeAmount } from '../../common/utils/amount.utils';
 
 @Injectable()
 export class AssetReserveCalculatorService {
   private readonly logger = new Logger(AssetReserveCalculatorService.name);
 
   constructor(private readonly assetRegistry: AssetRegistryService) {}
-
-  /**
-   * Normalize raw amount using asset decimals
-   */
-  private normalizeAmount(rawAmount: string, decimals: number): string {
-    const amount = BigInt(rawAmount);
-    const divisor = BigInt(10 ** decimals);
-
-    const integerPart = amount / divisor;
-    const remainder = amount % divisor;
-
-    const decimalPart = remainder.toString().padStart(decimals, '0');
-    const trimmedDecimal = decimalPart.replace(/0+$/, '');
-
-    return trimmedDecimal.length === 0
-      ? integerPart.toString()
-      : `${integerPart}.${trimmedDecimal}`;
-  }
 
   /**
    * Calculate normalized amount for a single event
@@ -49,11 +32,9 @@ export class AssetReserveCalculatorService {
       decimals = fetchedDecimals;
     }
 
-    const normalizedAmount = this.normalizeAmount(event.amount, decimals);
-
     return {
       assetId: event.assetId,
-      normalizedAmount,
+      normalizedAmount: normalizeAmount(event.amount, decimals),
     };
   }
 

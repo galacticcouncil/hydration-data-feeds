@@ -18,6 +18,7 @@ import {
 } from '../../graphql-client/graphql-client.service';
 import { BorrowAprFetcherService } from './borrow-apr-fetcher.service';
 import { BorrowAprTransformerService } from './borrow-apr-transformer.service';
+import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 
 /**
  * Orchestrator for Borrow APR ingestion
@@ -156,7 +157,7 @@ export class BorrowAprOrchestratorService implements OnModuleInit {
       );
 
       // Step 2: Transform to entities (normalizes amounts and fetches prices)
-      const highestBlockInBatch = this.fetcher.getMaxBlockHeight(transfers);
+      const highestBlockInBatch = getMaxBlockHeight(transfers, fromBlock);
 
       const entities = await this.transformer.transformToEntities(
         transfers,

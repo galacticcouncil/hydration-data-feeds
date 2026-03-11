@@ -9,6 +9,10 @@ import { LiquidationFeeCalculatorService } from './liquidation-fee-calculator.se
 import { LiquidationTransformerService } from './liquidation-transformer.service';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import { StateManagerService } from '../../common/services/state-manager.service';
+import {
+  extractUniqueBlockHeights,
+  getMaxBlockHeight,
+} from '../../common/utils/block-height.utils';
 
 /**
  * Orchestrator for money market liquidation fee ingestion
@@ -146,8 +150,7 @@ export class MoneyMarketOrchestratorService implements OnModuleInit {
       );
 
       // Step 2: Extract unique block heights from liquidations
-      const uniqueBlocks =
-        this.moneyMarketFetcher.extractUniqueBlockHeights(liquidations);
+      const uniqueBlocks = extractUniqueBlockHeights(liquidations);
 
       this.logger.debug(
         `Liquidations span ${uniqueBlocks.length} unique blocks`,
@@ -178,9 +181,7 @@ export class MoneyMarketOrchestratorService implements OnModuleInit {
       // Step 6: Transform to entities with batch price fetching
       // Use the highest block from this batch for price lookups
       // This enables batch price fetching for all assets in one query
-      const highestBlockInBatch = Math.max(
-        ...liquidations.map((liq) => liq.paraBlockHeight),
-      );
+      const highestBlockInBatch = getMaxBlockHeight(liquidations, fromBlock);
 
       const transformedLiquidations =
         await this.liquidationTransformer.transformLiquidationsBatch(

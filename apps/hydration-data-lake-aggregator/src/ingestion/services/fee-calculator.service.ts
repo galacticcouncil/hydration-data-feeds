@@ -7,6 +7,10 @@ import { ConfigService } from '@nestjs/config';
 import {
   AssetRegistryService,
 } from '../../common/services/asset-registry.service';
+import {
+  addNormalizedAmounts,
+  normalizeAmount,
+} from '../../common/utils/amount.utils';
 import { SwapFeeNode } from '../../graphql-client/types/graphql-response.types';
 import {
   isRoutedTradeNode,
@@ -243,7 +247,7 @@ export class FeeCalculatorService {
           }
 
           // Normalize H2O amount
-          const normalizedH2OAmount = this.normalizeAmount(
+          const normalizedH2OAmount = normalizeAmount(
             h2oInputAmount,
             h2oDecimals,
           );
@@ -251,7 +255,7 @@ export class FeeCalculatorService {
           if (this.H2O_OMNIPOOL_ATTRIBUTION_ENABLED) {
             // Add to fee amounts
             if (feeAmountsRaw[this.H2O_ASSET_ID]) {
-              feeAmountsRaw[this.H2O_ASSET_ID] = this.addDecimalNumbers(
+              feeAmountsRaw[this.H2O_ASSET_ID] = addNormalizedAmounts(
                 feeAmountsRaw[this.H2O_ASSET_ID],
                 normalizedH2OAmount,
               );
@@ -317,11 +321,11 @@ export class FeeCalculatorService {
         }
 
         // Normalize amount by dividing by 10^decimals
-        const normalizedAmount = this.normalizeAmount(rawAmount, decimals);
+        const normalizedAmount = normalizeAmount(rawAmount, decimals);
 
         // Store normalized amount (aggregate if multiple fees in same asset)
         if (feeAmountsRaw[assetId]) {
-          feeAmountsRaw[assetId] = this.addDecimalNumbers(
+          feeAmountsRaw[assetId] = addNormalizedAmounts(
             feeAmountsRaw[assetId],
             normalizedAmount,
           );
@@ -361,56 +365,6 @@ export class FeeCalculatorService {
       feeAmountsRaw,
       feeByRecipient,
     };
-  }
-
-  /**
-   * Normalize amount by dividing by 10^decimals
-   * Converts raw blockchain value to human-readable amount
-   * Example: 1500000000000 with 12 decimals -> "1.5"
-   */
-  private normalizeAmount(rawAmount: string, decimals: number): string {
-    try {
-      const amount = BigInt(rawAmount);
-      const divisor = BigInt(10 ** decimals);
-
-      // Integer division
-      const integerPart = amount / divisor;
-
-      // Remainder for decimal part
-      const remainder = amount % divisor;
-
-      // Convert remainder to decimal string
-      const decimalPart = remainder.toString().padStart(decimals, '0');
-
-      // Trim trailing zeros
-      const trimmedDecimal = decimalPart.replace(/0+$/, '');
-
-      if (trimmedDecimal.length === 0) {
-        return integerPart.toString();
-      }
-
-      return `${integerPart}.${trimmedDecimal}`;
-    } catch (error) {
-      this.logger.error(
-        `Error normalizing amount: ${rawAmount} with ${decimals} decimals`,
-        error.stack,
-      );
-      return '0';
-    }
-  }
-
-  /**
-   * Add two decimal number strings
-   */
-  private addDecimalNumbers(a: string, b: string): string {
-    try {
-      const aNum = parseFloat(a);
-      const bNum = parseFloat(b);
-      return (aNum + bNum).toString();
-    } catch (error) {
-      this.logger.error(`Error adding decimal numbers: ${a} + ${b}`, error.stack);
-      return a;
-    }
   }
 
   /**

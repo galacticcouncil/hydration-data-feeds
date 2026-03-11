@@ -23,6 +23,7 @@ import {
   PeplProfitTransformerService,
 } from './pepl-profit-transformer.service';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 
 /**
  * Orchestrator for PEPL liquidation profit ingestion
@@ -176,7 +177,7 @@ export class PeplLiquidationOrchestratorService implements OnModuleInit {
       );
 
       // Step 3: Transform to entities with batch price fetching
-      const highestBlockInBatch = this.fetcher.getMaxBlockHeight(events);
+      const highestBlockInBatch = getMaxBlockHeight(events, fromBlock);
 
       const transformedEvents = await this.transformer.transformToEntities(
         events,

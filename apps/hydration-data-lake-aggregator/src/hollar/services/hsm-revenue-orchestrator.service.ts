@@ -8,6 +8,7 @@ import { StateManagerService } from '../../common/services/state-manager.service
 import { AppConfig } from '../../config/app.config';
 import { HsmRevenueRaw } from '../../database/entities/hsm-revenue-raw.entity';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { HsmRevenueCalculatorService } from './hsm-revenue-calculator.service';
 import { HsmRevenueFetcherService } from './hsm-revenue-fetcher.service';
 import { HsmRevenueTransformerService } from './hsm-revenue-transformer.service';
@@ -158,8 +159,7 @@ export class HsmRevenueOrchestratorService implements OnModuleInit {
       }
 
       // Step 5: Update state
-      const highestBlockInBatch =
-        this.fetcher.getMaxBlockHeight(facilitatorEvents);
+      const highestBlockInBatch = getMaxBlockHeight(facilitatorEvents, fromBlock);
       await this.stateManager.updateLastBlock(
         this.SERVICE_NAME,
         highestBlockInBatch,

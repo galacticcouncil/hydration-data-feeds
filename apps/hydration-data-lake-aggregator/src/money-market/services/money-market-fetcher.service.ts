@@ -139,22 +139,6 @@ export class MoneyMarketFetcherService {
     }
   }
 
-  /**
-   * Extract unique block heights from liquidations
-   * Used to batch-fetch transfers for multiple liquidations efficiently
-   *
-   * @param liquidations - Array of liquidation events
-   * @returns Sorted array of unique block heights
-   */
-  extractUniqueBlockHeights(liquidations: LiquidationEventNode[]): number[] {
-    const blockSet = new Set<number>();
-
-    liquidations.forEach((liquidation) => {
-      blockSet.add(liquidation.paraBlockHeight);
-    });
-
-    return Array.from(blockSet).sort((a, b) => a - b);
-  }
 
   /**
    * Extract unique asset IDs from treasury transfers

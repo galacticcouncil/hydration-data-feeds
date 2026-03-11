@@ -145,14 +145,4 @@ export class BorrowAprFetcherService {
     }
   }
 
-  /**
-   * Get highest block height from batch of transfers
-   * Used for state tracking
-   *
-   * @param transfers - Array of Borrow APR transfers
-   * @returns Highest block height in batch
-   */
-  getMaxBlockHeight(transfers: BorrowAprTransferNode[]): number {
-    return Math.max(...transfers.map((t) => t.paraBlockHeight));
-  }
 }
