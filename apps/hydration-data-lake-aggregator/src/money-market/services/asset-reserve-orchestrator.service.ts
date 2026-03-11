@@ -24,6 +24,7 @@ import {
 } from './asset-reserve-transformer.service';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
+import { saveInChunks } from '../../common/utils/repository.utils';
 
 /**
  * Orchestrator for Asset Reserve fee ingestion
@@ -217,22 +218,8 @@ export class AssetReserveOrchestratorService implements OnModuleInit {
    * Save Asset Reserve events to database in batch
    */
   private async saveAssetReserveEventsBatch(events: MoneyMarketRaw[]): Promise<void> {
-    try {
-      // Use TypeORM's save method with chunks for large batches
-      const chunkSize = 500;
-      for (let i = 0; i < events.length; i += chunkSize) {
-        const chunk = events.slice(i, i + chunkSize);
-        await this.moneyMarketRepository.save(chunk, { chunk: chunkSize });
-      }
-
-      this.logger.debug(`Saved ${events.length} Asset Reserve events to database`);
-    } catch (error) {
-      this.logger.error(
-        'Failed to save Asset Reserve events to database',
-        error.stack,
-      );
-      throw error;
-    }
+    await saveInChunks(this.moneyMarketRepository, events);
+    this.logger.debug(`Saved ${events.length} Asset Reserve events to database`);
   }
 
   /**

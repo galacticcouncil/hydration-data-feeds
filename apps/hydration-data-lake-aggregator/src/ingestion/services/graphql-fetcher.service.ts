@@ -365,6 +365,34 @@ export class GraphqlFetcherService {
   }
 
   /**
+   * Fetch prices for a set of assets and build a complete price map with '0' fallback for missing assets.
+   */
+  async buildBatchPriceMap(
+    assetIds: string[],
+    blockHeight: number,
+  ): Promise<AssetPriceMap> {
+    if (assetIds.length === 0) return {};
+
+    try {
+      const fetchedPrices = await this.fetchNearestAssetPrices(assetIds, blockHeight);
+
+      const missingAssetIds = assetIds.filter((id) => !fetchedPrices[id]);
+      if (missingAssetIds.length > 0) {
+        this.logger.warn(
+          `Block ${blockHeight}: ${missingAssetIds.length}/${assetIds.length} assets have no historical prices: ${missingAssetIds.join(', ')}`,
+        );
+      }
+
+      return Object.fromEntries(assetIds.map((id) => [id, fetchedPrices[id] || '0']));
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch batch prices for block ${blockHeight}: ${error.message}`,
+      );
+      return Object.fromEntries(assetIds.map((id) => [id, '0']));
+    }
+  }
+
+  /**
    * Fetch swaps with pagination support
    * Handles cases where totalCount > limit
    * Block-aware: uses appropriate query based on block height

@@ -147,41 +147,10 @@ export class SwapTransformerService {
         }
       }
 
-      try {
-        const fetchedPrices = await this.graphqlFetcher.fetchNearestAssetPrices(
-          Array.from(allAssetIds),
-          blockHeight,
-        );
-
-        // Log missing prices
-        const missingAssetIds = Array.from(allAssetIds).filter(
-          (id) => !fetchedPrices[id],
-        );
-        if (missingAssetIds.length > 0) {
-          this.logger.warn(
-            `Block ${blockHeight}: ${missingAssetIds.length}/${allAssetIds.size} assets have no historical prices: ${missingAssetIds.join(', ')}`,
-          );
-        }
-
-        // Build complete price map with '0' for missing prices
-        priceMap = {};
-        for (const assetId of allAssetIds) {
-          priceMap[assetId] = fetchedPrices[assetId] || '0';
-        }
-
-        this.logger.debug(
-          `Fetched ${Object.keys(fetchedPrices).length}/${allAssetIds.size} nearest prices for block ${blockHeight}`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Failed to fetch batch prices for block ${blockHeight}: ${error.message}`,
-        );
-        // Create price map with all '0' on error
-        priceMap = {};
-        for (const assetId of allAssetIds) {
-          priceMap[assetId] = '0';
-        }
-      }
+      priceMap = await this.graphqlFetcher.buildBatchPriceMap(
+        Array.from(allAssetIds),
+        blockHeight,
+      );
     }
 
     const transformedSwaps = await Promise.all(

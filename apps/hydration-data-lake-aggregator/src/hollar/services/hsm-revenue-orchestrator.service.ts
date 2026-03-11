@@ -9,6 +9,7 @@ import { AppConfig } from '../../config/app.config';
 import { HsmRevenueRaw } from '../../database/entities/hsm-revenue-raw.entity';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
+import { saveInChunks } from '../../common/utils/repository.utils';
 import { HsmRevenueCalculatorService } from './hsm-revenue-calculator.service';
 import { HsmRevenueFetcherService } from './hsm-revenue-fetcher.service';
 import { HsmRevenueTransformerService } from './hsm-revenue-transformer.service';
@@ -185,23 +186,8 @@ export class HsmRevenueOrchestratorService implements OnModuleInit {
    * Save HSM revenue events to database in batch
    */
   private async saveHsmRevenueBatch(entities: HsmRevenueRaw[]): Promise<void> {
-    try {
-      const chunkSize = 500;
-      for (let i = 0; i < entities.length; i += chunkSize) {
-        const chunk = entities.slice(i, i + chunkSize);
-        await this.hsmRevenueRepository.save(chunk, { chunk: chunkSize });
-      }
-
-      this.logger.debug(
-        `Saved ${entities.length} HSM revenue events to database`,
-      );
-    } catch (error) {
-      this.logger.error(
-        'Failed to save HSM revenue events to database',
-        error.stack,
-      );
-      throw error;
-    }
+    await saveInChunks(this.hsmRevenueRepository, entities);
+    this.logger.debug(`Saved ${entities.length} HSM revenue events to database`);
   }
 
   /**

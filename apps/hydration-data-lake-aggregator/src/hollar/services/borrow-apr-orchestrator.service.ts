@@ -19,6 +19,7 @@ import {
 import { BorrowAprFetcherService } from './borrow-apr-fetcher.service';
 import { BorrowAprTransformerService } from './borrow-apr-transformer.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
+import { saveInChunks } from '../../common/utils/repository.utils';
 
 /**
  * Orchestrator for Borrow APR ingestion
@@ -195,21 +196,8 @@ export class BorrowAprOrchestratorService implements OnModuleInit {
    * Save Borrow APR entities to database in batch
    */
   private async saveBatch(entities: BorrowAprRaw[]): Promise<void> {
-    try {
-      const chunkSize = 500;
-      for (let i = 0; i < entities.length; i += chunkSize) {
-        const chunk = entities.slice(i, i + chunkSize);
-        await this.borrowAprRepository.save(chunk, { chunk: chunkSize });
-      }
-
-      this.logger.debug(`Saved ${entities.length} Borrow APR transfers to database`);
-    } catch (error) {
-      this.logger.error(
-        'Failed to save Borrow APR transfers to database',
-        error.stack,
-      );
-      throw error;
-    }
+    await saveInChunks(this.borrowAprRepository, entities);
+    this.logger.debug(`Saved ${entities.length} Borrow APR transfers to database`);
   }
 
   /**

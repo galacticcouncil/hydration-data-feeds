@@ -168,41 +168,10 @@ export class AssetReserveTransformerService {
         }
       }
 
-      try {
-        const fetchedPrices = await this.graphqlFetcher.fetchNearestAssetPrices(
-          Array.from(allAssetIds),
-          highestBlockHeight,
-        );
-
-        // Log missing prices
-        const missingAssetIds = Array.from(allAssetIds).filter(
-          (id) => !fetchedPrices[id],
-        );
-        if (missingAssetIds.length > 0) {
-          this.logger.warn(
-            `Block ${highestBlockHeight}: ${missingAssetIds.length}/${allAssetIds.size} assets have no historical prices: ${missingAssetIds.join(', ')}`,
-          );
-        }
-
-        // Build complete price map with '0' for missing prices
-        priceMap = {};
-        for (const assetId of allAssetIds) {
-          priceMap[assetId] = fetchedPrices[assetId] || '0';
-        }
-
-        this.logger.debug(
-          `Fetched ${Object.keys(fetchedPrices).length}/${allAssetIds.size} nearest prices for block ${highestBlockHeight}`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Failed to fetch batch prices for block ${highestBlockHeight}: ${error.message}`,
-        );
-        // Create price map with all '0' on error
-        priceMap = {};
-        for (const assetId of allAssetIds) {
-          priceMap[assetId] = '0';
-        }
-      }
+      priceMap = await this.graphqlFetcher.buildBatchPriceMap(
+        Array.from(allAssetIds),
+        highestBlockHeight,
+      );
     }
 
     // Transform all events
