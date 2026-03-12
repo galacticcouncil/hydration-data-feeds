@@ -12,11 +12,7 @@ import {
   LiquidationEventNode,
   TransferNode,
 } from '../../graphql-client/types/graphql-response.types';
-
-export interface FetchedLiquidationsData {
-  liquidations: LiquidationEventNode[];
-  totalCount: number;
-}
+import { FetchResult } from '../../common/interfaces/paginated-response.interface';
 
 /**
  * Service responsible for fetching money market data from GraphQL
@@ -51,7 +47,7 @@ export class MoneyMarketFetcherService {
   async fetchLiquidations(
     fromBlock: number,
     batchSize: number = 100,
-  ): Promise<FetchedLiquidationsData> {
+  ): Promise<FetchResult<LiquidationEventNode>> {
     this.logger.debug(
       `Fetching liquidations from block ${fromBlock} (limit: ${batchSize})`,
     );
@@ -73,7 +69,7 @@ export class MoneyMarketFetcherService {
       );
 
       return {
-        liquidations: response.moneyMarketEvents.nodes,
+        items: response.moneyMarketEvents.nodes,
         totalCount: response.moneyMarketEvents.totalCount,
       };
     } catch (error) {

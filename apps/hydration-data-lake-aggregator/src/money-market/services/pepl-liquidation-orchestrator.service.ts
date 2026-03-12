@@ -130,7 +130,7 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
       );
 
       // Step 1: Fetch events using pagination
-      const { events, totalCount } =
+      const { items: events, totalCount } =
         await this.fetcher.fetchPeplLiquidationEvents(fromBlock, currentBlock, batchSize);
 
       if (events.length === 0) {

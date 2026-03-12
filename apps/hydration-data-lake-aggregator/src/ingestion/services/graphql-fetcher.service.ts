@@ -13,6 +13,7 @@ import {
 } from '../../graphql-client/types/graphql-response.types';
 import { ConfigService } from '@nestjs/config';
 import { AssetPriceMap, PriceFetcherService } from '../../common/services/price-fetcher.service';
+import { FetchResult } from '../../common/interfaces/paginated-response.interface';
 
 // Re-export for callers that import AssetPriceMap from this module
 export type { AssetPriceMap };
@@ -25,11 +26,6 @@ export function isRoutedTradeNode(
   node: SwapOrRoutedTradeNode,
 ): node is RoutedTradeNode {
   return 'inputAssetIds' in node && 'outputAssetIds' in node && 'swaps' in node;
-}
-
-export interface FetchedSwapsData {
-  swaps: SwapOrRoutedTradeNode[];
-  totalCount: number;
 }
 
 @Injectable()
@@ -49,7 +45,7 @@ export class GraphqlFetcherService {
     fromBlock: number,
     toBlock: number,
     limit: number = 1000,
-  ): Promise<FetchedSwapsData> {
+  ): Promise<FetchResult<SwapOrRoutedTradeNode>> {
     this.logger.debug(
       `Fetching swaps from block ${fromBlock} to ${toBlock} (limit: ${limit})`,
     );
@@ -71,7 +67,7 @@ export class GraphqlFetcherService {
       );
 
       return {
-        swaps: response.swaps.nodes,
+        items: response.swaps.nodes,
         totalCount: response.swaps.totalCount,
       };
     } catch (error) {
@@ -92,7 +88,7 @@ export class GraphqlFetcherService {
     fromBlock: number,
     toBlock: number,
     limit: number = 1000,
-  ): Promise<FetchedSwapsData> {
+  ): Promise<FetchResult<SwapOrRoutedTradeNode>> {
     this.logger.debug(
       `Fetching routed trades from block ${fromBlock} to ${toBlock} (limit: ${limit})`,
     );
@@ -128,7 +124,7 @@ export class GraphqlFetcherService {
       );
 
       return {
-        swaps: omnipoolRoutedTrades as SwapOrRoutedTradeNode[],
+        items: omnipoolRoutedTrades as SwapOrRoutedTradeNode[],
         totalCount: response.routedTrades.totalCount,
       };
     } catch (error) {
@@ -148,7 +144,7 @@ export class GraphqlFetcherService {
     fromBlock: number,
     toBlock: number,
     limit: number = 1000,
-  ): Promise<FetchedSwapsData> {
+  ): Promise<FetchResult<SwapOrRoutedTradeNode>> {
     const upgradeBlock =
       this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
         infer: true,
@@ -182,7 +178,7 @@ export class GraphqlFetcherService {
     );
 
     return {
-      swaps: [...preUpgradeData.swaps, ...postUpgradeData.swaps],
+      items: [...preUpgradeData.items, ...postUpgradeData.items],
       totalCount: preUpgradeData.totalCount + postUpgradeData.totalCount,
     };
   }
@@ -257,7 +253,7 @@ export class GraphqlFetcherService {
     let currentFromBlock = fromBlock;
 
     while (hasMore && currentFromBlock <= toBlock) {
-      const { swaps, totalCount } = await this.fetchSwapsOrRoutedTrades(
+      const { items: swaps, totalCount } = await this.fetchSwapsOrRoutedTrades(
         currentFromBlock,
         toBlock,
         batchSize,

@@ -127,7 +127,7 @@ export class BorrowAprOrchestratorService extends BaseOrchestratorService {
       );
 
       // Step 1: Fetch transfers
-      const { transfers, totalCount } =
+      const { items: transfers, totalCount } =
         await this.fetcher.fetchBorrowAprTransfers(fromBlock, currentBlock, batchSize);
 
       if (transfers.length === 0) {

@@ -13,11 +13,7 @@ import {
   BorrowAprTransferNode,
   GetBorrowAprTransfersResponse,
 } from '../../graphql-client/types/graphql-response.types';
-
-export interface FetchedBorrowAprData {
-  transfers: BorrowAprTransferNode[];
-  totalCount: number;
-}
+import { FetchResult } from '../../common/interfaces/paginated-response.interface';
 
 @Injectable()
 export class BorrowAprFetcherService {
@@ -46,7 +42,7 @@ export class BorrowAprFetcherService {
     fromBlock: number,
     currentBlock: number,
     batchSize: number = 1000,
-  ): Promise<FetchedBorrowAprData> {
+  ): Promise<FetchResult<BorrowAprTransferNode>> {
     this.logger.debug(
       `Fetching Borrow APR transfers after block ${fromBlock} up to ${currentBlock} (limit: ${batchSize})`,
     );
@@ -93,11 +89,11 @@ export class BorrowAprFetcherService {
         remaining,
       );
 
-      if (result.transfers.length > 0) {
-        accumulated.push(...result.transfers);
+      if (result.items.length > 0) {
+        accumulated.push(...result.items);
         totalCount += result.totalCount;
         this.logger.debug(
-          `Endpoint ${endpoint.apiUrl} returned ${result.transfers.length} transfers (accumulated: ${accumulated.length}/${batchSize})`,
+          `Endpoint ${endpoint.apiUrl} returned ${result.items.length} transfers (accumulated: ${accumulated.length}/${batchSize})`,
         );
       }
 
@@ -110,7 +106,7 @@ export class BorrowAprFetcherService {
       `Fetched ${accumulated.length} Borrow APR transfers (total: ${totalCount})`,
     );
 
-    return { transfers: accumulated, totalCount };
+    return { items:accumulated, totalCount };
   }
 
   private async fetchFromSingleEndpoint(
@@ -118,7 +114,7 @@ export class BorrowAprFetcherService {
     fromBlock: number,
     toBlock: number,
     limit: number,
-  ): Promise<FetchedBorrowAprData> {
+  ): Promise<FetchResult<BorrowAprTransferNode>> {
     const variables = {
       fromBlock,
       toBlock,
@@ -134,14 +130,14 @@ export class BorrowAprFetcherService {
         );
 
       return {
-        transfers: response.transfers.nodes,
+        items:response.transfers.nodes,
         totalCount: response.transfers.totalCount,
       };
     } catch (error) {
       this.logger.warn(
         `Endpoint ${endpointUrl} failed for blocks ${fromBlock}-${toBlock}: ${error.message}`,
       );
-      return { transfers: [], totalCount: 0 };
+      return { items:[], totalCount: 0 };
     }
   }
 

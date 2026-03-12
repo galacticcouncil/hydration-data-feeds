@@ -5,10 +5,7 @@ import {
   AssetReserveEventNode,
   GetAssetReserveEventsResponse,
 } from '../../graphql-client/types/graphql-response.types';
-
-export interface FetchedAssetReserveData {
-  events: AssetReserveEventNode[];
-}
+import { FetchResult } from '../../common/interfaces/paginated-response.interface';
 
 @Injectable()
 export class AssetReserveFetcherService {
@@ -32,7 +29,7 @@ export class AssetReserveFetcherService {
   async fetchAssetReserveEvents(
     fromBlock: number,
     batchSize: number = 500,
-  ): Promise<FetchedAssetReserveData> {
+  ): Promise<FetchResult<AssetReserveEventNode>> {
     this.logger.debug(
       `Fetching Asset Reserve events after block ${fromBlock} (limit: ${batchSize})`,
     );
@@ -53,7 +50,7 @@ export class AssetReserveFetcherService {
 
       this.logger.log(`Fetched ${events.length} Asset Reserve events`);
 
-      return { events };
+      return { items: events, totalCount: response.mmMintedToTreasuryEvents.totalCount };
     } catch (error) {
       this.logger.error(
         `Failed to fetch Asset Reserve events from block ${fromBlock}`,

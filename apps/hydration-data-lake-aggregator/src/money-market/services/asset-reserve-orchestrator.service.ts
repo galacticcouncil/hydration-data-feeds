@@ -128,7 +128,7 @@ export class AssetReserveOrchestratorService extends BaseOrchestratorService {
       );
 
       // Step 1: Fetch events using pagination
-      const { events } =
+      const { items: events } =
         await this.fetcher.fetchAssetReserveEvents(fromBlock, batchSize);
 
       if (events.length === 0) {

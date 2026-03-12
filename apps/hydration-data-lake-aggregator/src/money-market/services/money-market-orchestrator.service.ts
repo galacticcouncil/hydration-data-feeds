@@ -125,7 +125,7 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
       );
 
       // Step 1: Fetch liquidations (minimal data - only 4 fields)
-      const { liquidations, totalCount } =
+      const { items: liquidations, totalCount } =
         await this.moneyMarketFetcher.fetchLiquidations(fromBlock, batchSize);
 
       if (liquidations.length === 0) {

@@ -6,11 +6,7 @@ import {
   GetPeplLiquidationEventsResponse,
   PeplLiquidationEventNode,
 } from '../../graphql-client/types/graphql-response.types';
-
-export interface FetchedPeplData {
-  events: PeplLiquidationEventNode[];
-  totalCount: number;
-}
+import { FetchResult } from '../../common/interfaces/paginated-response.interface';
 
 /**
  * Service responsible for fetching PEPL liquidation events from GraphQL.
@@ -43,7 +39,7 @@ export class PeplLiquidationFetcherService {
     fromBlock: number,
     currentBlock: number,
     batchSize: number = 500,
-  ): Promise<FetchedPeplData> {
+  ): Promise<FetchResult<PeplLiquidationEventNode>> {
     this.logger.debug(
       `Fetching PEPL liquidations after block ${fromBlock} up to ${currentBlock} (limit: ${batchSize})`,
     );
@@ -98,11 +94,11 @@ export class PeplLiquidationFetcherService {
         remaining,
       );
 
-      if (result.events.length > 0) {
-        accumulated.push(...result.events);
+      if (result.items.length > 0) {
+        accumulated.push(...result.items);
         totalCount += result.totalCount;
         this.logger.debug(
-          `Endpoint ${endpoint.apiUrl} returned ${result.events.length} events (accumulated: ${accumulated.length}/${batchSize})`,
+          `Endpoint ${endpoint.apiUrl} returned ${result.items.length} events (accumulated: ${accumulated.length}/${batchSize})`,
         );
       }
 
@@ -115,7 +111,7 @@ export class PeplLiquidationFetcherService {
       `Fetched ${accumulated.length} PEPL liquidation events (total: ${totalCount})`,
     );
 
-    return { events: accumulated, totalCount };
+    return { items:accumulated, totalCount };
   }
 
   private async fetchFromSingleEndpoint(
@@ -123,7 +119,7 @@ export class PeplLiquidationFetcherService {
     fromBlock: number,
     toBlock: number,
     limit: number,
-  ): Promise<FetchedPeplData> {
+  ): Promise<FetchResult<PeplLiquidationEventNode>> {
     const variables = {
       fromBlock,
       toBlock,
@@ -139,14 +135,14 @@ export class PeplLiquidationFetcherService {
         );
 
       return {
-        events: response.liquidationLiquidatedEvents.nodes,
+        items:response.liquidationLiquidatedEvents.nodes,
         totalCount: response.liquidationLiquidatedEvents.totalCount,
       };
     } catch (error) {
       this.logger.warn(
         `Endpoint ${endpointUrl} failed for blocks ${fromBlock}-${toBlock}: ${error.message}`,
       );
-      return { events: [], totalCount: 0 };
+      return { items:[], totalCount: 0 };
     }
   }
 
