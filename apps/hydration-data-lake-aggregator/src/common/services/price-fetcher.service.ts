@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import {
   GET_ASSET_PRICES_AT_BLOCK_QUERY,
   GET_NEAREST_ASSET_PRICES_QUERY,

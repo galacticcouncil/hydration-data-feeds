@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import { GET_ASSET_RESERVE_EVENTS_QUERY } from '../../graphql-client/queries/asset-reserve.queries';
 import {
   AssetReserveEventNode,

@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import { GET_ALL_ASSETS_QUERY } from '../../graphql-client/queries/swaps.queries';
 import { GetAllAssetsResponse } from '../../graphql-client/types/graphql-response.types';
 import { AppConfig } from '../../config/app.config';

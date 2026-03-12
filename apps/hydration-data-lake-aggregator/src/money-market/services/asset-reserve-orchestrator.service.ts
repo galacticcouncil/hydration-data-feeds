@@ -10,7 +10,7 @@ import { MoneyMarketRaw } from '../../database/entities/money-market-raw.entity'
 import { AssetReserveFetcherService } from './asset-reserve-fetcher.service';
 import { AssetReserveCalculatorService } from './asset-reserve-calculator.service';
 import { AssetReserveTransformerService } from './asset-reserve-transformer.service';
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
 import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';

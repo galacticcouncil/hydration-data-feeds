@@ -1,8 +1,10 @@
 import type { RequestDocument } from 'graphql-request';
 import { GraphQLClient, Variables } from 'graphql-request';
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+import { GET_CURRENT_BLOCK_HEIGHT_QUERY } from '../queries/swaps.queries';
 
 import { getMultiEndpointConfig } from '../config/endpoint.config';
 import { MultiEndpointConfig } from '../types/endpoint.types';
@@ -19,12 +21,12 @@ import { ResultMergerService } from './result-merger.service';
  * multiple endpoints, and merges results
  */
 @Injectable()
-export class MultiEndpointGraphqlService {
+export class MultiEndpointGraphqlService implements OnModuleInit {
   private readonly logger = new Logger(MultiEndpointGraphqlService.name);
-  private config: MultiEndpointConfig;
+  private config: MultiEndpointConfig = { enabled: false, endpoints: [], fallbackUrl: '' };
   private clients: Map<string, GraphQLClient> = new Map();
 
-  // Configuration for retry logic (matches single-endpoint client)
+  // Configuration for retry logic
   private readonly retries = 3;
   private readonly retryDelay = 1000; // 1 second
 
@@ -33,7 +35,18 @@ export class MultiEndpointGraphqlService {
     private queryAnalyzer: QueryAnalyzerService,
     private resultMerger: ResultMergerService,
   ) {
-    this.config = getMultiEndpointConfig(this.configService);
+    // Bootstrap a fallback client immediately so the service is usable before
+    // onModuleInit completes the async endpoint config loading
+    const fallbackUrl = this.configService.get<string>('GRAPHQL_ENDPOINT', '');
+    this.config = { enabled: false, endpoints: [], fallbackUrl };
+    if (fallbackUrl) {
+      this.clients.set(fallbackUrl, new GraphQLClient(fallbackUrl));
+    }
+  }
+
+  async onModuleInit() {
+    this.config = await getMultiEndpointConfig(this.configService);
+    this.clients.clear();
 
     const enforcedUrls: { hsmBalances: string | null } = this.configService.get(
       'graphql.enforcedEndpoints',
@@ -86,12 +99,13 @@ export class MultiEndpointGraphqlService {
    * @param variables - Query variables
    * @param options - Optional configuration for query execution
    * @param options.targetUrl - Override URL to query specific endpoint (bypasses routing)
+   * @param options.sortOrder - Sort order for merging multi-endpoint results (default: 'asc')
    * @returns Query result
    */
   async query<T = any, V extends Variables = Variables>(
     query: RequestDocument,
     variables?: V,
-    options?: { targetUrl?: string },
+    options?: { targetUrl?: string; sortOrder?: 'asc' | 'desc' },
   ): Promise<T> {
     // If targetUrl is explicitly provided, bypass all routing and query that endpoint
     if (options?.targetUrl) {
@@ -182,10 +196,7 @@ export class MultiEndpointGraphqlService {
         }),
       );
 
-      // Detect sort order from the GraphQL query AST
-      const sortOrder = this.detectSortOrder(query);
-
-      // Merge results with appropriate sort order
+      const sortOrder = options?.sortOrder ?? 'asc';
       const merged = this.resultMerger.mergeResults<T>(results, sortOrder);
       this.logger.log(
         `Successfully merged results from ${assignments.length} endpoints (sort: ${sortOrder})`,
@@ -281,21 +292,7 @@ export class MultiEndpointGraphqlService {
    * @returns Current block height
    */
   async getCurrentBlockHeight(): Promise<number> {
-    const query = `
-      query GetCurrentBlock {
-        swaps(
-          orderBy: PARA_BLOCK_HEIGHT_DESC
-          first: 1
-        ) {
-          nodes {
-            paraBlockHeight
-          }
-        }
-      }
-    `;
-
     try {
-      // Query the head endpoint
       const headEndpoint = this.config.enabled
         ? getHeadEndpoint(this.config.endpoints)
         : { apiUrl: this.config.fallbackUrl };
@@ -308,7 +305,7 @@ export class MultiEndpointGraphqlService {
         swaps: {
           nodes: Array<{ paraBlockHeight: number }>;
         };
-      }>(headEndpoint.apiUrl, query);
+      }>(headEndpoint.apiUrl, GET_CURRENT_BLOCK_HEIGHT_QUERY);
 
       if (!result.swaps.nodes.length) {
         this.logger.warn('No swaps found, using default block height');
@@ -319,47 +316,6 @@ export class MultiEndpointGraphqlService {
     } catch (error) {
       this.logger.error('Failed to get current block height', error.stack);
       throw error;
-    }
-  }
-
-  /**
-   * Detect sort order from GraphQL query document
-   * Analyzes the query AST to find orderBy directives and determine if DESC is used
-   *
-   * @param query - GraphQL query document
-   * @returns 'asc', 'desc', or 'none'
-   */
-  private detectSortOrder(query: RequestDocument): 'asc' | 'desc' | 'none' {
-    try {
-      // Convert query to string if it's a DocumentNode
-      let queryString: string;
-      if (typeof query === 'string') {
-        queryString = query;
-      } else if (query && typeof query === 'object' && 'loc' in query) {
-        // It's a DocumentNode from graphql-tag
-        queryString = query.loc?.source.body || '';
-      } else {
-        return 'asc'; // Default to ascending if we can't parse
-      }
-
-      // Look for orderBy pattern in the query string
-      // Patterns: orderBy: PARA_BLOCK_HEIGHT_DESC or orderBy: [PARA_BLOCK_HEIGHT_DESC, ...]
-      const orderByDescPattern = /_DESC/;
-      const orderByAscPattern = /_ASC/;
-
-      if (orderByDescPattern.test(queryString)) {
-        return 'desc';
-      } else if (orderByAscPattern.test(queryString)) {
-        return 'asc';
-      }
-
-      // No explicit ordering found, default to ascending
-      return 'asc';
-    } catch (error) {
-      this.logger.warn(
-        `Failed to detect sort order from query: ${error.message}`,
-      );
-      return 'asc'; // Safe default
     }
   }
 

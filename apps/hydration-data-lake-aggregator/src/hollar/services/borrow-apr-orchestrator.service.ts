@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { StateManagerService } from '../../common/services/state-manager.service';
 import { AppConfig } from '../../config/app.config';
 import { BorrowAprRaw } from '../../database/entities/borrow-apr-raw.entity';
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import { BorrowAprFetcherService } from './borrow-apr-fetcher.service';
 import { BorrowAprTransformerService } from './borrow-apr-transformer.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';

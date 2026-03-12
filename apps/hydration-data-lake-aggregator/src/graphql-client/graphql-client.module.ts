@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { GraphqlClientService } from './graphql-client.service';
+import { GraphqlClientService } from './services/graphql-client.service';
 import { MultiEndpointGraphqlService } from './services/multi-endpoint-graphql.service';
 import { QueryAnalyzerService } from './services/query-analyzer.service';
 import { ResultMergerService } from './services/result-merger.service';

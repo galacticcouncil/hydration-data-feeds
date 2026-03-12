@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import { MONEY_MARKET_TREASURY_ADDRESS } from '../../common/constants/blockchain-addresses.constants';
 import {
   GET_LIQUIDATION_EVENTS_QUERY,

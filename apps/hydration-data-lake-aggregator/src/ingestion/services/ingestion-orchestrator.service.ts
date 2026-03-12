@@ -8,7 +8,7 @@ import { SwapRaw } from '../../database/entities/swap-raw.entity';
 import { GraphqlFetcherService } from './graphql-fetcher.service';
 import { FeeCalculatorService } from './fee-calculator.service';
 import { SwapTransformerService } from './swap-transformer.service';
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import { StateManagerService } from '../../common/services/state-manager.service';
 import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
 

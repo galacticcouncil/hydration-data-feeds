@@ -7,7 +7,7 @@ import { MoneyMarketRaw } from '../../database/entities/money-market-raw.entity'
 import { MoneyMarketFetcherService } from './money-market-fetcher.service';
 import { LiquidationFeeCalculatorService } from './liquidation-fee-calculator.service';
 import { LiquidationTransformerService } from './liquidation-transformer.service';
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import { StateManagerService } from '../../common/services/state-manager.service';
 import {
   extractUniqueBlockHeights,

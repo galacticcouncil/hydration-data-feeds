@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { StateManagerService } from '../../common/services/state-manager.service';
 import { AppConfig } from '../../config/app.config';
 import { HsmRevenueRaw } from '../../database/entities/hsm-revenue-raw.entity';
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
 import { HsmRevenueCalculatorService } from './hsm-revenue-calculator.service';

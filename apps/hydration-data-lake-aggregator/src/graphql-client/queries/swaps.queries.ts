@@ -1,5 +1,18 @@
 import { gql } from 'graphql-tag';
 
+export const GET_CURRENT_BLOCK_HEIGHT_QUERY = `
+  query GetCurrentBlock {
+    swaps(
+      orderBy: PARA_BLOCK_HEIGHT_DESC
+      first: 1
+    ) {
+      nodes {
+        paraBlockHeight
+      }
+    }
+  }
+`;
+
 /**
  * Query to fetch Omnipool swaps within a block range
  * Based on the actual Hydration GraphQL schema

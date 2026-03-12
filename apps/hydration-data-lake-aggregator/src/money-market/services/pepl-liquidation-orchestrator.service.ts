@@ -10,7 +10,7 @@ import { MoneyMarketRaw } from '../../database/entities/money-market-raw.entity'
 import { PeplLiquidationFetcherService } from './pepl-liquidation-fetcher.service';
 import { PeplProfitCalculatorService } from './pepl-profit-calculator.service';
 import { PeplProfitTransformerService } from './pepl-profit-transformer.service';
-import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
 import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
