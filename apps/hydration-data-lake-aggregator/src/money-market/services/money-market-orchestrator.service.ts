@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +14,7 @@ import {
   getMaxBlockHeight,
 } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
+import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
 
 /**
  * Orchestrator for money market liquidation fee ingestion
@@ -30,10 +31,8 @@ import { saveInChunks } from '../../common/utils/repository.utils';
  * - Server-side filtering reduces network transfer
  */
 @Injectable()
-export class MoneyMarketOrchestratorService implements OnModuleInit {
-  private readonly logger = new Logger(MoneyMarketOrchestratorService.name);
-  private readonly SERVICE_NAME = 'money-market';
-  private isIngesting = false;
+export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
+  protected readonly SERVICE_NAME = 'money-market';
 
   constructor(
     private configService: ConfigService<AppConfig>,
@@ -41,27 +40,15 @@ export class MoneyMarketOrchestratorService implements OnModuleInit {
     private feeCalculator: LiquidationFeeCalculatorService,
     private liquidationTransformer: LiquidationTransformerService,
     private graphqlClient: GraphqlClientService,
-    private stateManager: StateManagerService,
+    stateManager: StateManagerService,
     @InjectRepository(MoneyMarketRaw)
     private moneyMarketRawRepository: Repository<MoneyMarketRaw>,
-  ) {}
+  ) {
+    super(stateManager);
+  }
 
-  async onModuleInit() {
-    // Initialize Redis state if it doesn't exist
-    const startBlock =
-      this.configService.get('moneyMarket.startBlock', { infer: true }) || 121;
-
-    await this.stateManager.initializeState(this.SERVICE_NAME, startBlock);
-
-    const backfillOnStartup = this.configService.get(
-      'moneyMarket.backfillOnStartup',
-      { infer: true },
-    );
-
-    if (backfillOnStartup) {
-      this.logger.log('Backfill on startup is enabled for money market');
-      // Backfill will be triggered by the scheduler
-    }
+  protected getStartBlock(): number {
+    return this.configService.get('moneyMarket.startBlock', { infer: true }) || 121;
   }
 
   /**
@@ -227,25 +214,6 @@ export class MoneyMarketOrchestratorService implements OnModuleInit {
   ): Promise<void> {
     await saveInChunks(this.moneyMarketRawRepository, liquidations);
     this.logger.debug(`Saved ${liquidations.length} liquidations to database`);
-  }
-
-  /**
-   * Get last processed block from Redis
-   */
-  private async getLastProcessedBlock(): Promise<number> {
-    const lastBlock = await this.stateManager.getLastProcessedBlock(
-      this.SERVICE_NAME,
-    );
-
-    if (lastBlock === null) {
-      // State should be initialized in onModuleInit, but handle edge case
-      const startBlock =
-        this.configService.get('moneyMarket.startBlock', { infer: true }) ||
-        121;
-      return startBlock - 1;
-    }
-
-    return lastBlock;
   }
 
   /**

@@ -1,25 +1,18 @@
 import { Repository } from 'typeorm';
 
-import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import {
-  StateManagerService,
-} from '../../common/services/state-manager.service';
+import { StateManagerService } from '../../common/services/state-manager.service';
 import { AppConfig } from '../../config/app.config';
 import { BorrowAprRaw } from '../../database/entities/borrow-apr-raw.entity';
-import {
-  GraphqlClientService,
-} from '../../graphql-client/graphql-client.service';
+import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import { BorrowAprFetcherService } from './borrow-apr-fetcher.service';
 import { BorrowAprTransformerService } from './borrow-apr-transformer.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
+import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
 
 /**
  * Orchestrator for Borrow APR ingestion
@@ -34,34 +27,32 @@ import { saveInChunks } from '../../common/utils/repository.utils';
  * Uses separate state tracking from other ingestion pipelines
  */
 @Injectable()
-export class BorrowAprOrchestratorService implements OnModuleInit {
-  private readonly logger = new Logger(BorrowAprOrchestratorService.name);
-  private readonly SERVICE_NAME = 'borrow-apr';
+export class BorrowAprOrchestratorService extends BaseOrchestratorService {
+  protected readonly SERVICE_NAME = 'borrow-apr';
   private readonly batchSize: number;
-  private isIngesting = false;
 
   constructor(
     private configService: ConfigService<AppConfig>,
     private fetcher: BorrowAprFetcherService,
     private transformer: BorrowAprTransformerService,
     private graphqlClient: GraphqlClientService,
-    private stateManager: StateManagerService,
+    stateManager: StateManagerService,
     @InjectRepository(BorrowAprRaw)
     private borrowAprRepository: Repository<BorrowAprRaw>,
   ) {
+    super(stateManager);
     this.batchSize =
       this.configService.get('borrowApr.batchSize', { infer: true }) || 1000;
   }
 
-  async onModuleInit() {
-    const startBlock =
-      this.configService.get('borrowApr.startBlock', { infer: true }) ||
-      1_000_000;
+  protected getStartBlock(): number {
+    return this.configService.get('borrowApr.startBlock', { infer: true }) || 1_000_000;
+  }
 
-    await this.stateManager.initializeState(this.SERVICE_NAME, startBlock);
-
+  async onModuleInit(): Promise<void> {
+    await super.onModuleInit();
     this.logger.log(
-      `Borrow APR Orchestrator initialized with start block: ${startBlock}, batch size: ${this.batchSize}`,
+      `Borrow APR Orchestrator initialized with start block: ${this.getStartBlock()}, batch size: ${this.batchSize}`,
     );
   }
 
@@ -200,21 +191,4 @@ export class BorrowAprOrchestratorService implements OnModuleInit {
     this.logger.debug(`Saved ${entities.length} Borrow APR transfers to database`);
   }
 
-  /**
-   * Get last processed block from Redis
-   */
-  private async getLastProcessedBlock(): Promise<number> {
-    const lastBlock = await this.stateManager.getLastProcessedBlock(
-      this.SERVICE_NAME,
-    );
-
-    if (lastBlock === null) {
-      const startBlock =
-        this.configService.get('borrowApr.startBlock', { infer: true }) ||
-        1_000_000;
-      return startBlock - 1;
-    }
-
-    return lastBlock;
-  }
 }

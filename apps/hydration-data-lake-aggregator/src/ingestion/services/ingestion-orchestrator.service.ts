@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,12 +10,11 @@ import { FeeCalculatorService } from './fee-calculator.service';
 import { SwapTransformerService } from './swap-transformer.service';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import { StateManagerService } from '../../common/services/state-manager.service';
+import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
 
 @Injectable()
-export class IngestionOrchestratorService implements OnModuleInit {
-  private readonly logger = new Logger(IngestionOrchestratorService.name);
-  private readonly SERVICE_NAME = 'swaps';
-  private isIngesting = false;
+export class IngestionOrchestratorService extends BaseOrchestratorService {
+  protected readonly SERVICE_NAME = 'swaps';
 
   constructor(
     private configService: ConfigService<AppConfig>,
@@ -23,28 +22,15 @@ export class IngestionOrchestratorService implements OnModuleInit {
     private feeCalculator: FeeCalculatorService,
     private swapTransformer: SwapTransformerService,
     private graphqlClient: GraphqlClientService,
-    private stateManager: StateManagerService,
+    stateManager: StateManagerService,
     @InjectRepository(SwapRaw)
     private swapRawRepository: Repository<SwapRaw>,
-  ) {}
+  ) {
+    super(stateManager);
+  }
 
-  async onModuleInit() {
-    // Initialize Redis state if it doesn't exist
-    const startBlock = this.configService.get('ingestion.startBlock', {
-      infer: true,
-    }) || 9999990;
-
-    await this.stateManager.initializeState(this.SERVICE_NAME, startBlock);
-
-    const backfillOnStartup = this.configService.get(
-      'ingestion.backfillOnStartup',
-      { infer: true },
-    );
-
-    if (backfillOnStartup) {
-      this.logger.log('Backfill on startup is enabled');
-      // Backfill will be triggered by the scheduler
-    }
+  protected getStartBlock(): number {
+    return this.configService.get('ingestion.startBlock', { infer: true }) || 9999990;
   }
 
   /**
@@ -172,26 +158,6 @@ export class IngestionOrchestratorService implements OnModuleInit {
     await saveInChunks(this.swapRawRepository, swaps);
     this.logger.debug(`Saved ${swaps.length} swaps to database`);
   }
-
-  /**
-   * Get last processed block from Redis
-   */
-  private async getLastProcessedBlock(): Promise<number> {
-    const lastBlock = await this.stateManager.getLastProcessedBlock(
-      this.SERVICE_NAME,
-    );
-
-    if (lastBlock === null) {
-      // State should be initialized in onModuleInit, but handle edge case
-      const startBlock =
-        this.configService.get('ingestion.startBlock', { infer: true }) ||
-        9999990;
-      return startBlock - 1;
-    }
-
-    return lastBlock;
-  }
-
 
   /**
    * Get ingestion statistics

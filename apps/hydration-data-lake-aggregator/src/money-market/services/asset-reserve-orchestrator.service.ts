@@ -1,30 +1,19 @@
 import { Repository } from 'typeorm';
 
-import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import {
-  StateManagerService,
-} from '../../common/services/state-manager.service';
+import { StateManagerService } from '../../common/services/state-manager.service';
 import { AppConfig } from '../../config/app.config';
-import {
-  MoneyMarketRaw,
-} from '../../database/entities/money-market-raw.entity';
-import {
-  AssetReserveFetcherService,
-} from './asset-reserve-fetcher.service';
+import { MoneyMarketRaw } from '../../database/entities/money-market-raw.entity';
+import { AssetReserveFetcherService } from './asset-reserve-fetcher.service';
 import { AssetReserveCalculatorService } from './asset-reserve-calculator.service';
-import {
-  AssetReserveTransformerService,
-} from './asset-reserve-transformer.service';
+import { AssetReserveTransformerService } from './asset-reserve-transformer.service';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
+import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
 
 /**
  * Orchestrator for Asset Reserve fee ingestion
@@ -38,13 +27,9 @@ import { saveInChunks } from '../../common/utils/repository.utils';
  * Uses separate state tracking from regular liquidation penalties and PEPL
  */
 @Injectable()
-export class AssetReserveOrchestratorService implements OnModuleInit {
-  private readonly logger = new Logger(
-    AssetReserveOrchestratorService.name,
-  );
-  private readonly SERVICE_NAME = 'asset-reserve';
+export class AssetReserveOrchestratorService extends BaseOrchestratorService {
+  protected readonly SERVICE_NAME = 'asset-reserve';
   private readonly batchSize: number;
-  private isIngesting = false;
 
   constructor(
     private configService: ConfigService<AppConfig>,
@@ -52,36 +37,23 @@ export class AssetReserveOrchestratorService implements OnModuleInit {
     private calculator: AssetReserveCalculatorService,
     private transformer: AssetReserveTransformerService,
     private graphqlClient: GraphqlClientService,
-    private stateManager: StateManagerService,
+    stateManager: StateManagerService,
     @InjectRepository(MoneyMarketRaw)
     private moneyMarketRepository: Repository<MoneyMarketRaw>,
   ) {
-    // Load batch size from config
+    super(stateManager);
     this.batchSize =
-      this.configService.get('assetReserve.batchSize', { infer: true }) ||
-      500;
+      this.configService.get('assetReserve.batchSize', { infer: true }) || 500;
   }
 
-  async onModuleInit() {
-    // Initialize Redis state if it doesn't exist
-    const startBlock =
-      this.configService.get('assetReserve.startBlock', { infer: true }) ||
-      1_000_000;
+  protected getStartBlock(): number {
+    return this.configService.get('assetReserve.startBlock', { infer: true }) || 1_000_000;
+  }
 
-    await this.stateManager.initializeState(this.SERVICE_NAME, startBlock);
-
-    const backfillOnStartup = this.configService.get(
-      'assetReserve.backfillOnStartup',
-      { infer: true },
-    );
-
-    if (backfillOnStartup) {
-      this.logger.log('Backfill on startup is enabled for Asset Reserve');
-      // Backfill will be triggered by the scheduler
-    }
-
+  async onModuleInit(): Promise<void> {
+    await super.onModuleInit();
     this.logger.log(
-      `Asset Reserve Orchestrator initialized with start block: ${startBlock}, batch size: ${this.batchSize}`,
+      `Asset Reserve Orchestrator initialized with start block: ${this.getStartBlock()}, batch size: ${this.batchSize}`,
     );
   }
 
@@ -220,26 +192,6 @@ export class AssetReserveOrchestratorService implements OnModuleInit {
   private async saveAssetReserveEventsBatch(events: MoneyMarketRaw[]): Promise<void> {
     await saveInChunks(this.moneyMarketRepository, events);
     this.logger.debug(`Saved ${events.length} Asset Reserve events to database`);
-  }
-
-  /**
-   * Get last processed block from Redis
-   */
-  private async getLastProcessedBlock(): Promise<number> {
-    const lastBlock = await this.stateManager.getLastProcessedBlock(
-      this.SERVICE_NAME,
-    );
-
-    if (lastBlock === null) {
-      // State should be initialized in onModuleInit, but handle edge case
-      const startBlock =
-        this.configService.get('assetReserve.startBlock', {
-          infer: true,
-        }) || 1_000_000;
-      return startBlock - 1;
-    }
-
-    return lastBlock;
   }
 
   /**

@@ -149,6 +149,14 @@ export class StateManagerService {
     return state?.lastProcessedBlock ?? null;
   }
 
+  async getLastProcessedBlockOrDefault(
+    serviceName: string,
+    defaultBlock: number,
+  ): Promise<number> {
+    const lastBlock = await this.getLastProcessedBlock(serviceName);
+    return lastBlock ?? defaultBlock;
+  }
+
   /**
    * Get statistics for all services
    */

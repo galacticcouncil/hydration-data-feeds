@@ -1,6 +1,6 @@
 import { Repository } from 'typeorm';
 
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -13,6 +13,7 @@ import { saveInChunks } from '../../common/utils/repository.utils';
 import { HsmRevenueCalculatorService } from './hsm-revenue-calculator.service';
 import { HsmRevenueFetcherService } from './hsm-revenue-fetcher.service';
 import { HsmRevenueTransformerService } from './hsm-revenue-transformer.service';
+import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
 
 /**
  * Orchestrator for HSM revenue ingestion
@@ -26,11 +27,9 @@ import { HsmRevenueTransformerService } from './hsm-revenue-transformer.service'
  * Uses separate state tracking from other Hollar/money market data
  */
 @Injectable()
-export class HsmRevenueOrchestratorService implements OnModuleInit {
-  private readonly logger = new Logger(HsmRevenueOrchestratorService.name);
-  private readonly SERVICE_NAME = 'hsm-revenue';
-  private readonly batchSize: number;
-  private isIngesting = false;
+export class HsmRevenueOrchestratorService extends BaseOrchestratorService {
+  protected readonly SERVICE_NAME = 'hsm-revenue';
+  private readonly batchSize = 100;
 
   constructor(
     private configService: ConfigService<AppConfig>,
@@ -38,23 +37,21 @@ export class HsmRevenueOrchestratorService implements OnModuleInit {
     private calculator: HsmRevenueCalculatorService,
     private transformer: HsmRevenueTransformerService,
     private graphqlClient: GraphqlClientService,
-    private stateManager: StateManagerService,
+    stateManager: StateManagerService,
     @InjectRepository(HsmRevenueRaw)
     private hsmRevenueRepository: Repository<HsmRevenueRaw>,
   ) {
-    this.batchSize = 100; // Fixed batch size as per requirements
+    super(stateManager);
   }
 
-  async onModuleInit() {
-    // Initialize Redis state if it doesn't exist
-    const startBlock =
-      this.configService.get('hsmRevenue.startBlock', { infer: true }) ||
-      1_000_000;
+  protected getStartBlock(): number {
+    return this.configService.get('hsmRevenue.startBlock', { infer: true }) || 1_000_000;
+  }
 
-    await this.stateManager.initializeState(this.SERVICE_NAME, startBlock);
-
+  async onModuleInit(): Promise<void> {
+    await super.onModuleInit();
     this.logger.log(
-      `HSM Revenue Orchestrator initialized with start block: ${startBlock}, batch size: ${this.batchSize}`,
+      `HSM Revenue Orchestrator initialized with start block: ${this.getStartBlock()}, batch size: ${this.batchSize}`,
     );
   }
 
@@ -190,21 +187,4 @@ export class HsmRevenueOrchestratorService implements OnModuleInit {
     this.logger.debug(`Saved ${entities.length} HSM revenue events to database`);
   }
 
-  /**
-   * Get last processed block from Redis
-   */
-  private async getLastProcessedBlock(): Promise<number> {
-    const lastBlock = await this.stateManager.getLastProcessedBlock(
-      this.SERVICE_NAME,
-    );
-
-    if (lastBlock === null) {
-      const startBlock =
-        this.configService.get('hsmRevenue.startBlock', { infer: true }) ||
-        1_000_000;
-      return startBlock - 1;
-    }
-
-    return lastBlock;
-  }
 }

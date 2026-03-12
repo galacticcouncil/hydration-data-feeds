@@ -1,30 +1,19 @@
 import { Repository } from 'typeorm';
 
-import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import {
-  StateManagerService,
-} from '../../common/services/state-manager.service';
+import { StateManagerService } from '../../common/services/state-manager.service';
 import { AppConfig } from '../../config/app.config';
-import {
-  MoneyMarketRaw,
-} from '../../database/entities/money-market-raw.entity';
-import {
-  PeplLiquidationFetcherService,
-} from './pepl-liquidation-fetcher.service';
+import { MoneyMarketRaw } from '../../database/entities/money-market-raw.entity';
+import { PeplLiquidationFetcherService } from './pepl-liquidation-fetcher.service';
 import { PeplProfitCalculatorService } from './pepl-profit-calculator.service';
-import {
-  PeplProfitTransformerService,
-} from './pepl-profit-transformer.service';
+import { PeplProfitTransformerService } from './pepl-profit-transformer.service';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
+import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
 
 /**
  * Orchestrator for PEPL liquidation profit ingestion
@@ -38,13 +27,9 @@ import { saveInChunks } from '../../common/utils/repository.utils';
  * Uses separate state tracking from regular liquidation penalties
  */
 @Injectable()
-export class PeplLiquidationOrchestratorService implements OnModuleInit {
-  private readonly logger = new Logger(
-    PeplLiquidationOrchestratorService.name,
-  );
-  private readonly SERVICE_NAME = 'pepl-liquidation-profit';
+export class PeplLiquidationOrchestratorService extends BaseOrchestratorService {
+  protected readonly SERVICE_NAME = 'pepl-liquidation-profit';
   private readonly batchSize: number;
-  private isIngesting = false;
 
   constructor(
     private configService: ConfigService<AppConfig>,
@@ -52,36 +37,24 @@ export class PeplLiquidationOrchestratorService implements OnModuleInit {
     private calculator: PeplProfitCalculatorService,
     private transformer: PeplProfitTransformerService,
     private graphqlClient: GraphqlClientService,
-    private stateManager: StateManagerService,
+    stateManager: StateManagerService,
     @InjectRepository(MoneyMarketRaw)
     private moneyMarketRepository: Repository<MoneyMarketRaw>,
   ) {
-    // Load batch size from config
+    super(stateManager);
     this.batchSize =
       this.configService.get('peplLiquidation.batchSize', { infer: true }) ||
       500;
   }
 
-  async onModuleInit() {
-    // Initialize Redis state if it doesn't exist
-    const startBlock =
-      this.configService.get('peplLiquidation.startBlock', { infer: true }) ||
-      1_000_000;
+  protected getStartBlock(): number {
+    return this.configService.get('peplLiquidation.startBlock', { infer: true }) || 1_000_000;
+  }
 
-    await this.stateManager.initializeState(this.SERVICE_NAME, startBlock);
-
-    const backfillOnStartup = this.configService.get(
-      'peplLiquidation.backfillOnStartup',
-      { infer: true },
-    );
-
-    if (backfillOnStartup) {
-      this.logger.log('Backfill on startup is enabled for PEPL liquidation');
-      // Backfill will be triggered by the scheduler
-    }
-
+  async onModuleInit(): Promise<void> {
+    await super.onModuleInit();
     this.logger.log(
-      `PEPL Liquidation Orchestrator initialized with start block: ${startBlock}, batch size: ${this.batchSize}`,
+      `PEPL Liquidation Orchestrator initialized with start block: ${this.getStartBlock()}, batch size: ${this.batchSize}`,
     );
   }
 
@@ -221,26 +194,6 @@ export class PeplLiquidationOrchestratorService implements OnModuleInit {
   private async savePeplEventsBatch(events: MoneyMarketRaw[]): Promise<void> {
     await saveInChunks(this.moneyMarketRepository, events);
     this.logger.debug(`Saved ${events.length} PEPL events to database`);
-  }
-
-  /**
-   * Get last processed block from Redis
-   */
-  private async getLastProcessedBlock(): Promise<number> {
-    const lastBlock = await this.stateManager.getLastProcessedBlock(
-      this.SERVICE_NAME,
-    );
-
-    if (lastBlock === null) {
-      // State should be initialized in onModuleInit, but handle edge case
-      const startBlock =
-        this.configService.get('peplLiquidation.startBlock', {
-          infer: true,
-        }) || 1_000_000;
-      return startBlock - 1;
-    }
-
-    return lastBlock;
   }
 
   /**
