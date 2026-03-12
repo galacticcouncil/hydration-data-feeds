@@ -31,18 +31,52 @@ import {
 export class ChartsService {
   private readonly logger = new Logger(ChartsService.name);
 
+  private static readonly OMNIPOOL_COLS: Array<{ expr: string; alias: string }> = [
+    { expr: 'total_fee_usd', alias: 'total' },
+    { expr: `(fees_by_type->>'asset_referral')::numeric`, alias: 'asset_lp' },
+    { expr: `(fees_by_type->>'asset_omnipool')::numeric`, alias: 'asset_protocol' },
+    { expr: `(fees_by_type->>'protocol_treasury')::numeric`, alias: 'protocol_protocol' },
+    { expr: `(fees_by_type->>'protocol_burned')::numeric`, alias: 'protocol_burned' },
+    { expr: `(fees_by_type->>'asset')::numeric`, alias: 'asset' },
+    { expr: `(fees_by_type->>'protocol')::numeric`, alias: 'protocol' },
+  ];
+
+  private static readonly MONEY_MARKET_COLS: Array<{ expr: string; alias: string }> = [
+    { expr: 'total_liquidation_fee_usd', alias: 'total' },
+    { expr: `(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`, alias: 'liquidation_penalty' },
+    { expr: `(fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric`, alias: 'pepl_liquidation_profit' },
+    { expr: `(fees_by_type->>'ASSET_RESERVE')::numeric`, alias: 'asset_reserve' },
+  ];
+
   constructor(
     @InjectDataSource()
     private dataSource: DataSource,
   ) {}
+
+  private buildCols(
+    cols: Array<{ expr: string; alias: string }>,
+    g: (col: string) => string,
+    aggregate = false,
+  ): string {
+    return cols
+      .map(({ expr, alias }) =>
+        aggregate ? `SUM(${g(expr)}) as ${alias}` : `${g(expr)} as ${alias}`,
+      )
+      .join(',\n          ');
+  }
 
   async getFees(
     query: GetFeesQueryDto,
   ): Promise<SingleFeeTypeResponseDto | AllFeeTypesResponseDto> {
     this.logger.log(`Incoming request with query: ${JSON.stringify(query)}`);
 
-    const { productType, bucket, startTime, endTime, feeDestination, streamType, hsmAggregationType } =
-      this.buildQueryParams(query);
+    const productType = query.productType || ProductType.OMNIPOOL;
+    const bucket = query.bucketSize || BucketSize.ONE_HOUR;
+    const endTime = query.endTime || new Date().toISOString();
+    const startTime = query.startTime || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const feeDestination = query.feeDestination;
+    const streamType = query.streamType;
+    const hsmAggregationType = query.hsmAggregationType || HsmAggregationType.DELTA;
 
     this.logger.log(
       `Processed params - productType=${productType}, bucket=${bucket}, startTime=${startTime}, endTime=${endTime}, feeDestination=${feeDestination}, streamType=${streamType}, hsmAggregationType=${hsmAggregationType}`,
@@ -57,29 +91,6 @@ export class ChartsService {
       // streamType is a specific fee stream; feeDestination selects the sub-bucket
       return this.getSingleStreamType(productType, bucket, startTime, endTime, streamType!, feeDestination!, decoratedData, hsmAggregationType);
     }
-  }
-
-  private buildQueryParams(query: GetFeesQueryDto) {
-    const productType = query.productType || ProductType.OMNIPOOL;
-    const bucket = query.bucketSize || BucketSize.ONE_HOUR;
-    const endTime = query.endTime || new Date().toISOString();
-    const startTime =
-      query.startTime ||
-      new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
-    this.logger.debug(
-      `Built query params - productType: ${productType}, bucket: ${bucket}, startTime: ${startTime}, endTime: ${endTime}`,
-    );
-
-    return {
-      productType,
-      bucket,
-      startTime,
-      endTime,
-      feeDestination: query.feeDestination,
-      streamType: query.streamType,
-      hsmAggregationType: query.hsmAggregationType || HsmAggregationType.DELTA,
-    };
   }
 
   private async getSingleStreamType(
@@ -105,7 +116,7 @@ export class ChartsService {
       ORDER BY bucket ASC
     `;
 
-    this.logger.log(
+    this.logger.debug(
       `Executing SQL for single fee type:\nTable: ${tableName}\nQuery: ${sql}\nParams: [$1=${startTime}, $2=${endTime}]`,
     );
 
@@ -150,15 +161,7 @@ export class ChartsService {
       sql = `
         SELECT
           bucket as timestamp,
-          ${g('total_fee_usd')} as total,
-          -- Granular fee types
-          ${g(`(fees_by_type->>'asset_referral')::numeric`)} as asset_lp,
-          ${g(`(fees_by_type->>'asset_omnipool')::numeric`)} as asset_protocol,
-          ${g(`(fees_by_type->>'protocol_treasury')::numeric`)} as protocol_protocol,
-          ${g(`(fees_by_type->>'protocol_burned')::numeric`)} as protocol_burned,
-          -- Aggregated fee types
-          ${g(`(fees_by_type->>'asset')::numeric`)} as asset,
-          ${g(`(fees_by_type->>'protocol')::numeric`)} as protocol
+          ${this.buildCols(ChartsService.OMNIPOOL_COLS, g)}
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
         ORDER BY bucket ASC
@@ -167,10 +170,7 @@ export class ChartsService {
       sql = `
         SELECT
           bucket as timestamp,
-          ${g('total_liquidation_fee_usd')} as total,
-          ${g(`(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`)} as liquidation_penalty,
-          ${g(`(fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric`)} as pepl_liquidation_profit,
-          ${g(`(fees_by_type->>'ASSET_RESERVE')::numeric`)} as asset_reserve
+          ${this.buildCols(ChartsService.MONEY_MARKET_COLS, g)}
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
         ORDER BY bucket ASC
@@ -180,11 +180,12 @@ export class ChartsService {
       // Note: No 'total' field - borrow_apr (SUM) and hsm_revenue (AVG) cannot be meaningfully combined
       // borrow_apr comes from borrow_apr_${bucket}, hsm_revenue from hsm_revenue_${bucket}
       const hsmRevenueTable = this.getTableName(productType, bucket, StreamType.HSM_REVENUE, hsmAggregationType);
+      const hsmColumnName = hsmAggregationType === HsmAggregationType.DELTA ? 'hsm_revenue_delta' : 'hsm_revenue';
       sql = `
         SELECT
           b.bucket as timestamp,
           ${g('b.borrow_apr')} as borrow_apr,
-          ${g('h.hsm_revenue')} as hsm_revenue
+          ${g(`h.${hsmColumnName}`)} as hsm_revenue
         FROM ${tableName} b
         LEFT JOIN ${hsmRevenueTable} h ON b.bucket = h.bucket
         WHERE b.bucket >= $1 AND b.bucket <= $2
@@ -192,7 +193,7 @@ export class ChartsService {
       `;
     }
 
-    this.logger.log(
+    this.logger.debug(
       `Executing SQL for all fee types:\nTable: ${tableName}\nQuery: ${sql}\nParams: [$1=${startTime}, $2=${endTime}]`,
     );
 
@@ -295,29 +296,26 @@ export class ChartsService {
     return { data, periodAggregate: aggregates };
   }
 
-  private getTableName(productType: ProductType, bucket: BucketSize, streamType?: StreamType, hsmAggregationType: HsmAggregationType = HsmAggregationType.CUMULATIVE): string {
-    // Convert product type and bucket to table name
-    if (productType === ProductType.OMNIPOOL) {
-      return `fees_${bucket}`;
-    } else if (productType === ProductType.MONEY_MARKET) {
-      return `liquidation_fees_${bucket}`;
-    } else if (productType === ProductType.HOLLAR) {
-      // HSM revenue has its own table
-      if (streamType === StreamType.HSM_REVENUE) {
-        // Use delta table if aggregationType is DELTA
-        if (hsmAggregationType === HsmAggregationType.DELTA) {
-          return `hsm_revenue_delta_${bucket}`;
-        }
-        return `hsm_revenue_${bucket}`;
-      }
-      // Borrow APR has its own dedicated table
-      if (streamType === StreamType.BORROW_APR) {
-        return `borrow_apr_${bucket}`;
-      }
-      return `borrow_apr_${bucket}`;
+  private static readonly VALID_BUCKETS = new Set(Object.values(BucketSize));
+
+  private getTableName(
+    productType: ProductType,
+    bucket: BucketSize,
+    streamType?: StreamType,
+    hsmAggregationType: HsmAggregationType = HsmAggregationType.CUMULATIVE,
+  ): string {
+    if (!ChartsService.VALID_BUCKETS.has(bucket)) {
+      throw new Error(`Invalid bucket size: ${bucket}`);
     }
-    // Fallback to liquidation_fees for any other product type
-    return `liquidation_fees_${bucket}`;
+    if (productType === ProductType.OMNIPOOL) return `fees_${bucket}`;
+    if (productType === ProductType.MONEY_MARKET) return `liquidation_fees_${bucket}`;
+    // HOLLAR
+    if (streamType === StreamType.HSM_REVENUE) {
+      return hsmAggregationType === HsmAggregationType.DELTA
+        ? `hsm_revenue_delta_${bucket}`
+        : `hsm_revenue_${bucket}`;
+    }
+    return `borrow_apr_${bucket}`;
   }
 
   private getValueColumn(productType: ProductType, streamType: StreamType, feeDestination: FeeDestination, hsmAggregationType: HsmAggregationType = HsmAggregationType.CUMULATIVE): string {
@@ -548,67 +546,56 @@ export class ChartsService {
     decoratedData: boolean = true,
     hsmAggregationType: HsmAggregationType = HsmAggregationType.DELTA,
   ): Promise<AggregateAllFeesResponseDto> {
-    const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
+    // Only OMNIPOOL + ASSET/PROTOCOL are supported granularly
+    if (
+      productType !== ProductType.OMNIPOOL ||
+      (streamType !== StreamType.ASSET && streamType !== StreamType.PROTOCOL)
+    ) {
+      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period, decoratedData, hsmAggregationType);
+    }
 
+    const tableName = this.getTableName(productType, BucketSize.ONE_HOUR);
     const g = (col: string) => decoratedData ? `GREATEST(${col}, 0)` : col;
 
     let sql: string;
     let aggregate: Record<string, number>;
 
-    if (productType === ProductType.OMNIPOOL) {
-      if (streamType === StreamType.ASSET) {
-        // omnipool + asset + total → Returns: total, asset_lp, asset_protocol
-        sql = `
-          SELECT
-            SUM(${g(`(fees_by_type->>'asset')::numeric`)}) as total,
-            SUM(${g(`(fees_by_type->>'asset_referral')::numeric`)}) as asset_lp,
-            SUM(${g(`(fees_by_type->>'asset_omnipool')::numeric`)}) as asset_protocol
-          FROM ${tableName}
-          WHERE bucket >= $1 AND bucket <= $2
-        `;
-
-        const result = await this.dataSource.query(sql, [startTime, endTime]);
-
-        aggregate = {
-          total: parseFloat(result[0]?.total || '0'),
-          asset_lp: parseFloat(result[0]?.asset_lp || '0'),
-          asset_protocol: parseFloat(result[0]?.asset_protocol || '0'),
-        };
-      } else if (streamType === StreamType.PROTOCOL) {
-        // omnipool + protocol + total → Returns: total, protocol_protocol, protocol_burned
-        sql = `
-          SELECT
-            SUM(${g(`(fees_by_type->>'protocol')::numeric`)}) as total,
-            SUM(${g(`(fees_by_type->>'protocol_treasury')::numeric`)}) as protocol_protocol,
-            SUM(${g(`(fees_by_type->>'protocol_burned')::numeric`)}) as protocol_burned
-          FROM ${tableName}
-          WHERE bucket >= $1 AND bucket <= $2
-        `;
-
-        const result = await this.dataSource.query(sql, [startTime, endTime]);
-
-        aggregate = {
-          total: parseFloat(result[0]?.total || '0'),
-          protocol_protocol: parseFloat(result[0]?.protocol_protocol || '0'),
-          protocol_burned: parseFloat(result[0]?.protocol_burned || '0'),
-        };
-      } else {
-        return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period, decoratedData, hsmAggregationType);
-      }
+    if (streamType === StreamType.ASSET) {
+      // omnipool + asset + total → Returns: total, asset_lp, asset_protocol
+      sql = `
+        SELECT
+          SUM(${g(`(fees_by_type->>'asset')::numeric`)}) as total,
+          SUM(${g(`(fees_by_type->>'asset_referral')::numeric`)}) as asset_lp,
+          SUM(${g(`(fees_by_type->>'asset_omnipool')::numeric`)}) as asset_protocol
+        FROM ${tableName}
+        WHERE bucket >= $1 AND bucket <= $2
+      `;
+      const result = await this.dataSource.query(sql, [startTime, endTime]);
+      aggregate = {
+        total: parseFloat(result[0]?.total || '0'),
+        asset_lp: parseFloat(result[0]?.asset_lp || '0'),
+        asset_protocol: parseFloat(result[0]?.asset_protocol || '0'),
+      };
     } else {
-      return this.getAggregatedAllFeeTypes(productType, startTime, endTime, period, decoratedData, hsmAggregationType);
+      // omnipool + protocol + total → Returns: total, protocol_protocol, protocol_burned
+      sql = `
+        SELECT
+          SUM(${g(`(fees_by_type->>'protocol')::numeric`)}) as total,
+          SUM(${g(`(fees_by_type->>'protocol_treasury')::numeric`)}) as protocol_protocol,
+          SUM(${g(`(fees_by_type->>'protocol_burned')::numeric`)}) as protocol_burned
+        FROM ${tableName}
+        WHERE bucket >= $1 AND bucket <= $2
+      `;
+      const result = await this.dataSource.query(sql, [startTime, endTime]);
+      aggregate = {
+        total: parseFloat(result[0]?.total || '0'),
+        protocol_protocol: parseFloat(result[0]?.protocol_protocol || '0'),
+        protocol_burned: parseFloat(result[0]?.protocol_burned || '0'),
+      };
     }
 
-    this.logger.log(
-      `Aggregated granular fees for ${streamType}: ${JSON.stringify(aggregate)}`,
-    );
-
-    return {
-      aggregate,
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      period,
-    };
+    this.logger.log(`Aggregated granular fees for ${streamType}: ${JSON.stringify(aggregate)}`);
+    return { aggregate, startTime: startTime.toISOString(), endTime: endTime.toISOString(), period };
   }
 
   /**
@@ -631,25 +618,14 @@ export class ChartsService {
     if (productType === ProductType.OMNIPOOL) {
       sql = `
         SELECT
-          SUM(${g('total_fee_usd')}) as total,
-          -- Granular fee types
-          SUM(${g(`(fees_by_type->>'asset_referral')::numeric`)}) as asset_lp,
-          SUM(${g(`(fees_by_type->>'asset_omnipool')::numeric`)}) as asset_protocol,
-          SUM(${g(`(fees_by_type->>'protocol_treasury')::numeric`)}) as protocol_protocol,
-          SUM(${g(`(fees_by_type->>'protocol_burned')::numeric`)}) as protocol_burned,
-          -- Aggregated fee types
-          SUM(${g(`(fees_by_type->>'asset')::numeric`)}) as asset,
-          SUM(${g(`(fees_by_type->>'protocol')::numeric`)}) as protocol
+          ${this.buildCols(ChartsService.OMNIPOOL_COLS, g, true)}
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
     } else if (productType === ProductType.MONEY_MARKET) {
       sql = `
         SELECT
-          SUM(${g('total_liquidation_fee_usd')}) as total,
-          SUM(${g(`(fees_by_type->>'LIQUIDATION_PENALTY')::numeric`)}) as liquidation_penalty,
-          SUM(${g(`(fees_by_type->>'PEPL_LIQUIDATION_PROFIT')::numeric`)}) as pepl_liquidation_profit,
-          SUM(${g(`(fees_by_type->>'ASSET_RESERVE')::numeric`)}) as asset_reserve
+          ${this.buildCols(ChartsService.MONEY_MARKET_COLS, g, true)}
         FROM ${tableName}
         WHERE bucket >= $1 AND bucket <= $2
       `;
