@@ -5,10 +5,10 @@ import { CommonModule } from '../common/common.module';
 import { BorrowAprRaw } from '../database/entities/borrow-apr-raw.entity';
 import { HsmRevenueRaw } from '../database/entities/hsm-revenue-raw.entity';
 import { GraphqlClientModule } from '../graphql-client/graphql-client.module';
-import { IngestionModule } from '../ingestion/ingestion.module';
 import { BorrowAprScheduler } from './schedulers/borrow-apr.scheduler';
 import { HsmRevenueScheduler } from './schedulers/hsm-revenue.scheduler';
 import { BorrowAprFetcherService } from './services/borrow-apr-fetcher.service';
+import { BorrowAprCalculatorService } from './services/borrow-apr-calculator.service';
 import { BorrowAprOrchestratorService } from './services/borrow-apr-orchestrator.service';
 import { BorrowAprTransformerService } from './services/borrow-apr-transformer.service';
 import { HsmRevenueCalculatorService } from './services/hsm-revenue-calculator.service';
@@ -25,7 +25,6 @@ import { HsmRevenueTransformerService } from './services/hsm-revenue-transformer
     TypeOrmModule.forFeature([HsmRevenueRaw, BorrowAprRaw]),
     GraphqlClientModule,
     CommonModule,
-    IngestionModule,
   ],
   providers: [
     HsmRevenueFetcherService,
@@ -34,6 +33,7 @@ import { HsmRevenueTransformerService } from './services/hsm-revenue-transformer
     HsmRevenueOrchestratorService,
     HsmRevenueScheduler,
     BorrowAprFetcherService,
+    BorrowAprCalculatorService,
     BorrowAprTransformerService,
     BorrowAprOrchestratorService,
     BorrowAprScheduler,

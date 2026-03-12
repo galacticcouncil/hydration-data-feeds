@@ -1,20 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { AssetRegistryService } from '../../common/services/asset-registry.service';
-import { normalizeAmount } from '../../common/utils/amount.utils';
+import { PriceFetcherService } from '../../common/services/price-fetcher.service';
 import { BorrowAprRaw } from '../../database/entities/borrow-apr-raw.entity';
-import { GraphqlFetcherService } from '../../ingestion/services/graphql-fetcher.service';
+import { BorrowAprCalculatorService } from './borrow-apr-calculator.service';
 import { BorrowAprTransferNode } from '../../graphql-client/types/graphql-response.types';
-
-// Treasury and zero address constants for direction detection
-const BORROW_APR_TREASURY_ADDRESS = '8c0f3b9602374198974d2b2679d14a386f5b108e';
-const ZERO_ADDRESS = '0000000000000000000000000000000000000000000000000000000000000000';
 
 /**
  * Service responsible for transforming Borrow APR transfers into database entities
  * - Normalizes raw amount using asset decimals (via AssetRegistryService)
- * - Fetches nearest spot prices (via GraphqlFetcherService)
- * - Computes SIGNED amounts based on transfer direction:
+ * - Fetches nearest spot prices (via PriceFetcherService)
+ * - Computes SIGNED amounts based on transfer direction (via BorrowAprCalculatorService):
  *   - Incoming (TO treasury): positive amount, direction = 'IN'
  *   - Outgoing (FROM treasury TO zero): negative amount, direction = 'OUT'
  * - Net Borrow APR = SUM(signed amount * price) in continuous aggregates
@@ -25,7 +21,8 @@ export class BorrowAprTransformerService {
 
   constructor(
     private readonly assetRegistry: AssetRegistryService,
-    private readonly graphqlFetcher: GraphqlFetcherService,
+    private readonly priceFetcher: PriceFetcherService,
+    private readonly calculator: BorrowAprCalculatorService,
   ) {}
 
   /**
@@ -51,7 +48,7 @@ export class BorrowAprTransformerService {
     const decimalsMap = await this.assetRegistry.getDecimalsBatch(assetIds);
 
     // Batch-fetch nearest spot prices at the highest block in the batch
-    const priceMap = await this.graphqlFetcher.buildBatchPriceMap(assetIds, highestBlockHeight);
+    const priceMap = await this.priceFetcher.buildBatchPriceMap(assetIds, highestBlockHeight);
 
     const entities: BorrowAprRaw[] = [];
 
@@ -65,17 +62,8 @@ export class BorrowAprTransformerService {
         continue;
       }
 
-      const normalizedAmount = normalizeAmount(transfer.amount, decimals);
+      const { signedAmount, direction } = this.calculator.calculate(transfer, decimals);
       const spotPrice = priceMap[transfer.assetId] || '0';
-
-      // Determine direction: incoming (TO treasury) or outgoing (FROM treasury TO zero)
-      const isIncoming = transfer.toId.toLowerCase().includes(BORROW_APR_TREASURY_ADDRESS);
-      const direction = isIncoming ? 'IN' : 'OUT';
-
-      // Sign the amount: positive for incoming, negative for outgoing
-      const signedAmount = isIncoming
-        ? normalizedAmount
-        : (-parseFloat(normalizedAmount)).toString();
 
       const entity = new BorrowAprRaw();
       entity.time = new Date(transfer.paraTimestamp);

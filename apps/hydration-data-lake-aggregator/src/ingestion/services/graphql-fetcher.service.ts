@@ -2,20 +2,20 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import {
-  GET_ASSET_PRICES_AT_BLOCK_QUERY,
-  GET_NEAREST_ASSET_PRICES_QUERY,
   GET_SWAPS_QUERY,
   GET_ROUTED_TRADES_QUERY,
 } from '../../graphql-client/queries/swaps.queries';
 import {
-  AssetSpotPriceNode,
-  GetAssetPricesAtBlockResponse,
   GetSwapsResponse,
   GetRoutedTradesResponse,
   SwapNode,
   RoutedTradeNode,
 } from '../../graphql-client/types/graphql-response.types';
 import { ConfigService } from '@nestjs/config';
+import { AssetPriceMap, PriceFetcherService } from '../../common/services/price-fetcher.service';
+
+// Re-export for callers that import AssetPriceMap from this module
+export type { AssetPriceMap };
 
 // Union type to handle both legacy swaps and new routed trades
 export type SwapOrRoutedTradeNode = SwapNode | RoutedTradeNode;
@@ -32,10 +32,6 @@ export interface FetchedSwapsData {
   totalCount: number;
 }
 
-export interface AssetPriceMap {
-  [assetId: string]: string; // assetId -> priceNormalised
-}
-
 @Injectable()
 export class GraphqlFetcherService {
   private readonly logger = new Logger(GraphqlFetcherService.name);
@@ -43,6 +39,7 @@ export class GraphqlFetcherService {
   constructor(
     private graphqlClient: GraphqlClientService,
     private configService: ConfigService,
+    private priceFetcher: PriceFetcherService,
   ) {}
 
   /**
@@ -80,154 +77,6 @@ export class GraphqlFetcherService {
     } catch (error) {
       this.logger.error(
         `Failed to fetch swaps for blocks ${fromBlock}-${toBlock}`,
-        error.stack,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Fetch asset USD prices at a specific block height
-   * Returns a map of assetId -> priceNormalised (USD price)
-   */
-  async fetchAssetPricesAtBlock(
-    assetIds: string[],
-    blockHeight: number,
-  ): Promise<AssetPriceMap> {
-    if (assetIds.length === 0) {
-      return {};
-    }
-
-    this.logger.debug(
-      `Fetching prices for ${assetIds.length} assets at block ${blockHeight}`,
-    );
-
-    const variables = {
-      assetIds,
-      blockHeight,
-    };
-
-    try {
-      const response =
-        await this.graphqlClient.query<GetAssetPricesAtBlockResponse>(
-          GET_ASSET_PRICES_AT_BLOCK_QUERY,
-          variables,
-        );
-
-      const priceMap: AssetPriceMap = {};
-
-      response.assetSpotPriceHistoricalData.nodes.forEach((priceNode) => {
-        const assetId = priceNode.assetInId;
-        const usdPrice = priceNode.priceNormalised;
-
-        priceMap[assetId] = usdPrice;
-      });
-
-      this.logger.debug(
-        `Fetched prices for ${Object.keys(priceMap).length} assets`,
-      );
-
-      return priceMap;
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch asset prices at block ${blockHeight}`,
-        error.stack,
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Single-pass price fetch: queries up to 500 rows ordered by block desc.
-   * Returns whatever assets were covered — callers handle missing ones.
-   */
-  private async fetchNearestPricesOnce(
-    assetIds: string[],
-    blockHeight: number,
-  ): Promise<AssetPriceMap> {
-    const response =
-      await this.graphqlClient.query<GetAssetPricesAtBlockResponse>(
-        GET_NEAREST_ASSET_PRICES_QUERY,
-        { assetIds, blockHeight },
-      );
-
-    const assetPricesByBlock = new Map<string, AssetSpotPriceNode>();
-
-    response.assetSpotPriceHistoricalData.nodes.forEach((priceNode) => {
-      const existing = assetPricesByBlock.get(priceNode.assetInId);
-      if (!existing || priceNode.paraBlockHeight > existing.paraBlockHeight) {
-        assetPricesByBlock.set(priceNode.assetInId, priceNode);
-      }
-    });
-
-    const priceMap: AssetPriceMap = {};
-    assetPricesByBlock.forEach((priceNode, assetId) => {
-      priceMap[assetId] = priceNode.priceNormalised;
-    });
-
-    return priceMap;
-  }
-
-  /**
-   * Fetch nearest historical asset prices for a given block height.
-   * Uses lessThanOrEqualTo filter to get the most recent price at or before the target block.
-   *
-   * Two-pass strategy: first request covers all assets with a 500-row budget. High-frequency
-   * assets can crowd out low-frequency ones in that window, so any assets not covered in the
-   * first pass get a dedicated second request where all 500 rows belong to them alone.
-   */
-  async fetchNearestAssetPrices(
-    assetIds: string[],
-    blockHeight: number,
-  ): Promise<AssetPriceMap> {
-    if (assetIds.length === 0) {
-      return {};
-    }
-
-    this.logger.debug(
-      `Fetching nearest prices for ${assetIds.length} assets at or before block ${blockHeight}`,
-    );
-
-    const spotPriceBaseAssetId: string = this.configService.get(
-      `price.spotPriceBaseAssetId`,
-    )!;
-
-    try {
-      // First pass: all assets together
-      const priceMap = await this.fetchNearestPricesOnce(assetIds, blockHeight);
-
-      // Second pass: re-fetch only the assets that weren't covered
-      // (exclude the base asset — it's always set to 1:1 below)
-      const missingAssetIds = assetIds.filter(
-        (id) => !priceMap[id] && id !== spotPriceBaseAssetId,
-      );
-
-      if (missingAssetIds.length > 0) {
-        this.logger.debug(
-          `Re-fetching prices for ${missingAssetIds.length} assets not covered in first pass: ${missingAssetIds.join(', ')}`,
-        );
-
-        const fallbackMap = await this.fetchNearestPricesOnce(
-          missingAssetIds,
-          blockHeight,
-        );
-
-        Object.assign(priceMap, fallbackMap);
-      }
-
-      // Spot price base asset is always 1:1
-      if (assetIds.includes(spotPriceBaseAssetId) && !priceMap[spotPriceBaseAssetId]) {
-        priceMap[spotPriceBaseAssetId] = '1';
-      }
-
-      this.logger.debug(
-        `Fetched nearest prices for ${Object.keys(priceMap).length}/${assetIds.length} assets`,
-      );
-
-      return priceMap;
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch nearest asset prices for block ${blockHeight}`,
         error.stack,
       );
       throw error;
@@ -374,7 +223,7 @@ export class GraphqlFetcherService {
     if (assetIds.length === 0) return {};
 
     try {
-      const fetchedPrices = await this.fetchNearestAssetPrices(assetIds, blockHeight);
+      const fetchedPrices = await this.priceFetcher.fetchNearestAssetPrices(assetIds, blockHeight);
 
       const missingAssetIds = assetIds.filter((id) => !fetchedPrices[id]);
       if (missingAssetIds.length > 0) {

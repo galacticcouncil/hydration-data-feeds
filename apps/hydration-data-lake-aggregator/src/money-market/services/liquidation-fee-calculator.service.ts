@@ -10,6 +10,7 @@ import {
   addNormalizedAmounts,
   normalizeAmount,
 } from '../../common/utils/amount.utils';
+import { ZERO_ADDRESS_HEX } from '../../common/constants/blockchain-addresses.constants';
 import {
   LiquidationEventNode,
   TransferNode,
@@ -41,8 +42,7 @@ export interface LiquidationFees {
 @Injectable()
 export class LiquidationFeeCalculatorService {
   private readonly logger = new Logger(LiquidationFeeCalculatorService.name);
-  private readonly ZERO_ADDRESS =
-    '0x0000000000000000000000000000000000000000000000000000000000000000';
+  private readonly ZERO_ADDRESS = ZERO_ADDRESS_HEX;
 
   constructor(private readonly assetRegistry: AssetRegistryService) {}
 

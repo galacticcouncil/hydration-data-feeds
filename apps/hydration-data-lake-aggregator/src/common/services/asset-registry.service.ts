@@ -1,12 +1,13 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
 import { GET_ALL_ASSETS_QUERY } from '../../graphql-client/queries/swaps.queries';
 import { GetAllAssetsResponse } from '../../graphql-client/types/graphql-response.types';
 import { AppConfig } from '../../config/app.config';
 
 @Injectable()
-export class AssetRegistryService implements OnModuleInit {
+export class AssetRegistryService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AssetRegistryService.name);
 
   // In-memory cache (primary storage - no Redis needed since all assets loaded on startup)
@@ -18,6 +19,7 @@ export class AssetRegistryService implements OnModuleInit {
   constructor(
     private readonly graphqlClient: GraphqlClientService,
     private readonly configService: ConfigService<AppConfig>,
+    private readonly schedulerRegistry: SchedulerRegistry,
   ) {
     const config = this.configService.get('assetRegistry', { infer: true });
     if (!config) {
@@ -33,16 +35,20 @@ export class AssetRegistryService implements OnModuleInit {
     this.logger.log('Initializing asset registry...');
     await this.refreshAssetRegistry();
 
-    // Schedule periodic refresh
-    setInterval(() => {
+    const interval = setInterval(() => {
       this.refreshAssetRegistry().catch((err) =>
         this.logger.error('Failed to refresh asset registry', err.stack),
       );
     }, this.refreshInterval);
+    this.schedulerRegistry.addInterval('asset-registry-refresh', interval);
 
     this.logger.log(
       `Asset registry initialized with ${this.assetCache.size} assets. Refresh interval: ${this.refreshInterval / 1000}s`,
     );
+  }
+
+  onModuleDestroy() {
+    clearInterval(this.schedulerRegistry.getInterval('asset-registry-refresh'));
   }
 
   /**

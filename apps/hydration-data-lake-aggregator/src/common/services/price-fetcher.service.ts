@@ -1,0 +1,156 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+import { GraphqlClientService } from '../../graphql-client/graphql-client.service';
+import {
+  GET_ASSET_PRICES_AT_BLOCK_QUERY,
+  GET_NEAREST_ASSET_PRICES_QUERY,
+} from '../../graphql-client/queries/swaps.queries';
+import {
+  AssetSpotPriceNode,
+  GetAssetPricesAtBlockResponse,
+} from '../../graphql-client/types/graphql-response.types';
+
+export interface AssetPriceMap {
+  [assetId: string]: string; // assetId -> priceNormalised
+}
+
+@Injectable()
+export class PriceFetcherService {
+  private readonly logger = new Logger(PriceFetcherService.name);
+
+  constructor(
+    private readonly graphqlClient: GraphqlClientService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  /**
+   * Fetch asset USD prices at a specific block height
+   */
+  async fetchAssetPricesAtBlock(
+    assetIds: string[],
+    blockHeight: number,
+  ): Promise<AssetPriceMap> {
+    if (assetIds.length === 0) return {};
+
+    const response = await this.graphqlClient.query<GetAssetPricesAtBlockResponse>(
+      GET_ASSET_PRICES_AT_BLOCK_QUERY,
+      { assetIds, blockHeight },
+    );
+
+    const priceMap: AssetPriceMap = {};
+    response.assetSpotPriceHistoricalData.nodes.forEach((priceNode) => {
+      priceMap[priceNode.assetInId] = priceNode.priceNormalised;
+    });
+
+    return priceMap;
+  }
+
+  /**
+   * Fetch nearest historical asset prices at or before a given block height.
+   *
+   * Two-pass strategy: first request covers all assets with a 500-row budget. High-frequency
+   * assets can crowd out low-frequency ones in that window, so any assets not covered in the
+   * first pass get a dedicated second request where all 500 rows belong to them alone.
+   */
+  async fetchNearestAssetPrices(
+    assetIds: string[],
+    blockHeight: number,
+  ): Promise<AssetPriceMap> {
+    if (assetIds.length === 0) return {};
+
+    this.logger.debug(
+      `Fetching nearest prices for ${assetIds.length} assets at or before block ${blockHeight}`,
+    );
+
+    const spotPriceBaseAssetId: string = this.configService.get(
+      'price.spotPriceBaseAssetId',
+    )!;
+
+    try {
+      const priceMap = await this.fetchNearestPricesOnce(assetIds, blockHeight);
+
+      // Second pass for assets not covered (excluding base asset — always set to 1:1 below)
+      const missingAssetIds = assetIds.filter(
+        (id) => !priceMap[id] && id !== spotPriceBaseAssetId,
+      );
+
+      if (missingAssetIds.length > 0) {
+        this.logger.debug(
+          `Re-fetching prices for ${missingAssetIds.length} assets not covered in first pass`,
+        );
+        const fallbackMap = await this.fetchNearestPricesOnce(missingAssetIds, blockHeight);
+        Object.assign(priceMap, fallbackMap);
+      }
+
+      if (assetIds.includes(spotPriceBaseAssetId) && !priceMap[spotPriceBaseAssetId]) {
+        priceMap[spotPriceBaseAssetId] = '1';
+      }
+
+      this.logger.debug(
+        `Fetched nearest prices for ${Object.keys(priceMap).length}/${assetIds.length} assets`,
+      );
+
+      return priceMap;
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch nearest asset prices for block ${blockHeight}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch prices for a set of assets and build a complete price map with '0' fallback for missing assets.
+   */
+  async buildBatchPriceMap(
+    assetIds: string[],
+    blockHeight: number,
+  ): Promise<AssetPriceMap> {
+    if (assetIds.length === 0) return {};
+
+    try {
+      const fetchedPrices = await this.fetchNearestAssetPrices(assetIds, blockHeight);
+
+      const missingAssetIds = assetIds.filter((id) => !fetchedPrices[id]);
+      if (missingAssetIds.length > 0) {
+        this.logger.warn(
+          `Block ${blockHeight}: ${missingAssetIds.length}/${assetIds.length} assets have no historical prices: ${missingAssetIds.join(', ')}`,
+        );
+      }
+
+      return Object.fromEntries(assetIds.map((id) => [id, fetchedPrices[id] || '0']));
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch batch prices for block ${blockHeight}: ${error.message}`,
+      );
+      return Object.fromEntries(assetIds.map((id) => [id, '0']));
+    }
+  }
+
+  private async fetchNearestPricesOnce(
+    assetIds: string[],
+    blockHeight: number,
+  ): Promise<AssetPriceMap> {
+    const response = await this.graphqlClient.query<GetAssetPricesAtBlockResponse>(
+      GET_NEAREST_ASSET_PRICES_QUERY,
+      { assetIds, blockHeight },
+    );
+
+    const assetPricesByBlock = new Map<string, AssetSpotPriceNode>();
+    response.assetSpotPriceHistoricalData.nodes.forEach((priceNode) => {
+      const existing = assetPricesByBlock.get(priceNode.assetInId);
+      if (!existing || priceNode.paraBlockHeight > existing.paraBlockHeight) {
+        assetPricesByBlock.set(priceNode.assetInId, priceNode);
+      }
+    });
+
+    const priceMap: AssetPriceMap = {};
+    assetPricesByBlock.forEach((priceNode, assetId) => {
+      priceMap[assetId] = priceNode.priceNormalised;
+    });
+
+    return priceMap;
+  }
+}

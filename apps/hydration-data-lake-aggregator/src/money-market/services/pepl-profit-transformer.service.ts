@@ -9,10 +9,7 @@ import {
 import {
   PeplLiquidationEventNode,
 } from '../../graphql-client/types/graphql-response.types';
-import {
-  AssetPriceMap,
-  GraphqlFetcherService,
-} from '../../ingestion/services/graphql-fetcher.service';
+import { AssetPriceMap, PriceFetcherService } from '../../common/services/price-fetcher.service';
 
 /**
  * Service responsible for transforming PEPL liquidation events into database entities
@@ -22,7 +19,7 @@ import {
 export class PeplProfitTransformerService {
   private readonly logger = new Logger(PeplProfitTransformerService.name);
 
-  constructor(private graphqlFetcher: GraphqlFetcherService) {}
+  constructor(private priceFetcher: PriceFetcherService) {}
 
   /**
    * Transform a single PEPL liquidation event into a MoneyMarketRaw entity
@@ -77,7 +74,7 @@ export class PeplProfitTransformerService {
     } else {
       // Fetch nearest historical prices for this block (handles sparse price data)
       try {
-        const fetchedPrices = await this.graphqlFetcher.fetchNearestAssetPrices(
+        const fetchedPrices = await this.priceFetcher.fetchNearestAssetPrices(
           feeAssetIds,
           event.paraBlockHeight,
         );
@@ -158,7 +155,7 @@ export class PeplProfitTransformerService {
         }
       }
 
-      priceMap = await this.graphqlFetcher.buildBatchPriceMap(
+      priceMap = await this.priceFetcher.buildBatchPriceMap(
         Array.from(allAssetIds),
         highestBlockHeight,
       );

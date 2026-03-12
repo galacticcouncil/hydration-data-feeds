@@ -1,12 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SwapRaw } from '../../database/entities/swap-raw.entity';
 import { FeeCalculatorService, CalculatedFeeData } from './fee-calculator.service';
-import {
-  AssetPriceMap,
-  GraphqlFetcherService,
-  SwapOrRoutedTradeNode,
-  isRoutedTradeNode,
-} from './graphql-fetcher.service';
+import { SwapOrRoutedTradeNode, isRoutedTradeNode } from './graphql-fetcher.service';
+import { AssetPriceMap, PriceFetcherService } from '../../common/services/price-fetcher.service';
 
 @Injectable()
 export class SwapTransformerService {
@@ -14,7 +10,7 @@ export class SwapTransformerService {
 
   constructor(
     private feeCalculator: FeeCalculatorService,
-    private graphqlFetcher: GraphqlFetcherService,
+    private priceFetcher: PriceFetcherService,
   ) {}
 
   /**
@@ -67,7 +63,7 @@ export class SwapTransformerService {
     } else {
       // Fetch nearest historical prices for this block (handles sparse price data)
       try {
-        const fetchedPrices = await this.graphqlFetcher.fetchNearestAssetPrices(
+        const fetchedPrices = await this.priceFetcher.fetchNearestAssetPrices(
           feeData.feeAssetIds,
           swap.paraBlockHeight,
         );
@@ -146,7 +142,7 @@ export class SwapTransformerService {
         }
       }
 
-      priceMap = await this.graphqlFetcher.buildBatchPriceMap(
+      priceMap = await this.priceFetcher.buildBatchPriceMap(
         Array.from(allAssetIds),
         blockHeight,
       );

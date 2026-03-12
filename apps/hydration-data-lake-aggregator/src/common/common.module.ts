@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { getRedisConfig } from '../config/redis.config';
 import { StateManagerService } from './services/state-manager.service';
 import { AssetRegistryService } from './services/asset-registry.service';
+import { PriceFetcherService } from './services/price-fetcher.service';
 import { GraphqlClientModule } from '../graphql-client/graphql-client.module';
 
 @Global()
@@ -15,7 +16,7 @@ import { GraphqlClientModule } from '../graphql-client/graphql-client.module';
     }),
     GraphqlClientModule,
   ],
-  providers: [StateManagerService, AssetRegistryService],
-  exports: [CacheModule, StateManagerService, AssetRegistryService],
+  providers: [StateManagerService, AssetRegistryService, PriceFetcherService],
+  exports: [CacheModule, StateManagerService, AssetRegistryService, PriceFetcherService],
 })
 export class CommonModule {}

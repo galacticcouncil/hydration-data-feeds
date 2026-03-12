@@ -9,10 +9,11 @@ import {
 import {
   AssetReserveEventNode,
 } from '../../graphql-client/types/graphql-response.types';
+import { AssetPriceMap, PriceFetcherService } from '../../common/services/price-fetcher.service';
 import {
-  AssetPriceMap,
-  GraphqlFetcherService,
-} from '../../ingestion/services/graphql-fetcher.service';
+  ZERO_ADDRESS_HEX,
+  MONEY_MARKET_TREASURY_ADDRESS_HEX,
+} from '../../common/constants/blockchain-addresses.constants';
 
 /**
  * Service responsible for transforming Asset Reserve events into database entities
@@ -22,7 +23,7 @@ import {
 export class AssetReserveTransformerService {
   private readonly logger = new Logger(AssetReserveTransformerService.name);
 
-  constructor(private graphqlFetcher: GraphqlFetcherService) {}
+  constructor(private priceFetcher: PriceFetcherService) {}
 
   /**
    * Transform a single Asset Reserve event into a MoneyMarketRaw entity
@@ -64,8 +65,8 @@ export class AssetReserveTransformerService {
       countInTotal?: boolean;
     }> = [
       {
-        fromId: '0x0000000000000000000000000000000000000000000000000000000000000000', // Minted from money market
-        toId: '0xe52567ff06acd6cbe7ba94dc777a3126e180b6d9', // Goes to treasury
+        fromId: ZERO_ADDRESS_HEX, // Minted from money market
+        toId: MONEY_MARKET_TREASURY_ADDRESS_HEX, // Goes to treasury
         assetId: event.assetId,
         amount: eventAmounts.get(event.assetId) || '0', // Normalized amount
         feeType: 'ASSET_RESERVE' as const,
@@ -87,7 +88,7 @@ export class AssetReserveTransformerService {
     } else {
       // Fetch nearest historical prices for this block (handles sparse price data)
       try {
-        const fetchedPrices = await this.graphqlFetcher.fetchNearestAssetPrices(
+        const fetchedPrices = await this.priceFetcher.fetchNearestAssetPrices(
           feeAssetIds,
           event.paraBlockHeight,
         );
@@ -168,7 +169,7 @@ export class AssetReserveTransformerService {
         }
       }
 
-      priceMap = await this.graphqlFetcher.buildBatchPriceMap(
+      priceMap = await this.priceFetcher.buildBatchPriceMap(
         Array.from(allAssetIds),
         highestBlockHeight,
       );

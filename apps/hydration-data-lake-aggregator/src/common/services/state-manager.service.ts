@@ -161,9 +161,7 @@ export class StateManagerService {
    * Get statistics for all services
    */
   async getAllServicesStats(): Promise<Map<string, IngestionState>> {
-    // Note: This would require scanning Redis keys with pattern matching
-    // For now, return stats for known services
-    const knownServices = ['swaps', 'money-market', 'lending'];
+    const knownServices = ['swaps', 'money-market', 'pepl-liquidation', 'asset-reserve', 'hsm-revenue', 'borrow-apr'];
     const stats = new Map<string, IngestionState>();
 
     for (const service of knownServices) {

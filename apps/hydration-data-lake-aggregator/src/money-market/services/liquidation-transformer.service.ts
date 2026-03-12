@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MoneyMarketRaw } from '../../database/entities/money-market-raw.entity';
 import { LiquidationFees } from './liquidation-fee-calculator.service';
-import {
-  AssetPriceMap,
-  GraphqlFetcherService,
-} from '../../ingestion/services/graphql-fetcher.service';
+import { AssetPriceMap, PriceFetcherService } from '../../common/services/price-fetcher.service';
 
 /**
  * Service responsible for transforming liquidation fees into database entities
@@ -14,7 +11,7 @@ import {
 export class LiquidationTransformerService {
   private readonly logger = new Logger(LiquidationTransformerService.name);
 
-  constructor(private graphqlFetcher: GraphqlFetcherService) {}
+  constructor(private priceFetcher: PriceFetcherService) {}
 
   /**
    * Transform liquidation fees to MoneyMarketRaw entity
@@ -44,7 +41,7 @@ export class LiquidationTransformerService {
     } else {
       // Fetch nearest historical prices for this block (handles sparse price data)
       try {
-        const fetchedPrices = await this.graphqlFetcher.fetchNearestAssetPrices(
+        const fetchedPrices = await this.priceFetcher.fetchNearestAssetPrices(
           fees.feeAssetIds,
           fees.blockHeight,
         );
@@ -111,7 +108,7 @@ export class LiquidationTransformerService {
         fees.feeAssetIds.forEach((id) => allAssetIds.add(id));
       }
 
-      priceMap = await this.graphqlFetcher.buildBatchPriceMap(
+      priceMap = await this.priceFetcher.buildBatchPriceMap(
         Array.from(allAssetIds),
         blockHeight,
       );
