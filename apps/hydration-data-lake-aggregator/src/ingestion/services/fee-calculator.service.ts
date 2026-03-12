@@ -367,26 +367,4 @@ export class FeeCalculatorService {
     };
   }
 
-  /**
-   * Calculate batch statistics for multiple swaps
-   * Returns aggregated statistics
-   * NOW ASYNC - since calculateSwapFees is async
-   * Works with both SwapNode and RoutedTradeNode
-   */
-  async calculateBatchStatistics(swaps: SwapOrRoutedTradeNode[]): Promise<{
-    totalSwaps: number;
-    totalFeeAssets: number;
-  }> {
-    const uniqueAssets = new Set<string>();
-
-    for (const swap of swaps) {
-      const feeData = await this.calculateSwapFees(swap);
-      feeData.feeAssetIds.forEach((assetId) => uniqueAssets.add(assetId));
-    }
-
-    return {
-      totalSwaps: swaps.length,
-      totalFeeAssets: uniqueAssets.size,
-    };
-  }
 }

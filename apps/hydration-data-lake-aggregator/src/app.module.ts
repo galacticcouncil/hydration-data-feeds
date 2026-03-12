@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,6 +17,7 @@ import { MoneyMarketModule } from './money-market/money-market.module';
     ConfigModule,
     DatabaseModule,
     GraphqlClientModule,
+    ScheduleModule.forRoot(),
     IngestionModule,
     MoneyMarketModule,
     HollarModule,

@@ -3,12 +3,11 @@ import {
   IsEnum,
   IsISO8601,
   IsOptional,
-  Validate,
 } from 'class-validator';
 
 import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsValidFeeCombinationConstraint } from '../validators/fee-combination.validator';
+import { IsValidFeeCombination } from '../validators/fee-combination.validator';
 
 export enum BucketSize {
   ONE_MIN = '1min',
@@ -60,7 +59,7 @@ export class GetFeesQueryDto {
   })
   @IsOptional()
   @IsEnum(ProductType)
-  @Validate(IsValidFeeCombinationConstraint)
+  @IsValidFeeCombination()
   productType?: ProductType = ProductType.OMNIPOOL;
 
   @ApiPropertyOptional({

@@ -50,3 +50,7 @@ export class IsValidFeeCombinationConstraint implements ValidatorConstraintInter
       'hollar+borrow_apr+protocol, hollar+hsm_revenue+protocol, hollar+total';
   }
 }
+
+export function IsValidFeeCombination() {
+  return Validate(IsValidFeeCombinationConstraint);
+}

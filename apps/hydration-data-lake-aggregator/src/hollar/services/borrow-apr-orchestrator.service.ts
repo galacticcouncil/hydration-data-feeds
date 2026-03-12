@@ -82,7 +82,6 @@ export class BorrowAprOrchestratorService extends BaseOrchestratorService {
 
       let hasMore = true;
       let currentFromBlock = lastProcessedBlock;
-      let highestProcessedBlock = lastProcessedBlock;
 
       while (hasMore) {
         const result = await this.processBatch(currentFromBlock, currentBlock, this.batchSize);
@@ -93,10 +92,6 @@ export class BorrowAprOrchestratorService extends BaseOrchestratorService {
           currentFromBlock = result.highestBlock;
         }
 
-        if (result.highestBlock > highestProcessedBlock) {
-          highestProcessedBlock = result.highestBlock;
-        }
-
         if (currentFromBlock >= currentBlock) {
           hasMore = false;
         }
@@ -104,9 +99,7 @@ export class BorrowAprOrchestratorService extends BaseOrchestratorService {
 
       // Always advance state to currentBlock so next run doesn't re-scan
       // the same range when no transfers are found
-      if (highestProcessedBlock < currentBlock) {
-        await this.stateManager.updateLastBlock(this.SERVICE_NAME, currentBlock);
-      }
+      await this.stateManager.updateLastBlock(this.SERVICE_NAME, currentBlock);
 
       this.logger.log('Borrow APR ingestion completed successfully');
     } catch (error) {

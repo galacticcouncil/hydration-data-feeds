@@ -5,9 +5,8 @@ import { AppConfig } from '../../config/app.config';
 import { IngestionOrchestratorService } from '../services/ingestion-orchestrator.service';
 
 @Injectable()
-export class IngestionScheduler {
-  private readonly logger = new Logger(IngestionScheduler.name);
-  private isRunning = false;
+export class SwapIngestionScheduler {
+  private readonly logger = new Logger(SwapIngestionScheduler.name);
 
   constructor(
     private configService: ConfigService<AppConfig>,
@@ -21,8 +20,7 @@ export class IngestionScheduler {
   @Cron('0 * * * * *', {
     name: 'swap-ingestion',
   })
-  async handleIngestionCron() {
-    // Check if backfill/ingestion is enabled
+  async handleSwapIngestion() {
     const backfillOnStartup = this.configService.get(
       'ingestion.backfillOnStartup',
       { infer: true },
@@ -33,30 +31,10 @@ export class IngestionScheduler {
       return;
     }
 
-    if (this.isRunning) {
-      this.logger.debug('Ingestion already running, skipping scheduled run');
-      return;
-    }
-
-    this.isRunning = true;
-
     try {
-      const intervalSeconds = this.configService.get(
-        'ingestion.intervalSeconds',
-        { infer: true },
-      );
-
-      this.logger.debug(
-        `Starting scheduled ingestion (interval: ${intervalSeconds}s)`,
-      );
-
       await this.ingestionOrchestrator.ingest();
-
-      this.logger.debug('Scheduled ingestion completed successfully');
     } catch (error) {
       this.logger.error('Scheduled ingestion failed', error.stack);
-    } finally {
-      this.isRunning = false;
     }
   }
 

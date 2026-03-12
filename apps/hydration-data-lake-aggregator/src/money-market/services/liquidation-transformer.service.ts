@@ -121,29 +121,7 @@ export class LiquidationTransformerService {
       liquidationFees.map((fees) => this.transformLiquidation(fees, priceMap)),
     );
 
-    const validLiquidations = transformedLiquidations.filter((liquidation) => {
-      // Validate required fields
-      if (
-        !liquidation.liquidation_event_id ||
-        !liquidation.time ||
-        !liquidation.block_height
-      ) {
-        this.logger.warn(
-          `Invalid liquidation data: missing required fields for liquidation ${liquidation.liquidation_event_id}`,
-        );
-        return false;
-      }
-
-      // Must have at least one fee
-      if (!liquidation.fee_asset_ids || liquidation.fee_asset_ids.length === 0) {
-        this.logger.warn(
-          `Liquidation ${liquidation.liquidation_event_id} has no fees - skipping`,
-        );
-        return false;
-      }
-
-      return true;
-    });
+    const validLiquidations = transformedLiquidations.filter((liquidation) => this.validateLiquidation(liquidation));
 
     this.logger.log(
       `Transformed ${validLiquidations.length}/${liquidationFees.length} liquidations successfully`,

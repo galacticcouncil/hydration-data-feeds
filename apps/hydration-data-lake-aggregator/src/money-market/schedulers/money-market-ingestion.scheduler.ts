@@ -11,7 +11,6 @@ import { MoneyMarketOrchestratorService } from '../services/money-market-orchest
 @Injectable()
 export class MoneyMarketIngestionScheduler {
   private readonly logger = new Logger(MoneyMarketIngestionScheduler.name);
-  private isRunning = false;
 
   constructor(
     private configService: ConfigService<AppConfig>,
@@ -25,8 +24,7 @@ export class MoneyMarketIngestionScheduler {
   @Cron('0 * * * * *', {
     name: 'money-market-ingestion',
   })
-  async handleIngestionCron() {
-    // Check if backfill/ingestion is enabled
+  async handleMoneyMarketIngestion() {
     const backfillOnStartup = this.configService.get(
       'moneyMarket.backfillOnStartup',
       { infer: true },
@@ -37,32 +35,10 @@ export class MoneyMarketIngestionScheduler {
       return;
     }
 
-    if (this.isRunning) {
-      this.logger.debug(
-        'Money market ingestion already running, skipping scheduled run',
-      );
-      return;
-    }
-
-    this.isRunning = true;
-
     try {
-      const intervalSeconds = this.configService.get(
-        'moneyMarket.intervalSeconds',
-        { infer: true },
-      );
-
-      this.logger.debug(
-        `Starting scheduled money market ingestion (interval: ${intervalSeconds}s)`,
-      );
-
       await this.moneyMarketOrchestrator.ingest();
-
-      this.logger.debug('Scheduled money market ingestion completed successfully');
     } catch (error) {
       this.logger.error('Scheduled money market ingestion failed', error.stack);
-    } finally {
-      this.isRunning = false;
     }
   }
 

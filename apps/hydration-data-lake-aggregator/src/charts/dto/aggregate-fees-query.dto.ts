@@ -3,13 +3,12 @@ import {
   IsEnum,
   IsISO8601,
   IsOptional,
-  Validate,
 } from 'class-validator';
 
 import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ProductType, FeeDestination, StreamType, HsmAggregationType } from './get-fees-query.dto';
-import { IsValidFeeCombinationConstraint } from '../validators/fee-combination.validator';
+import { IsValidFeeCombination } from '../validators/fee-combination.validator';
 
 export enum AggregationPeriod {
   ONE_MIN = '1min',
@@ -35,7 +34,7 @@ export class GetAggregatedFeesQueryDto {
   })
   @IsOptional()
   @IsEnum(ProductType)
-  @Validate(IsValidFeeCombinationConstraint)
+  @IsValidFeeCombination()
   productType?: ProductType = ProductType.OMNIPOOL;
 
   @ApiPropertyOptional({

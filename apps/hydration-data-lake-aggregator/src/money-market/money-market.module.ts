@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ScheduleModule } from '@nestjs/schedule';
 import { MoneyMarketRaw } from '../database/entities';
 import { GraphqlClientModule } from '../graphql-client/graphql-client.module';
 import { CommonModule } from '../common/common.module';
@@ -29,7 +28,6 @@ import { AssetReserveScheduler } from './schedulers/asset-reserve.scheduler';
 @Module({
   imports: [
     TypeOrmModule.forFeature([MoneyMarketRaw]),
-    ScheduleModule.forRoot(),
     GraphqlClientModule,
     CommonModule,
     IngestionModule, // Import to access GraphqlFetcherService

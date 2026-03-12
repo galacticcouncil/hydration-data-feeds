@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SwapNode } from '../../graphql-client/types/graphql-response.types';
 import { SwapRaw } from '../../database/entities/swap-raw.entity';
 import { FeeCalculatorService, CalculatedFeeData } from './fee-calculator.service';
 import {
@@ -157,16 +156,7 @@ export class SwapTransformerService {
       swaps.map((swap) => this.transformSwap(swap, priceMap)),
     );
 
-    const validSwaps = transformedSwaps.filter((swap) => {
-      // Validate required fields
-      if (!swap.swap_id || !swap.time || !swap.block_height) {
-        this.logger.warn(
-          `Invalid swap data: missing required fields for swap ${swap.swap_id}`,
-        );
-        return false;
-      }
-      return true;
-    });
+    const validSwaps = transformedSwaps.filter((swap) => this.validateSwap(swap));
 
     this.logger.log(
       `Transformed ${validSwaps.length}/${swaps.length} swaps/trades successfully`,
