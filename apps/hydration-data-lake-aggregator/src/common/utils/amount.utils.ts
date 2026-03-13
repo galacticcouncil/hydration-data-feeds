@@ -7,7 +7,7 @@
 export function normalizeAmount(rawAmount: string, decimals: number): string {
   try {
     const amount = BigInt(rawAmount);
-    const divisor = BigInt(10 ** decimals);
+    const divisor = BigInt(10) ** BigInt(decimals);
 
     const integerPart = amount / divisor;
     const remainder = amount % divisor;
@@ -54,7 +54,7 @@ export function addNormalizedAmounts(a: string, b: string): string {
       return sum.toString();
     }
 
-    const scale = BigInt(10 ** maxDecimals);
+    const scale = BigInt(10) ** BigInt(maxDecimals);
     const integerPart = sum / scale;
     const remainder = sum % scale;
     const trimmedDecimal = remainder.toString().padStart(maxDecimals, '0').replace(/0+$/, '');
@@ -64,7 +64,59 @@ export function addNormalizedAmounts(a: string, b: string): string {
     }
 
     return `${integerPart}.${trimmedDecimal}`;
-  } catch {
+  } catch (error) {
+    // Log malformed inputs so upstream data quality issues are traceable
+    console.error(`addNormalizedAmounts failed for inputs a="${a}", b="${b}": ${error}`);
+    return a;
+  }
+}
+
+/**
+ * Subtracts two decimal number strings using BigInt arithmetic to preserve full precision.
+ * Computes a - b. Returns a negative string if b > a.
+ *
+ * Example: subtractNormalizedAmounts('4.25', '1.5') → '2.75'
+ */
+export function subtractNormalizedAmounts(a: string, b: string): string {
+  try {
+    const parseDecimal = (s: string): { int: string; frac: string; negative: boolean } => {
+      const negative = s.startsWith('-');
+      const abs = negative ? s.slice(1) : s;
+      const [int, frac = ''] = abs.split('.');
+      return { int, frac, negative };
+    };
+
+    const pa = parseDecimal(a);
+    const pb = parseDecimal(b);
+
+    const maxDecimals = Math.max(pa.frac.length, pb.frac.length);
+
+    const toScaled = (p: { int: string; frac: string; negative: boolean }): bigint => {
+      const scaled = BigInt(p.int + p.frac.padEnd(maxDecimals, '0'));
+      return p.negative ? -scaled : scaled;
+    };
+
+    const diff = toScaled(pa) - toScaled(pb);
+
+    if (maxDecimals === 0) {
+      return diff.toString();
+    }
+
+    const scale = BigInt(10) ** BigInt(maxDecimals);
+    const negative = diff < 0n;
+    const absDiff = negative ? -diff : diff;
+    const integerPart = absDiff / scale;
+    const remainder = absDiff % scale;
+    const trimmedDecimal = remainder.toString().padStart(maxDecimals, '0').replace(/0+$/, '');
+
+    const result =
+      trimmedDecimal.length === 0
+        ? integerPart.toString()
+        : `${integerPart}.${trimmedDecimal}`;
+
+    return negative ? `-${result}` : result;
+  } catch (error) {
+    console.error(`subtractNormalizedAmounts failed for inputs a="${a}", b="${b}": ${error}`);
     return a;
   }
 }

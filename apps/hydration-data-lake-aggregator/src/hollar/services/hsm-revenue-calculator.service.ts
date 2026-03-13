@@ -6,7 +6,7 @@ import {
 import {
   AaveFacilitatorHistoricalDataNode,
 } from '../../graphql-client/types/graphql-response.types';
-import { normalizeAmount } from '../../common/utils/amount.utils';
+import { normalizeAmount, subtractNormalizedAmounts } from '../../common/utils/amount.utils';
 
 export interface CalculatedHsmRevenue {
   bucketLevel: string; // Normalized to 18 decimals
@@ -49,14 +49,12 @@ export class HsmRevenueCalculatorService {
     }
 
     // Calculate revenue: totalTransferableNorm - bucketLevel
-    const bucketLevelBig = parseFloat(normalizedBucketLevel);
-    const totalTransferableBig = parseFloat(totalTransferableNorm);
-    const hsmRevenue = totalTransferableBig - bucketLevelBig;
+    const hsmRevenue = subtractNormalizedAmounts(totalTransferableNorm, normalizedBucketLevel);
 
     return {
       bucketLevel: normalizedBucketLevel,
       totalTransferableNorm,
-      hsmRevenue: hsmRevenue.toString(),
+      hsmRevenue,
     };
   }
 

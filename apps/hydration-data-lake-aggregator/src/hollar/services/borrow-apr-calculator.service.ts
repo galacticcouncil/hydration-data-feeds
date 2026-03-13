@@ -23,9 +23,7 @@ export class BorrowAprCalculatorService {
     const normalizedAmount = normalizeAmount(transfer.amount, decimals);
     const isIncoming = transfer.toId.toLowerCase().includes(BORROW_APR_TREASURY_ADDRESS);
     const direction = isIncoming ? ('IN' as const) : ('OUT' as const);
-    const signedAmount = isIncoming
-      ? normalizedAmount
-      : (-parseFloat(normalizedAmount)).toString();
+    const signedAmount = isIncoming ? normalizedAmount : `-${normalizedAmount}`;
 
     return { signedAmount, direction };
   }
