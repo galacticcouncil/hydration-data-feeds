@@ -58,11 +58,25 @@ async function refreshAllAggregates() {
     'borrow_apr_30day',
   ];
 
+  // HSM revenue delta views must be populated after the base aggregates are refreshed
+  const hsmDeltaViews = [
+    ['hsm_revenue_1min', 'hsm_revenue_delta_1min'],
+    ['hsm_revenue_5min', 'hsm_revenue_delta_5min'],
+    ['hsm_revenue_10min', 'hsm_revenue_delta_10min'],
+    ['hsm_revenue_30min', 'hsm_revenue_delta_30min'],
+    ['hsm_revenue_1hour', 'hsm_revenue_delta_1hour'],
+    ['hsm_revenue_6hour', 'hsm_revenue_delta_6hour'],
+    ['hsm_revenue_24hour', 'hsm_revenue_delta_24hour'],
+    ['hsm_revenue_7day', 'hsm_revenue_delta_7day'],
+    ['hsm_revenue_30day', 'hsm_revenue_delta_30day'],
+  ];
+
   try {
     console.log('Connecting to database...');
     await client.connect();
     console.log('Connected successfully!\n');
 
+    console.log('--- Step 1: Refreshing continuous aggregates ---\n');
     for (const aggregate of aggregates) {
       console.log(`Refreshing ${aggregate}...`);
       const startTime = Date.now();
@@ -74,6 +88,20 @@ async function refreshAllAggregates() {
 
       const duration = Date.now() - startTime;
       console.log(`✓ ${aggregate} refreshed in ${duration}ms\n`);
+    }
+
+    console.log('--- Step 2: Populating HSM revenue delta views ---\n');
+    for (const [sourceView, deltaView] of hsmDeltaViews) {
+      console.log(`Populating ${deltaView}...`);
+      const startTime = Date.now();
+
+      await client.query(
+        `SELECT populate_hsm_revenue_delta_full($1, $2)`,
+        [sourceView, deltaView]
+      );
+
+      const duration = Date.now() - startTime;
+      console.log(`✓ ${deltaView} populated in ${duration}ms\n`);
     }
 
     console.log('All continuous aggregates refreshed successfully!');
