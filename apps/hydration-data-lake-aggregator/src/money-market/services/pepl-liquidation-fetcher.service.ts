@@ -139,10 +139,13 @@ export class PeplLiquidationFetcherService {
         totalCount: response.liquidationLiquidatedEvents.totalCount,
       };
     } catch (error) {
-      this.logger.warn(
+      this.logger.error(
         `Endpoint ${endpointUrl} failed for blocks ${fromBlock}-${toBlock}: ${error.message}`,
+        error.stack,
       );
-      return { items:[], totalCount: 0 };
+      // Re-throw so the orchestrator marks the service as errored and retries
+      // without advancing lastProcessedBlock past the failed range
+      throw error;
     }
   }
 

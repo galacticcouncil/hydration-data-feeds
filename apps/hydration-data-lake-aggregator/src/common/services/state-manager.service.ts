@@ -86,7 +86,7 @@ export class StateManagerService {
     const currentState = await this.getState(serviceName);
 
     const newState: IngestionState = {
-      ...currentState,
+      ...(currentState ?? {}),
       lastProcessedBlock: blockNumber,
       lastProcessedTimestamp: new Date().toISOString(),
       lastIngestionAt: new Date().toISOString(),
@@ -132,13 +132,15 @@ export class StateManagerService {
   async setError(serviceName: string, errorMessage: string): Promise<void> {
     const currentState = await this.getState(serviceName);
 
-    if (currentState) {
-      currentState.status = 'error';
-      currentState.errorMessage = errorMessage;
-      currentState.lastIngestionAt = new Date().toISOString();
+    const errorState: IngestionState = {
+      lastProcessedTimestamp: new Date().toISOString(),
+      lastIngestionAt: new Date().toISOString(),
+      status: 'error',
+      ...(currentState ?? {}),
+      errorMessage,
+    };
 
-      await this.setState(serviceName, currentState);
-    }
+    await this.setState(serviceName, errorState);
   }
 
   /**

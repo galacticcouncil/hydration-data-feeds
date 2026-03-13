@@ -82,12 +82,14 @@ export class BorrowAprOrchestratorService extends BaseOrchestratorService {
 
       let hasMore = true;
       let currentFromBlock = lastProcessedBlock;
+      let completedNaturally = false;
 
       while (hasMore) {
         const result = await this.processBatch(currentFromBlock, currentBlock, this.batchSize);
 
         if (!result.hasMore) {
           hasMore = false;
+          completedNaturally = true;
         } else {
           currentFromBlock = result.highestBlock;
         }
@@ -97,9 +99,12 @@ export class BorrowAprOrchestratorService extends BaseOrchestratorService {
         }
       }
 
-      // Always advance state to currentBlock so next run doesn't re-scan
-      // the same range when no transfers are found
-      await this.stateManager.updateLastBlock(this.SERVICE_NAME, currentBlock);
+      // Advance to currentBlock only on natural completion (no more data found in range),
+      // so the next run skips the already-scanned empty range. When the safety guard fires,
+      // processBatch already updated state to the highest processed block.
+      if (completedNaturally) {
+        await this.stateManager.updateLastBlock(this.SERVICE_NAME, currentBlock);
+      }
 
       this.logger.log('Borrow APR ingestion completed successfully');
     } catch (error) {

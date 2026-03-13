@@ -264,8 +264,17 @@ export class GraphqlFetcherService {
       if (swaps.length < batchSize || totalCount <= allSwaps.length) {
         hasMore = false;
       } else {
-        // Move to next batch starting from last processed block + 1
+        const firstBlock = swaps[0].paraBlockHeight;
         const lastBlock = swaps[swaps.length - 1].paraBlockHeight;
+
+        // If all items share one block, that block has more events than batchSize — warn about potential data loss
+        if (firstBlock === lastBlock) {
+          this.logger.warn(
+            `Block ${lastBlock} contains >${batchSize} events; events beyond the first ${batchSize} will be skipped. ` +
+            `Consider reducing batch size or implementing offset pagination.`,
+          );
+        }
+
         currentFromBlock = lastBlock + 1;
       }
     }
