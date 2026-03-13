@@ -131,22 +131,4 @@ export class MoneyMarketFetcherService {
       throw error;
     }
   }
-
-
-  /**
-   * Extract unique asset IDs from treasury transfers
-   * Used to fetch spot prices for fee enrichment
-   *
-   * @param transfers - Array of transfer nodes
-   * @returns Array of unique asset IDs
-   */
-  extractUniqueAssetIds(transfers: TransferNode[]): string[] {
-    const assetIdSet = new Set<string>();
-
-    transfers.forEach((transfer) => {
-      assetIdSet.add(transfer.assetId);
-    });
-
-    return Array.from(assetIdSet);
-  }
 }

@@ -53,46 +53,11 @@ export class SwapTransformerService {
     // Parse timestamp to Date
     const time = new Date(paraTimestamp);
 
-    // Fetch nearest prices if not provided
-    let spotPrices: Record<string, string> = {};
+    // Use batch-fetched price map; prices missing from the map default to '0'
+    const spotPrices: Record<string, string> = {};
     if (priceMap) {
-      // Use provided price map (batch-fetched for efficiency)
       for (const assetId of feeData.feeAssetIds) {
-        const price = priceMap[assetId];
-        if (price !== undefined) {
-          spotPrices[assetId] = price;
-        }
-      }
-    } else {
-      // Fetch nearest historical prices for this block (handles sparse price data)
-      try {
-        const fetchedPrices = await this.priceFetcher.fetchNearestAssetPrices(
-          feeData.feeAssetIds,
-          swap.paraBlockHeight,
-        );
-
-        // Log missing prices as warnings
-        const missingAssetIds = feeData.feeAssetIds.filter(
-          (id) => !fetchedPrices[id],
-        );
-        if (missingAssetIds.length > 0) {
-          this.logger.warn(
-            `Swap ${swap.id} at block ${swap.paraBlockHeight}: ${missingAssetIds.length}/${feeData.feeAssetIds.length} assets have no historical prices: ${missingAssetIds.join(', ')}`,
-          );
-        }
-
-        // Include all requested assets, using '0' for missing prices
-        for (const assetId of feeData.feeAssetIds) {
-          spotPrices[assetId] = fetchedPrices[assetId] || '0';
-        }
-      } catch (error) {
-        this.logger.error(
-          `Failed to fetch prices for swap ${swap.id} at block ${swap.paraBlockHeight}: ${error.message}`,
-        );
-        // Use '0' for all assets on error
-        for (const assetId of feeData.feeAssetIds) {
-          spotPrices[assetId] = '0';
-        }
+        spotPrices[assetId] = priceMap[assetId] ?? '0';
       }
     }
 

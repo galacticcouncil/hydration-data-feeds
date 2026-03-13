@@ -213,23 +213,4 @@ export class LiquidationFeeCalculatorService {
     return transfersByBlock;
   }
 
-  /**
-   * Extract all unique asset IDs from liquidation fees
-   * Used for fetching spot prices during enrichment
-   *
-   * @param liquidationFees - Array of liquidation fees
-   * @returns Array of unique asset IDs
-   */
-  extractUniqueAssetIds(liquidationFees: LiquidationFees[]): string[] {
-    const assetIdSet = new Set<string>();
-
-    liquidationFees.forEach((fees) => {
-      fees.feeAssetIds.forEach((assetId) => {
-        assetIdSet.add(assetId);
-      });
-    });
-
-    return Array.from(assetIdSet);
-  }
-
 }

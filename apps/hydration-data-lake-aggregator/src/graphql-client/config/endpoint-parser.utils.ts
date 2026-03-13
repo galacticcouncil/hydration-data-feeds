@@ -158,12 +158,6 @@ export function validateEndpointConfig(
       );
     }
 
-    if (endpoint.toBlockHeight < 0) {
-      throw new Error(
-        `Invalid toBlockHeight ${endpoint.toBlockHeight} for endpoint ${endpoint.apiUrl}: must be non-negative or -1 for head`,
-      );
-    }
-
     if (endpoint.fromBlockHeight > endpoint.toBlockHeight) {
       throw new Error(
         `Invalid block range for endpoint ${endpoint.apiUrl}: fromBlockHeight (${endpoint.fromBlockHeight}) must be <= toBlockHeight (${endpoint.toBlockHeight})`,
