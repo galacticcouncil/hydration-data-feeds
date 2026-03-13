@@ -84,6 +84,7 @@ export class HsmRevenueOrchestratorService extends BaseOrchestratorService {
       // Process in batches
       let hasMore = true;
       let currentFromBlock = lastProcessedBlock;
+      let completedNaturally = false;
 
       while (hasMore) {
         const result = await this.processBatch(
@@ -93,6 +94,7 @@ export class HsmRevenueOrchestratorService extends BaseOrchestratorService {
 
         if (!result.hasMore) {
           hasMore = false;
+          completedNaturally = true;
         } else {
           currentFromBlock = result.highestBlock;
         }
@@ -100,6 +102,13 @@ export class HsmRevenueOrchestratorService extends BaseOrchestratorService {
         if (currentFromBlock >= currentBlock) {
           hasMore = false;
         }
+      }
+
+      // Advance to currentBlock only on natural completion so the next run skips
+      // the already-scanned empty range. When the safety guard fires, processBatch
+      // already updated state to the highest processed block.
+      if (completedNaturally) {
+        await this.stateManager.updateLastBlock(this.SERVICE_NAME, currentBlock);
       }
 
       this.logger.log('HSM revenue ingestion completed successfully');

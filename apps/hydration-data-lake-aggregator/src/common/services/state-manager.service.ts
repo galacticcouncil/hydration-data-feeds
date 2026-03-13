@@ -163,7 +163,7 @@ export class StateManagerService {
    * Get statistics for all services
    */
   async getAllServicesStats(): Promise<Map<string, IngestionState>> {
-    const knownServices = ['swaps', 'money-market', 'pepl-liquidation', 'asset-reserve', 'hsm-revenue', 'borrow-apr'];
+    const knownServices = ['swaps', 'money-market', 'pepl-liquidation-profit', 'asset-reserve', 'hsm-revenue', 'borrow-apr'];
     const stats = new Map<string, IngestionState>();
 
     for (const service of knownServices) {

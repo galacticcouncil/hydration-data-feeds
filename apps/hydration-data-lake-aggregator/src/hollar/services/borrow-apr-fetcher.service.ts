@@ -134,10 +134,11 @@ export class BorrowAprFetcherService {
         totalCount: response.transfers.totalCount,
       };
     } catch (error) {
-      this.logger.warn(
+      this.logger.error(
         `Endpoint ${endpointUrl} failed for blocks ${fromBlock}-${toBlock}: ${error.message}`,
+        error.stack,
       );
-      return { items:[], totalCount: 0 };
+      throw error;
     }
   }
 
