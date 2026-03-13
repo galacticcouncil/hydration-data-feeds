@@ -29,11 +29,16 @@ export function isRoutedTradeNode(
 export class GraphqlFetcherService {
   private readonly logger = new Logger(GraphqlFetcherService.name);
 
+  private readonly upgradeBlock: number;
+
   constructor(
     private graphqlClient: GraphqlClientService,
     private configService: ConfigService,
     private priceFetcher: PriceFetcherService,
-  ) {}
+  ) {
+    this.upgradeBlock =
+      this.configService.get<number>('ingestion.omnipoolRuntimeUpgradeBlock') ?? 11394694;
+  }
 
   /**
    * Fetch Omnipool swaps for a given block range
@@ -142,34 +147,29 @@ export class GraphqlFetcherService {
     toBlock: number,
     limit: number = 1000,
   ): Promise<FetchResult<SwapOrRoutedTradeNode>> {
-    const upgradeBlock =
-      this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
-        infer: true,
-      }) ?? 11394694;
-
     // If the entire range is before the upgrade, use legacy swaps query
-    if (toBlock < upgradeBlock) {
+    if (toBlock < this.upgradeBlock) {
       return this.fetchSwaps(fromBlock, toBlock, limit);
     }
 
     // If the entire range is after the upgrade, use routed trades query
-    if (fromBlock >= upgradeBlock) {
+    if (fromBlock >= this.upgradeBlock) {
       return this.fetchRoutedTrades(fromBlock, toBlock, limit);
     }
 
     // If the range spans the upgrade block, split into two queries
     this.logger.log(
-      `Block range spans runtime upgrade at ${upgradeBlock}, splitting query`,
+      `Block range spans runtime upgrade at ${this.upgradeBlock}, splitting query`,
     );
 
     const preUpgradeData = await this.fetchSwaps(
       fromBlock,
-      upgradeBlock - 1,
+      this.upgradeBlock - 1,
       limit,
     );
 
     const postUpgradeData = await this.fetchRoutedTrades(
-      upgradeBlock,
+      this.upgradeBlock,
       toBlock,
       limit,
     );

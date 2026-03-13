@@ -16,6 +16,8 @@ import { BaseOrchestratorService } from '../../common/services/base-orchestrator
 export class IngestionOrchestratorService extends BaseOrchestratorService {
   protected readonly SERVICE_NAME = 'swaps';
 
+  private readonly upgradeBlock: number;
+
   constructor(
     private configService: ConfigService<AppConfig>,
     private graphqlFetcher: GraphqlFetcherService,
@@ -27,6 +29,10 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
     private swapRawRepository: Repository<SwapRaw>,
   ) {
     super(stateManager);
+    this.upgradeBlock =
+      this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
+        infer: true,
+      }) ?? 11394694;
   }
 
   protected getStartBlock(): number {
@@ -93,19 +99,13 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
     const startTime = Date.now();
 
     try {
-      // Log if we're crossing the runtime upgrade boundary
-      const upgradeBlock =
-        this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
-          infer: true,
-        }) ?? 11394694;
-
-      if (fromBlock < upgradeBlock && toBlock >= upgradeBlock) {
+      if (fromBlock < this.upgradeBlock && toBlock >= this.upgradeBlock) {
         this.logger.log(
-          `⚠️  Processing batch spans Omnipool runtime upgrade at block ${upgradeBlock}`,
+          `⚠️  Processing batch spans Omnipool runtime upgrade at block ${this.upgradeBlock}`,
         );
-      } else if (fromBlock === upgradeBlock) {
+      } else if (fromBlock === this.upgradeBlock) {
         this.logger.log(
-          `🔄 Starting to process post-upgrade blocks (>= ${upgradeBlock}) using routedTrades query`,
+          `🔄 Starting to process post-upgrade blocks (>= ${this.upgradeBlock}) using routedTrades query`,
         );
       }
 

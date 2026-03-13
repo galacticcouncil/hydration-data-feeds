@@ -174,18 +174,17 @@ export class LiquidationFeeCalculatorService {
     liquidations: LiquidationEventNode[],
     transfersByBlock: Map<number, TransferNode[]>,
   ): Promise<LiquidationFees[]> {
-    const liquidationsWithFees: LiquidationFees[] = [];
+    const results = await Promise.all(
+      liquidations.map((liquidation) => {
+        const transfersInBlock =
+          transfersByBlock.get(liquidation.paraBlockHeight) || [];
+        return this.calculateLiquidationFees(liquidation, transfersInBlock);
+      }),
+    );
 
-    for (const liquidation of liquidations) {
-      const transfersInBlock =
-        transfersByBlock.get(liquidation.paraBlockHeight) || [];
-
-      const fees = await this.calculateLiquidationFees(liquidation, transfersInBlock);
-
-      if (fees) {
-        liquidationsWithFees.push(fees);
-      }
-    }
+    const liquidationsWithFees = results.filter(
+      (fees): fees is LiquidationFees => fees !== null,
+    );
 
     this.logger.log(
       `Calculated fees for ${liquidationsWithFees.length}/${liquidations.length} liquidations`,

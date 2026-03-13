@@ -61,10 +61,15 @@ export class FeeCalculatorService {
    */
   private readonly H2O_OMNIPOOL_ATTRIBUTION_ENABLED = false;
 
+  private readonly upgradeBlock: number;
+
   constructor(
     private readonly assetRegistry: AssetRegistryService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    this.upgradeBlock =
+      this.configService.get<number>('ingestion.omnipoolRuntimeUpgradeBlock') ?? 11394694;
+  }
 
   /**
    * Determine fee type based on recipient ID (PRE-UPGRADE LOGIC)
@@ -182,13 +187,9 @@ export class FeeCalculatorService {
    */
   async calculateSwapFees(
     swap: SwapOrRoutedTradeNode,
+    preloadedDecimalsMap?: Map<string, number>,
   ): Promise<CalculatedFeeData> {
-    const upgradeBlock =
-      this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
-        infer: true,
-      }) ?? 11394694;
-
-    const isPostUpgrade = swap.paraBlockHeight >= upgradeBlock;
+    const isPostUpgrade = swap.paraBlockHeight >= this.upgradeBlock;
 
     const feeAmountsRaw: Record<string, string> = {};
     const feeAssetIds: string[] = [];
@@ -219,7 +220,8 @@ export class FeeCalculatorService {
     }
 
     const assetIds = Array.from(assetIdsSet);
-    const decimalsMap = await this.assetRegistry.getDecimalsBatch(assetIds);
+    const decimalsMap =
+      preloadedDecimalsMap ?? await this.assetRegistry.getDecimalsBatch(assetIds);
 
     // Process H2O special case FIRST (post-upgrade routed trades only)
     if (isPostUpgrade && isRoutedTradeNode(swap)) {

@@ -3,6 +3,7 @@ import { SwapRaw } from '../../database/entities/swap-raw.entity';
 import { FeeCalculatorService, CalculatedFeeData } from './fee-calculator.service';
 import { SwapOrRoutedTradeNode, isRoutedTradeNode } from './graphql-fetcher.service';
 import { AssetPriceMap, PriceFetcherService } from '../../common/services/price-fetcher.service';
+import { AssetRegistryService } from '../../common/services/asset-registry.service';
 
 @Injectable()
 export class SwapTransformerService {
@@ -11,6 +12,7 @@ export class SwapTransformerService {
   constructor(
     private feeCalculator: FeeCalculatorService,
     private priceFetcher: PriceFetcherService,
+    private assetRegistry: AssetRegistryService,
   ) {}
 
   /**
@@ -21,10 +23,11 @@ export class SwapTransformerService {
   async transformSwap(
     swap: SwapOrRoutedTradeNode,
     priceMap?: AssetPriceMap,
+    decimalsMap?: Map<string, number>,
   ): Promise<SwapRaw> {
     // Calculate fees (no USD conversion) - now async
     const feeData: CalculatedFeeData =
-      await this.feeCalculator.calculateSwapFees(swap);
+      await this.feeCalculator.calculateSwapFees(swap, decimalsMap);
 
     // Extract timestamp, fillerId, fillerType (handle both node types)
     let paraTimestamp: string;
@@ -119,37 +122,36 @@ export class SwapTransformerService {
   ): Promise<SwapRaw[]> {
     this.logger.debug(`Transforming ${swaps.length} swaps/trades`);
 
-    // Fetch prices once for all swaps if block height is provided
+    // Collect all unique asset IDs upfront (handle both swap types)
+    const allAssetIds = new Set<string>();
+    for (const swap of swaps) {
+      if (isRoutedTradeNode(swap)) {
+        swap.swaps.nodes.forEach((nestedSwap) => {
+          nestedSwap.swapFees.nodes.forEach((fee) => allAssetIds.add(fee.assetId));
+          // Also add input assets for H2O special case
+          nestedSwap.swapInputs.nodes.forEach((input) => allAssetIds.add(input.assetId));
+        });
+      } else {
+        swap.swapFees.nodes.forEach((fee) => allAssetIds.add(fee.assetId));
+      }
+    }
+
+    // Pre-fetch prices + decimals once for the entire batch
     let priceMap: AssetPriceMap | undefined;
     if (blockHeight && swaps.length > 0) {
-      // Collect all unique asset IDs (handle both swap types)
-      const allAssetIds = new Set<string>();
-      for (const swap of swaps) {
-        if (isRoutedTradeNode(swap)) {
-          // For routed trades, extract from nested swaps
-          swap.swaps.nodes.forEach((nestedSwap) => {
-            nestedSwap.swapFees.nodes.forEach((fee) =>
-              allAssetIds.add(fee.assetId),
-            );
-            // Also add input assets for H2O special case
-            nestedSwap.swapInputs.nodes.forEach((input) =>
-              allAssetIds.add(input.assetId),
-            );
-          });
-        } else {
-          // For regular swaps
-          swap.swapFees.nodes.forEach((fee) => allAssetIds.add(fee.assetId));
-        }
-      }
-
       priceMap = await this.priceFetcher.buildBatchPriceMap(
         Array.from(allAssetIds),
         blockHeight,
       );
     }
 
+    // Avoids N redundant in-memory lookups (one per swap) by pre-fetching once
+    const decimalsMap = await this.assetRegistry.getDecimalsBatch(
+      Array.from(allAssetIds),
+    );
+
     const transformedSwaps = await Promise.all(
-      swaps.map((swap) => this.transformSwap(swap, priceMap)),
+      swaps.map((swap) => this.transformSwap(swap, priceMap, decimalsMap)),
     );
 
     const validSwaps = transformedSwaps.filter((swap) => this.validateSwap(swap));

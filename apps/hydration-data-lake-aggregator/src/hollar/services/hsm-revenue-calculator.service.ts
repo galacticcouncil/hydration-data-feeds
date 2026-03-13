@@ -70,16 +70,14 @@ export class HsmRevenueCalculatorService {
     accountBalances: Map<number, string>,
   ): Map<string, CalculatedHsmRevenue> {
     const revenueMap = new Map<string, CalculatedHsmRevenue>();
+    let missingCount = 0;
 
     for (const event of events) {
       const accountBalance = accountBalances.get(event.paraBlockHeight);
       const revenue = this.calculateEventRevenue(event, accountBalance);
       revenueMap.set(event.id, revenue);
+      if (revenue.totalTransferableNorm === '0') missingCount++;
     }
-
-    const missingCount = events.length - Array.from(revenueMap.values()).filter(
-      r => r.totalTransferableNorm !== '0'
-    ).length;
 
     this.logger.log(
       `Calculated revenue for ${revenueMap.size}/${events.length} HSM events (${missingCount} with missing data for later enrichment)`,
