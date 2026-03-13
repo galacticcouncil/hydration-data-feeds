@@ -1,31 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { GraphQLClient, Variables } from 'graphql-request';
+import { Injectable } from '@nestjs/common';
+import { Variables } from 'graphql-request';
 import type { RequestDocument } from 'graphql-request';
-import { AppConfig } from '../../config/app.config';
-import { getGraphQLClientConfig } from '../../config/graphql-client.config';
 
+const DI_ERROR = 'GraphqlClientService is a DI placeholder — ensure GraphqlClientModule provides MultiEndpointGraphqlService via useExisting.';
+
+// Stub class whose sole purpose is to declare the DI token interface.
+// All methods throw; the real implementation is MultiEndpointGraphqlService.
 @Injectable()
 export class GraphqlClientService {
-  private readonly logger = new Logger(GraphqlClientService.name);
-  private client: GraphQLClient;
-
-  constructor(private configService: ConfigService<AppConfig>) {
-    const config = getGraphQLClientConfig(this.configService);
-    this.client = new GraphQLClient(config.endpoint);
-    this.logger.log(`GraphQL client initialized for ${config.endpoint}`);
-  }
-
   async query<T = any, V extends Variables = Variables>(
-    query: RequestDocument,
-    variables?: V,
+    _query: RequestDocument,
+    _variables?: V,
   ): Promise<T> {
-    return this.client.request<T>(query, variables as any);
+    throw new Error(DI_ERROR);
   }
 
-  // Method signature required for DI token compatibility — resolved to
-  // MultiEndpointGraphqlService.getCurrentBlockHeight() at runtime
   async getCurrentBlockHeight(): Promise<number> {
-    throw new Error('Not implemented — resolved via DI to MultiEndpointGraphqlService');
+    throw new Error(DI_ERROR);
   }
 }

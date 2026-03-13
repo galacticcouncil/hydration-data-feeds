@@ -12,11 +12,8 @@ import {
   RoutedTradeNode,
 } from '../../graphql-client/types/graphql-response.types';
 import { ConfigService } from '@nestjs/config';
-import { AssetPriceMap, PriceFetcherService } from '../../common/services/price-fetcher.service';
+import { PriceFetcherService } from '../../common/services/price-fetcher.service';
 import { FetchResult } from '../../common/interfaces/paginated-response.interface';
-
-// Re-export for callers that import AssetPriceMap from this module
-export type { AssetPriceMap };
 
 // Union type to handle both legacy swaps and new routed trades
 export type SwapOrRoutedTradeNode = SwapNode | RoutedTradeNode;
@@ -207,34 +204,6 @@ export class GraphqlFetcherService {
     });
 
     return Array.from(assetIdSet);
-  }
-
-  /**
-   * Fetch prices for a set of assets and build a complete price map with '0' fallback for missing assets.
-   */
-  async buildBatchPriceMap(
-    assetIds: string[],
-    blockHeight: number,
-  ): Promise<AssetPriceMap> {
-    if (assetIds.length === 0) return {};
-
-    try {
-      const fetchedPrices = await this.priceFetcher.fetchNearestAssetPrices(assetIds, blockHeight);
-
-      const missingAssetIds = assetIds.filter((id) => !fetchedPrices[id]);
-      if (missingAssetIds.length > 0) {
-        this.logger.warn(
-          `Block ${blockHeight}: ${missingAssetIds.length}/${assetIds.length} assets have no historical prices: ${missingAssetIds.join(', ')}`,
-        );
-      }
-
-      return Object.fromEntries(assetIds.map((id) => [id, fetchedPrices[id] || '0']));
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch batch prices for block ${blockHeight}: ${error.message}`,
-      );
-      return Object.fromEntries(assetIds.map((id) => [id, '0']));
-    }
   }
 
   /**

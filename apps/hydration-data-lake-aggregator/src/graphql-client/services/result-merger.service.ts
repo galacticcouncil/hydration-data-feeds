@@ -57,21 +57,24 @@ export class ResultMergerService {
     // Find the data key (e.g., 'swaps', 'liquidations', 'transfers')
     const dataKeys = Object.keys(result);
 
-    for (const key of dataKeys) {
+    const standardKeys = dataKeys.filter((key) => {
       const value = result[key];
+      return value && typeof value === 'object' && Array.isArray(value.nodes) && typeof value.totalCount === 'number';
+    });
 
-      // Standard structure: { swaps: { nodes: [...], totalCount: N } }
-      if (
-        value &&
-        typeof value === 'object' &&
-        Array.isArray(value.nodes) &&
-        typeof value.totalCount === 'number'
-      ) {
-        return { type: 'standard', dataKey: key };
-      }
+    if (standardKeys.length > 1) {
+      this.logger.warn(
+        `Multiple standard data keys in response: [${standardKeys.join(', ')}]. Only merging '${standardKeys[0]}'.`,
+      );
+    }
 
+    if (standardKeys.length > 0) {
+      return { type: 'standard', dataKey: standardKeys[0] };
+    }
+
+    for (const key of dataKeys) {
       // Array structure: { transfers: [...] }
-      if (Array.isArray(value)) {
+      if (Array.isArray(result[key])) {
         return { type: 'array', dataKey: key };
       }
     }
