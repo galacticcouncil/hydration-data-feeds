@@ -54,8 +54,7 @@ export class AssetReserveScheduler {
       const stats = await this.assetReserveOrchestrator.getIngestionStats();
 
       this.logger.log(
-        `Asset Reserve Stats - Block: ${stats.lastProcessedBlock}, ` +
-          `Status: ${stats.status}, Total Asset Reserve Events: ${stats.totalAssetReserveEvents}`,
+        `Asset Reserve Stats - Block: ${stats.lastProcessedBlock}, Status: ${stats.status}`,
       );
     } catch (error) {
       this.logger.error('Failed to log Asset Reserve ingestion stats', error.stack);

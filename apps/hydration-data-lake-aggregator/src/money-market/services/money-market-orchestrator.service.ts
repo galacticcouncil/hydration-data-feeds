@@ -223,10 +223,8 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
     lastProcessedBlock: number;
     lastIngestionAt: Date;
     status: string;
-    totalLiquidations: number;
   }> {
     const state = await this.stateManager.getState(this.SERVICE_NAME);
-    const totalLiquidations = await this.moneyMarketRawRepository.count();
 
     return {
       lastProcessedBlock: state?.lastProcessedBlock || 0,
@@ -234,7 +232,6 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
         ? new Date(state.lastIngestionAt)
         : new Date(),
       status: state?.status || 'unknown',
-      totalLiquidations,
     };
   }
 }

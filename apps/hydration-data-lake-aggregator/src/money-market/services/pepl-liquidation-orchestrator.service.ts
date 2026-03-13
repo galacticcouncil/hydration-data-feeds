@@ -203,15 +203,8 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
     lastProcessedBlock: number;
     lastIngestionAt: Date;
     status: string;
-    totalPeplEvents: number;
   }> {
     const state = await this.stateManager.getState(this.SERVICE_NAME);
-
-    // Count only PEPL events (filter by feeType)
-    const totalPeplEvents = await this.moneyMarketRepository
-      .createQueryBuilder('mm')
-      .where("mm.fee_by_transfer::jsonb @> '[{\"feeType\": \"PEPL_LIQUIDATION_PROFIT\"}]'")
-      .getCount();
 
     return {
       lastProcessedBlock: state?.lastProcessedBlock || 0,
@@ -219,7 +212,6 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
         ? new Date(state.lastIngestionAt)
         : new Date(),
       status: state?.status || 'unknown',
-      totalPeplEvents,
     };
   }
 

@@ -166,10 +166,8 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
     lastProcessedBlock: number;
     lastIngestionAt: Date;
     status: string;
-    totalSwaps: number;
   }> {
     const state = await this.stateManager.getState(this.SERVICE_NAME);
-    const totalSwaps = await this.swapRawRepository.count();
 
     return {
       lastProcessedBlock: state?.lastProcessedBlock || 0,
@@ -177,7 +175,6 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
         ? new Date(state.lastIngestionAt)
         : new Date(),
       status: state?.status || 'unknown',
-      totalSwaps,
     };
   }
 }

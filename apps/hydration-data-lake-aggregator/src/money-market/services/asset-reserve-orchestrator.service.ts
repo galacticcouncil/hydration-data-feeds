@@ -201,15 +201,8 @@ export class AssetReserveOrchestratorService extends BaseOrchestratorService {
     lastProcessedBlock: number;
     lastIngestionAt: Date;
     status: string;
-    totalAssetReserveEvents: number;
   }> {
     const state = await this.stateManager.getState(this.SERVICE_NAME);
-
-    // Count only Asset Reserve events (filter by feeType)
-    const totalAssetReserveEvents = await this.moneyMarketRepository
-      .createQueryBuilder('mm')
-      .where("mm.fee_by_transfer::jsonb @> '[{\"feeType\": \"ASSET_RESERVE\"}]'")
-      .getCount();
 
     return {
       lastProcessedBlock: state?.lastProcessedBlock || 0,
@@ -217,7 +210,6 @@ export class AssetReserveOrchestratorService extends BaseOrchestratorService {
         ? new Date(state.lastIngestionAt)
         : new Date(),
       status: state?.status || 'unknown',
-      totalAssetReserveEvents,
     };
   }
 

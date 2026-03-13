@@ -13,6 +13,7 @@ export class DatasetService {
     blockBounds: { minBlockHeight: number; maxBlockHeight: number };
   } | null = null;
   private lastCacheUpdate: Date | null = null;
+  private coveragePromise: Promise<NonNullable<typeof this.coverageCache>> | null = null;
   private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   constructor(
@@ -44,12 +45,22 @@ export class DatasetService {
   }
 
   private async getCoverage() {
-    // Check if cache is valid
     if (this.isCacheValid()) {
       this.logger.debug('Using cached coverage data');
       return this.coverageCache!;
     }
 
+    // Reuse in-flight request to prevent cache stampede under concurrent calls
+    if (!this.coveragePromise) {
+      this.coveragePromise = this.fetchCoverage().finally(() => {
+        this.coveragePromise = null;
+      });
+    }
+
+    return this.coveragePromise;
+  }
+
+  private async fetchCoverage() {
     this.logger.log('Fetching fresh coverage data from database');
 
     // Get time bounds from continuous aggregate (fast) and block bounds from raw table
@@ -76,7 +87,7 @@ export class DatasetService {
     this.lastCacheUpdate = new Date();
     this.logger.log(`Coverage data cached: ${JSON.stringify(this.coverageCache)}`);
 
-    return this.coverageCache;
+    return this.coverageCache!;
   }
 
   private isCacheValid(): boolean {

@@ -643,11 +643,17 @@ export class ChartsService {
       );
       const hsmColumnName = hsmAggregationType === HsmAggregationType.DELTA ? 'hsm_revenue_delta' : 'hsm_revenue';
       sql = `
-        SELECT
-          SUM(${g('borrow_apr')}) as borrow_apr,
-          (SELECT AVG(${g(hsmColumnName)}) FROM ${hsmRevenueTable} WHERE bucket >= $1 AND bucket <= $2) as hsm_revenue
-        FROM ${tableName}
-        WHERE bucket >= $1 AND bucket <= $2
+        WITH borrow_agg AS (
+          SELECT SUM(${g('borrow_apr')}) AS borrow_apr
+          FROM ${tableName}
+          WHERE bucket >= $1 AND bucket <= $2
+        ),
+        hsm_agg AS (
+          SELECT AVG(${g(hsmColumnName)}) AS hsm_revenue
+          FROM ${hsmRevenueTable}
+          WHERE bucket >= $1 AND bucket <= $2
+        )
+        SELECT borrow_agg.borrow_apr, hsm_agg.hsm_revenue FROM borrow_agg, hsm_agg
       `;
     }
 

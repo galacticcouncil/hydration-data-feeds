@@ -49,8 +49,7 @@ export class SwapIngestionScheduler {
       const stats = await this.ingestionOrchestrator.getIngestionStats();
 
       this.logger.log(
-        `Ingestion Stats - Block: ${stats.lastProcessedBlock}, ` +
-          `Status: ${stats.status}, Total Swaps: ${stats.totalSwaps}`,
+        `Ingestion Stats - Block: ${stats.lastProcessedBlock}, Status: ${stats.status}`,
       );
     } catch (error) {
       this.logger.error('Failed to log ingestion stats', error.stack);

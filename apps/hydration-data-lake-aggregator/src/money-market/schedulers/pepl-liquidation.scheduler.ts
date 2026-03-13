@@ -54,8 +54,7 @@ export class PeplLiquidationScheduler {
       const stats = await this.peplOrchestrator.getIngestionStats();
 
       this.logger.log(
-        `PEPL Stats - Block: ${stats.lastProcessedBlock}, ` +
-          `Status: ${stats.status}, Total PEPL Events: ${stats.totalPeplEvents}`,
+        `PEPL Stats - Block: ${stats.lastProcessedBlock}, Status: ${stats.status}`,
       );
     } catch (error) {
       this.logger.error('Failed to log PEPL ingestion stats', error.stack);

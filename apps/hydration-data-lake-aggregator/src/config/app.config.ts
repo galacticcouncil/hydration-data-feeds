@@ -191,133 +191,98 @@ export const configValidationSchema = Joi.object({
 });
 
 export const getAppConfig = (): AppConfig => ({
-  nodeEnv: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT || '3000', 10),
+  nodeEnv: process.env.NODE_ENV!,
+  port: parseInt(process.env.PORT!, 10),
   price: {
-    spotPriceBaseAssetId: process.env.ASSET_PRICE_BASE_ASSET_ID || '10',
+    spotPriceBaseAssetId: process.env.ASSET_PRICE_BASE_ASSET_ID!,
   },
   graphql: {
-    endpoint: process.env.GRAPHQL_ENDPOINT || '',
+    endpoint: process.env.GRAPHQL_ENDPOINT!,
     multiEndpoint: {
       enabled: process.env.GRAPHQL_MULTI_ENDPOINT_ENABLED === 'true',
-      endpoints: process.env.GRAPHQL_ENDPOINTS || '[]',
+      endpoints: process.env.GRAPHQL_ENDPOINTS!,
     },
     enforcedEndpoints: {
       hsmBalances: process.env.ENFORCED_GRAPHQL_ENDPOINT_HSM_BALANCES || null,
     },
   },
   database: {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    username: process.env.DB_USERNAME || '',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_DATABASE || '',
+    host: process.env.DB_HOST!,
+    port: parseInt(process.env.DB_PORT!, 10),
+    username: process.env.DB_USERNAME!,
+    password: process.env.DB_PASSWORD!,
+    database: process.env.DB_DATABASE!,
     synchronize: process.env.DB_SYNCHRONIZE === 'true',
     logging: process.env.DB_LOGGING === 'true',
   },
   redis: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    host: process.env.REDIS_HOST!,
+    port: parseInt(process.env.REDIS_PORT!, 10),
     password: process.env.REDIS_PASSWORD || undefined,
   },
   ingestion: {
-    startBlock: parseInt(process.env.INGESTION_START_BLOCK || '9999990', 10),
-    batchSize: parseInt(process.env.INGESTION_BATCH_SIZE || '100', 10),
-    intervalSeconds: parseInt(
-      process.env.INGESTION_INTERVAL_SECONDS || '60',
-      10,
-    ),
+    startBlock: parseInt(process.env.INGESTION_START_BLOCK!, 10),
+    batchSize: parseInt(process.env.INGESTION_BATCH_SIZE!, 10),
+    intervalSeconds: parseInt(process.env.INGESTION_INTERVAL_SECONDS!, 10),
     backfillOnStartup: process.env.INGESTION_BACKFILL_ON_STARTUP !== 'false',
-    omnipoolRuntimeUpgradeBlock: parseInt(
-      process.env.OMNIPOOL_RUNTIME_UPGRADE_BLOCK || '11394694',
-      10,
-    ),
+    omnipoolRuntimeUpgradeBlock: parseInt(process.env.OMNIPOOL_RUNTIME_UPGRADE_BLOCK!, 10),
   },
   moneyMarket: {
-    startBlock: parseInt(process.env.MONEY_MARKET_START_BLOCK || '121', 10),
-    batchSize: parseInt(process.env.MONEY_MARKET_BATCH_SIZE || '100', 10),
-    intervalSeconds: parseInt(
-      process.env.MONEY_MARKET_INTERVAL_SECONDS || '60',
-      10,
-    ),
+    startBlock: parseInt(process.env.MONEY_MARKET_START_BLOCK!, 10),
+    batchSize: parseInt(process.env.MONEY_MARKET_BATCH_SIZE!, 10),
+    intervalSeconds: parseInt(process.env.MONEY_MARKET_INTERVAL_SECONDS!, 10),
     backfillOnStartup: process.env.MONEY_MARKET_BACKFILL_ON_STARTUP !== 'false',
   },
   peplLiquidation: {
-    startBlock: parseInt(
-      process.env.PEPL_LIQUIDATION_START_BLOCK || '1000000',
-      10,
-    ),
-    batchSize: parseInt(process.env.PEPL_LIQUIDATION_BATCH_SIZE || '500', 10),
-    intervalSeconds: parseInt(
-      process.env.PEPL_LIQUIDATION_INTERVAL_SECONDS || '300',
-      10,
-    ),
-    backfillOnStartup:
-      process.env.PEPL_LIQUIDATION_BACKFILL_ON_STARTUP !== 'false',
+    startBlock: parseInt(process.env.PEPL_LIQUIDATION_START_BLOCK!, 10),
+    batchSize: parseInt(process.env.PEPL_LIQUIDATION_BATCH_SIZE!, 10),
+    intervalSeconds: parseInt(process.env.PEPL_LIQUIDATION_INTERVAL_SECONDS!, 10),
+    backfillOnStartup: process.env.PEPL_LIQUIDATION_BACKFILL_ON_STARTUP !== 'false',
   },
   assetReserve: {
-    startBlock: parseInt(
-      process.env.ASSET_RESERVE_START_BLOCK || '1000000',
-      10,
-    ),
-    batchSize: parseInt(process.env.ASSET_RESERVE_BATCH_SIZE || '500', 10),
-    intervalSeconds: parseInt(
-      process.env.ASSET_RESERVE_INTERVAL_SECONDS || '300',
-      10,
-    ),
-    backfillOnStartup:
-      process.env.ASSET_RESERVE_BACKFILL_ON_STARTUP !== 'false',
+    startBlock: parseInt(process.env.ASSET_RESERVE_START_BLOCK!, 10),
+    batchSize: parseInt(process.env.ASSET_RESERVE_BATCH_SIZE!, 10),
+    intervalSeconds: parseInt(process.env.ASSET_RESERVE_INTERVAL_SECONDS!, 10),
+    backfillOnStartup: process.env.ASSET_RESERVE_BACKFILL_ON_STARTUP !== 'false',
   },
   hsmRevenue: {
-    startBlock: parseInt(process.env.HSM_REVENUE_START_BLOCK || '1000000', 10),
-    batchSize: parseInt(process.env.HSM_REVENUE_BATCH_SIZE || '100', 10),
-    intervalSeconds: parseInt(
-      process.env.HSM_REVENUE_INTERVAL_SECONDS || '300',
-      10,
-    ),
+    startBlock: parseInt(process.env.HSM_REVENUE_START_BLOCK!, 10),
+    batchSize: parseInt(process.env.HSM_REVENUE_BATCH_SIZE!, 10),
+    intervalSeconds: parseInt(process.env.HSM_REVENUE_INTERVAL_SECONDS!, 10),
     backfillOnStartup: process.env.HSM_REVENUE_BACKFILL_ON_STARTUP !== 'false',
   },
   borrowApr: {
-    startBlock: parseInt(process.env.BORROW_APR_START_BLOCK || '1000000', 10),
-    batchSize: parseInt(process.env.BORROW_APR_BATCH_SIZE || '100', 10),
-    intervalSeconds: parseInt(
-      process.env.BORROW_APR_INTERVAL_SECONDS || '300',
-      10,
-    ),
+    startBlock: parseInt(process.env.BORROW_APR_START_BLOCK!, 10),
+    batchSize: parseInt(process.env.BORROW_APR_BATCH_SIZE!, 10),
+    intervalSeconds: parseInt(process.env.BORROW_APR_INTERVAL_SECONDS!, 10),
     backfillOnStartup: process.env.BORROW_APR_BACKFILL_ON_STARTUP !== 'false',
   },
   enrichment: {
-    batchSize: parseInt(process.env.ENRICHMENT_BATCH_SIZE || '1000', 10),
-    intervalSeconds: parseInt(
-      process.env.ENRICHMENT_INTERVAL_SECONDS || '120',
-      10,
-    ),
-    maxRetries: parseInt(process.env.ENRICHMENT_MAX_RETRIES || '3', 10),
+    batchSize: parseInt(process.env.ENRICHMENT_BATCH_SIZE!, 10),
+    intervalSeconds: parseInt(process.env.ENRICHMENT_INTERVAL_SECONDS!, 10),
+    maxRetries: parseInt(process.env.ENRICHMENT_MAX_RETRIES!, 10),
   },
   assetRegistry: {
-    refreshIntervalSeconds: parseInt(
-      process.env.ASSET_REGISTRY_REFRESH_INTERVAL || '43200',
-      10,
-    ),
+    refreshIntervalSeconds: parseInt(process.env.ASSET_REGISTRY_REFRESH_INTERVAL!, 10),
   },
   cache: {
-    ttl1Min: parseInt(process.env.CACHE_TTL_1MIN || '60', 10),
-    ttl1Hour: parseInt(process.env.CACHE_TTL_1HOUR || '300', 10),
-    ttl1Day: parseInt(process.env.CACHE_TTL_1DAY || '600', 10),
+    ttl1Min: parseInt(process.env.CACHE_TTL_1MIN!, 10),
+    ttl1Hour: parseInt(process.env.CACHE_TTL_1HOUR!, 10),
+    ttl1Day: parseInt(process.env.CACHE_TTL_1DAY!, 10),
   },
   api: {
-    port: parseInt(process.env.API_PORT || '3000', 10),
+    port: parseInt(process.env.API_PORT!, 10),
     public: process.env.API_PUBLIC !== 'false',
-    timezone: process.env.API_TIMEZONE || 'UTC',
+    timezone: process.env.API_TIMEZONE!,
   },
   dataset: {
-    id: process.env.DATASET_ID || 'fees-aggregates-mainnet',
-    version: process.env.DATASET_VERSION || '2026.01.29-01',
-    network: process.env.DATASET_NETWORK || 'hydration',
+    id: process.env.DATASET_ID!,
+    version: process.env.DATASET_VERSION!,
+    network: process.env.DATASET_NETWORK!,
   },
   indexer: {
-    id: process.env.INDEXER_ID || 'orca-multipool-mainnet',
-    version: process.env.INDEXER_VERSION || '2026.01.29-01',
-    network: process.env.INDEXER_NETWORK || 'hydration',
+    id: process.env.INDEXER_ID!,
+    version: process.env.INDEXER_VERSION!,
+    network: process.env.INDEXER_NETWORK!,
   },
 });

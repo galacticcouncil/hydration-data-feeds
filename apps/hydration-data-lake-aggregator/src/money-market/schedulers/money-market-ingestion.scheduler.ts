@@ -53,8 +53,7 @@ export class MoneyMarketIngestionScheduler {
       const stats = await this.moneyMarketOrchestrator.getIngestionStats();
 
       this.logger.log(
-        `Money Market Stats - Block: ${stats.lastProcessedBlock}, ` +
-          `Status: ${stats.status}, Total Liquidations: ${stats.totalLiquidations}`,
+        `Money Market Stats - Block: ${stats.lastProcessedBlock}, Status: ${stats.status}`,
       );
     } catch (error) {
       this.logger.error('Failed to log money market ingestion stats', error.stack);
