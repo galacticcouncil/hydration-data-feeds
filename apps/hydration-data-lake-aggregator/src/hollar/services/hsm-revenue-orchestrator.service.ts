@@ -29,7 +29,7 @@ import { BaseOrchestratorService } from '../../common/services/base-orchestrator
 @Injectable()
 export class HsmRevenueOrchestratorService extends BaseOrchestratorService {
   protected readonly SERVICE_NAME = 'hsm-revenue';
-  private readonly batchSize = 100;
+  private readonly batchSize: number;
 
   constructor(
     private configService: ConfigService<AppConfig>,
@@ -42,6 +42,8 @@ export class HsmRevenueOrchestratorService extends BaseOrchestratorService {
     private hsmRevenueRepository: Repository<HsmRevenueRaw>,
   ) {
     super(stateManager);
+    this.batchSize =
+      this.configService.get('hsmRevenue.batchSize', { infer: true }) || 500;
   }
 
   protected getStartBlock(): number {
