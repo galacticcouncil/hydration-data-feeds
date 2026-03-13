@@ -1,17 +1,26 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import {
   DocumentBuilder,
   SwaggerModule,
 } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
+import { AppConfig } from './config/app.config';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS for development
-  app.enableCors();
+  const configService = app.get(ConfigService<AppConfig>);
+  const apiPublic = configService.get('api.public', { infer: true }) ?? true;
+
+  app.enableCors({
+    origin: apiPublic ? '*' : false,
+    methods: ['GET'],
+    credentials: false,
+  });
 
   // Enable global validation pipes
   app.useGlobalPipes(
@@ -31,7 +40,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(process.env.PORT ?? 5000);
-  console.log("Application is running on: http://localhost:" + (process.env.PORT ?? 5000));
+  const port = process.env.PORT ?? 5000;
+  await app.listen(port);
+  logger.log(`Application is running on port ${port}`);
 }
 bootstrap();

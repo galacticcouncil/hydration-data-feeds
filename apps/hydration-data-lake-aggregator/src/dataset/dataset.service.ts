@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { DatasetMetadataDto } from './dto/dataset-metadata.dto';
+import { AppConfig } from '../config/app.config';
 
 @Injectable()
 export class DatasetService {
@@ -17,7 +18,7 @@ export class DatasetService {
   constructor(
     @InjectDataSource()
     private dataSource: DataSource,
-    private configService: ConfigService,
+    private configService: ConfigService<AppConfig>,
   ) {}
 
   async getMetadata(): Promise<DatasetMetadataDto> {
@@ -29,14 +30,14 @@ export class DatasetService {
     return {
       metadataVersion: 1,
       dataset: {
-        id: this.configService.get<string>('DATASET_ID', 'fees-aggregates-mainnet'),
-        version: this.configService.get<string>('DATASET_VERSION', '2026.01.29-01'),
-        network: this.configService.get<string>('DATASET_NETWORK', 'hydration'),
+        id: this.configService.get('dataset.id', { infer: true })!,
+        version: this.configService.get('dataset.version', { infer: true })!,
+        network: this.configService.get('dataset.network', { infer: true })!,
       },
       indexer: {
-        id: this.configService.get<string>('INDEXER_ID', 'orca-multipool-mainnet'),
-        version: this.configService.get<string>('INDEXER_VERSION', '2026.01.29-01'),
-        network: this.configService.get<string>('INDEXER_NETWORK', 'hydration'),
+        id: this.configService.get('indexer.id', { infer: true })!,
+        version: this.configService.get('indexer.version', { infer: true })!,
+        network: this.configService.get('indexer.network', { infer: true })!,
       },
       coverage,
     };

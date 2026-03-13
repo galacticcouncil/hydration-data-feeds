@@ -85,6 +85,16 @@ export interface AppConfig {
     public: boolean;
     timezone: string;
   };
+  dataset: {
+    id: string;
+    version: string;
+    network: string;
+  };
+  indexer: {
+    id: string;
+    version: string;
+    network: string;
+  };
 }
 
 export const configValidationSchema = Joi.object({
@@ -170,6 +180,14 @@ export const configValidationSchema = Joi.object({
   API_PORT: Joi.number().default(3000),
   API_PUBLIC: Joi.boolean().default(true),
   API_TIMEZONE: Joi.string().default('UTC'),
+
+  // Dataset metadata
+  DATASET_ID: Joi.string().default('fees-aggregates-mainnet'),
+  DATASET_VERSION: Joi.string().default('2026.01.29-01'),
+  DATASET_NETWORK: Joi.string().default('hydration'),
+  INDEXER_ID: Joi.string().default('orca-multipool-mainnet'),
+  INDEXER_VERSION: Joi.string().default('2026.01.29-01'),
+  INDEXER_NETWORK: Joi.string().default('hydration'),
 });
 
 export const getAppConfig = (): AppConfig => ({
@@ -291,5 +309,15 @@ export const getAppConfig = (): AppConfig => ({
     port: parseInt(process.env.API_PORT || '3000', 10),
     public: process.env.API_PUBLIC !== 'false',
     timezone: process.env.API_TIMEZONE || 'UTC',
+  },
+  dataset: {
+    id: process.env.DATASET_ID || 'fees-aggregates-mainnet',
+    version: process.env.DATASET_VERSION || '2026.01.29-01',
+    network: process.env.DATASET_NETWORK || 'hydration',
+  },
+  indexer: {
+    id: process.env.INDEXER_ID || 'orca-multipool-mainnet',
+    version: process.env.INDEXER_VERSION || '2026.01.29-01',
+    network: process.env.INDEXER_NETWORK || 'hydration',
   },
 });

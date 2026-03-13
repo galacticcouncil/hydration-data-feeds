@@ -33,6 +33,12 @@ export class IsValidFeeCombinationConstraint implements ValidatorConstraintInter
       { productType: 'hollar', streamType: 'total', feeDestination: undefined },
     ];
 
+    // When only productType is set (no stream/destination), allow it — the charts service
+    // returns all fees for the product type in that case
+    if (!streamType && !feeDestination) {
+      return !!productType;
+    }
+
     // Check if current combination is valid
     return validCombinations.some(combo =>
       combo.productType === productType &&
