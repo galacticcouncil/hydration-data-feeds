@@ -145,7 +145,7 @@ export class GraphqlFetcherService {
     const upgradeBlock =
       this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
         infer: true,
-      }) || 11394694;
+      }) ?? 11394694;
 
     // If the entire range is before the upgrade, use legacy swaps query
     if (toBlock < upgradeBlock) {

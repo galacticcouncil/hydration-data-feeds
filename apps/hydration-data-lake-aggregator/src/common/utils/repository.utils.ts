@@ -12,7 +12,7 @@ export async function saveInChunks<T extends ObjectLiteral>(
       .createQueryBuilder()
       .insert()
       .into(repository.target)
-      .values(chunk as any[])
+      .values(chunk as T[])
       .orIgnore()
       .execute();
   }

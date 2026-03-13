@@ -93,9 +93,9 @@ export class LiquidationFeeCalculatorService {
 
     for (const transfer of transfersBeforeLiquidation) {
       // Get decimals from registry (batch fetched above)
-      let decimals: number = decimalsMap.get(transfer.assetId) ?? 0;
+      let decimals: number | undefined = decimalsMap.get(transfer.assetId);
 
-      if (decimals === 0) {
+      if (decimals === undefined) {
         // Fallback: try individual lookup
         const fetchedDecimals = await this.assetRegistry.getDecimals(
           transfer.assetId,

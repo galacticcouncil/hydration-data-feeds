@@ -18,7 +18,7 @@ export class AssetReserveCalculatorService {
   ): Promise<{ assetId: string; normalizedAmount: string } | null> {
     let decimals = decimalsMap.get(event.assetId);
 
-    if (decimals === undefined || decimals === 0) {
+    if (decimals === undefined) {
       // Fallback: try individual lookup
       const fetchedDecimals = await this.assetRegistry.getDecimals(
         event.assetId,

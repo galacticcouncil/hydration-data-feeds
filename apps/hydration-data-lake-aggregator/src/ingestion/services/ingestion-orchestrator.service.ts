@@ -30,7 +30,7 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
   }
 
   protected getStartBlock(): number {
-    return this.configService.get('ingestion.startBlock', { infer: true }) || 9999990;
+    return this.configService.get('ingestion.startBlock', { infer: true }) ?? 9999990;
   }
 
   /**
@@ -61,7 +61,7 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
       // Process in batches
       const batchSize = this.configService.get('ingestion.batchSize', {
         infer: true,
-      }) || 100;
+      }) ?? 100;
 
       for (
         let fromBlock = lastProcessedBlock + 1;
@@ -97,7 +97,7 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
       const upgradeBlock =
         this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
           infer: true,
-        }) || 11394694;
+        }) ?? 11394694;
 
       if (fromBlock < upgradeBlock && toBlock >= upgradeBlock) {
         this.logger.log(

@@ -79,7 +79,7 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
 
       // Process in batches (batch of liquidations, not blocks!)
       const batchSize =
-        this.configService.get('moneyMarket.batchSize', { infer: true }) || 100;
+        this.configService.get('moneyMarket.batchSize', { infer: true }) ?? 100;
 
       let hasMore = true;
       let currentFromBlock = lastProcessedBlock;

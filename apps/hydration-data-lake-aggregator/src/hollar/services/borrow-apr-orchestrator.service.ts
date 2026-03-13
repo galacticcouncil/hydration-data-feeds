@@ -42,11 +42,11 @@ export class BorrowAprOrchestratorService extends BaseOrchestratorService {
   ) {
     super(stateManager);
     this.batchSize =
-      this.configService.get('borrowApr.batchSize', { infer: true }) || 1000;
+      this.configService.get('borrowApr.batchSize', { infer: true }) ?? 1000;
   }
 
   protected getStartBlock(): number {
-    return this.configService.get('borrowApr.startBlock', { infer: true }) || 1_000_000;
+    return this.configService.get('borrowApr.startBlock', { infer: true }) ?? 1_000_000;
   }
 
   async onModuleInit(): Promise<void> {

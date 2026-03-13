@@ -6,7 +6,10 @@
  */
 export function normalizeAmount(rawAmount: string, decimals: number): string {
   try {
-    const amount = BigInt(rawAmount);
+    // Handle negative values using absolute-value arithmetic to avoid sign-ambiguous BigInt remainder
+    const isNeg = rawAmount.startsWith('-');
+    const abs = isNeg ? rawAmount.slice(1) : rawAmount;
+    const amount = BigInt(abs);
     const divisor = BigInt(10) ** BigInt(decimals);
 
     const integerPart = amount / divisor;
@@ -15,11 +18,12 @@ export function normalizeAmount(rawAmount: string, decimals: number): string {
     const decimalPart = remainder.toString().padStart(decimals, '0');
     const trimmedDecimal = decimalPart.replace(/0+$/, '');
 
-    if (trimmedDecimal.length === 0) {
-      return integerPart.toString();
-    }
+    const result =
+      trimmedDecimal.length === 0
+        ? integerPart.toString()
+        : `${integerPart}.${trimmedDecimal}`;
 
-    return `${integerPart}.${trimmedDecimal}`;
+    return isNeg ? `-${result}` : result;
   } catch {
     return '0';
   }
@@ -65,9 +69,7 @@ export function addNormalizedAmounts(a: string, b: string): string {
 
     return `${integerPart}.${trimmedDecimal}`;
   } catch (error) {
-    // Log malformed inputs so upstream data quality issues are traceable
-    console.error(`addNormalizedAmounts failed for inputs a="${a}", b="${b}": ${error}`);
-    return a;
+    throw new Error(`addNormalizedAmounts failed for inputs a="${a}", b="${b}": ${error}`);
   }
 }
 
@@ -116,7 +118,6 @@ export function subtractNormalizedAmounts(a: string, b: string): string {
 
     return negative ? `-${result}` : result;
   } catch (error) {
-    console.error(`subtractNormalizedAmounts failed for inputs a="${a}", b="${b}": ${error}`);
-    return a;
+    throw new Error(`subtractNormalizedAmounts failed for inputs a="${a}", b="${b}": ${error}`);
   }
 }

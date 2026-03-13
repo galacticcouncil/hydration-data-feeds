@@ -186,7 +186,7 @@ export class FeeCalculatorService {
     const upgradeBlock =
       this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
         infer: true,
-      }) || 11394694;
+      }) ?? 11394694;
 
     const isPostUpgrade = swap.paraBlockHeight >= upgradeBlock;
 
@@ -238,8 +238,8 @@ export class FeeCalculatorService {
 
         if (h2oInputAmount !== '0') {
           // Get H2O decimals
-          let h2oDecimals = decimalsMap.get(this.H2O_ASSET_ID) ?? 0;
-          if (h2oDecimals === 0) {
+          let h2oDecimals = decimalsMap.get(this.H2O_ASSET_ID);
+          if (h2oDecimals === undefined) {
             const fetchedDecimals = await this.assetRegistry.getDecimals(
               this.H2O_ASSET_ID,
             );
@@ -304,9 +304,9 @@ export class FeeCalculatorService {
         const rawAmount = fee.amount;
 
         // Get decimals from registry (batch fetched above)
-        let decimals: number = decimalsMap.get(assetId) ?? 0;
+        let decimals: number | undefined = decimalsMap.get(assetId);
 
-        if (decimals === 0) {
+        if (decimals === undefined) {
           // Fallback: try individual lookup
           const fetchedDecimals = await this.assetRegistry.getDecimals(assetId);
 

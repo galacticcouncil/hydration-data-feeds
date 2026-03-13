@@ -48,7 +48,7 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
   }
 
   protected getStartBlock(): number {
-    return this.configService.get('peplLiquidation.startBlock', { infer: true }) || 1_000_000;
+    return this.configService.get('peplLiquidation.startBlock', { infer: true }) ?? 1_000_000;
   }
 
   async onModuleInit(): Promise<void> {

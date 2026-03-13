@@ -43,11 +43,11 @@ export class AssetReserveOrchestratorService extends BaseOrchestratorService {
   ) {
     super(stateManager);
     this.batchSize =
-      this.configService.get('assetReserve.batchSize', { infer: true }) || 500;
+      this.configService.get('assetReserve.batchSize', { infer: true }) ?? 500;
   }
 
   protected getStartBlock(): number {
-    return this.configService.get('assetReserve.startBlock', { infer: true }) || 1_000_000;
+    return this.configService.get('assetReserve.startBlock', { infer: true }) ?? 1_000_000;
   }
 
   async onModuleInit(): Promise<void> {
