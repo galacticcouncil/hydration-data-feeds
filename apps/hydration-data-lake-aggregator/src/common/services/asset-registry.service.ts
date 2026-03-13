@@ -95,11 +95,10 @@ export class AssetRegistryService implements OnModuleInit, OnModuleDestroy {
       const assets = response.assets.nodes;
       this.logger.log(`Fetched ${assets.length} assets from GraphQL`);
 
-      // Update in-memory cache
-      this.assetCache.clear();
-      assets.forEach((asset) => {
-        this.assetCache.set(asset.id, asset.decimals);
-      });
+      // Build new map then swap atomically — avoids a window where assetCache is empty
+      const newCache = new Map<string, number>();
+      assets.forEach((asset) => newCache.set(asset.id, asset.decimals));
+      this.assetCache = newCache;
       this.cacheLastUpdated = new Date();
 
       this.logger.log(

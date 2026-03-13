@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
-import { MONEY_MARKET_TREASURY_ADDRESS } from '../../common/constants/blockchain-addresses.constants';
+import { MONEY_MARKET_TREASURY_ADDRESS, ZERO_ADDRESS_40_BYTE_HEX } from '../../common/constants/blockchain-addresses.constants';
 import {
   GET_LIQUIDATION_EVENTS_QUERY,
   GET_TREASURY_TRANSFERS_QUERY,
@@ -25,10 +25,7 @@ export class MoneyMarketFetcherService {
   private readonly logger = new Logger(MoneyMarketFetcherService.name);
 
   private readonly TREASURY_ADDRESS = MONEY_MARKET_TREASURY_ADDRESS;
-
-  // Zero address to exclude (transfers from zero are mints, not fees)
-  private readonly ZERO_ADDRESS =
-    '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000';
+  private readonly ZERO_ADDRESS = ZERO_ADDRESS_40_BYTE_HEX;
 
   constructor(private graphqlClient: GraphqlClientService) {}
 

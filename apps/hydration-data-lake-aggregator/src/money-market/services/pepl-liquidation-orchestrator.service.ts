@@ -223,11 +223,4 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
     };
   }
 
-  /**
-   * Legacy method name for backwards compatibility
-   * @deprecated Use ingest() instead
-   */
-  async ingestPeplLiquidationProfits(): Promise<void> {
-    return this.ingest();
-  }
 }

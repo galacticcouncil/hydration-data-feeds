@@ -221,11 +221,4 @@ export class AssetReserveOrchestratorService extends BaseOrchestratorService {
     };
   }
 
-  /**
-   * Legacy method name for backwards compatibility
-   * @deprecated Use ingest() instead
-   */
-  async ingestAssetReserveFees(): Promise<void> {
-    return this.ingest();
-  }
 }
