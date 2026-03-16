@@ -48,7 +48,7 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
   }
 
   protected getStartBlock(): number {
-    return this.configService.get('moneyMarket.startBlock', { infer: true }) || 121;
+    return this.configService.get('moneyMarket.startBlock', { infer: true }) ?? 121;
   }
 
   /**
@@ -83,12 +83,14 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
 
       let hasMore = true;
       let currentFromBlock = lastProcessedBlock;
+      let completedNaturally = false;
 
       while (hasMore) {
         const result = await this.processBatch(currentFromBlock, batchSize);
 
         if (!result.hasMore) {
           hasMore = false;
+          completedNaturally = true;
         } else {
           currentFromBlock = result.highestBlock;
         }
@@ -97,6 +99,11 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
         if (currentFromBlock >= currentBlock) {
           hasMore = false;
         }
+      }
+
+      // Advance to currentBlock only on natural completion so next run skips the already-scanned empty range
+      if (completedNaturally) {
+        await this.stateManager.updateLastBlock(this.SERVICE_NAME, currentBlock);
       }
 
       this.logger.log(`Money market ingestion completed successfully`);

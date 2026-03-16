@@ -43,7 +43,7 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
   ) {
     super(stateManager);
     this.batchSize =
-      this.configService.get('peplLiquidation.batchSize', { infer: true }) ||
+      this.configService.get('peplLiquidation.batchSize', { infer: true }) ??
       500;
   }
 
@@ -87,12 +87,14 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
       // Process in batches (batch of events, not blocks!)
       let hasMore = true;
       let currentFromBlock = lastProcessedBlock;
+      let completedNaturally = false;
 
       while (hasMore) {
         const result = await this.processBatch(currentFromBlock, currentBlock, this.batchSize);
 
         if (!result.hasMore) {
           hasMore = false;
+          completedNaturally = true;
         } else {
           currentFromBlock = result.highestBlock;
         }
@@ -101,6 +103,11 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
         if (currentFromBlock >= currentBlock) {
           hasMore = false;
         }
+      }
+
+      // Advance to currentBlock only on natural completion so next run skips the already-scanned empty range
+      if (completedNaturally) {
+        await this.stateManager.updateLastBlock(this.SERVICE_NAME, currentBlock);
       }
 
       this.logger.log('PEPL ingestion completed successfully');

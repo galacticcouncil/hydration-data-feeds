@@ -265,7 +265,6 @@ export class MultiEndpointGraphqlService implements OnModuleInit {
           await this.sleep(this.retryDelay * Math.pow(2, attempt - 1));
         }
 
-        // console.log(`[MultiEndpointGraphql] Request -> ${endpointUrl}`, { variables });
         const result = await client.request<T>(query, variables as any);
         return result;
       } catch (error) {
@@ -308,8 +307,8 @@ export class MultiEndpointGraphqlService implements OnModuleInit {
       }>(headEndpoint.apiUrl, GET_CURRENT_BLOCK_HEIGHT_QUERY);
 
       if (!result.swaps.nodes.length) {
-        this.logger.warn('No swaps found, using default block height');
-        return 10000000; // Default fallback
+        this.logger.warn('No swaps found at head endpoint — falling back to hardcoded block height 10000000');
+        return 10000000;
       }
 
       return result.swaps.nodes[0].paraBlockHeight;
