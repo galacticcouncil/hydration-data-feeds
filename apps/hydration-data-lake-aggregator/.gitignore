@@ -5,6 +5,7 @@
 
 # Claude Code local config
 .claude/
+.planning/
 
 # Logs
 logs

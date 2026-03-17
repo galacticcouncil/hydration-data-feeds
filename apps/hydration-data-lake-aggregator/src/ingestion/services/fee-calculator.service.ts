@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   AssetRegistryService,
 } from '../../common/services/asset-registry.service';
-import { SwapFeeNode } from '../../graphql-client/types/graphql-response.types';
+import { NestedSwapNode, SwapFeeNode } from '../../graphql-client/types/graphql-response.types';
 import {
   isRoutedTradeNode,
   SwapOrRoutedTradeNode,
@@ -361,6 +361,132 @@ export class FeeCalculatorService {
       feeAmountsRaw,
       feeByRecipient,
     };
+  }
+
+  /**
+   * Calculate fee data for a single routed trade hop (post-upgrade)
+   * Processes only the fees from one nested swap, using hop.id as the identifier
+   */
+  async calculateHopFees(
+    hop: NestedSwapNode,
+    blockHeight: number,
+    routedTradeInputAssetIds: string[],
+  ): Promise<CalculatedFeeData> {
+    const upgradeBlock =
+      this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
+        infer: true,
+      }) || 11394694;
+
+    const isPostUpgrade = blockHeight >= upgradeBlock;
+
+    const feeAmountsRaw: Record<string, string> = {};
+    const feeAssetIds: string[] = [];
+    const feeByRecipient: FeeByRecipient[] = [];
+
+    const swapFees = hop.swapFees.nodes;
+
+    const assetIdsSet = new Set<string>(swapFees.map((fee) => fee.assetId));
+    if (isPostUpgrade && routedTradeInputAssetIds.includes(this.H2O_ASSET_ID)) {
+      assetIdsSet.add(this.H2O_ASSET_ID);
+    }
+
+    const decimalsMap = await this.assetRegistry.getDecimalsBatch(
+      Array.from(assetIdsSet),
+    );
+
+    // H2O special case: check this hop's inputs only
+    if (isPostUpgrade && routedTradeInputAssetIds.includes(this.H2O_ASSET_ID)) {
+      const h2oInput = hop.swapInputs.nodes.find(
+        (input) => input.assetId === this.H2O_ASSET_ID,
+      );
+      if (h2oInput) {
+        let h2oDecimals = decimalsMap.get(this.H2O_ASSET_ID) ?? 0;
+        if (h2oDecimals === 0) {
+          const fetched = await this.assetRegistry.getDecimals(this.H2O_ASSET_ID);
+          h2oDecimals = fetched ?? 12;
+        }
+        const normalizedH2OAmount = this.normalizeAmount(h2oInput.amount, h2oDecimals);
+        if (this.H2O_OMNIPOOL_ATTRIBUTION_ENABLED) {
+          if (feeAmountsRaw[this.H2O_ASSET_ID]) {
+            feeAmountsRaw[this.H2O_ASSET_ID] = this.addDecimalNumbers(
+              feeAmountsRaw[this.H2O_ASSET_ID],
+              normalizedH2OAmount,
+            );
+          } else {
+            feeAmountsRaw[this.H2O_ASSET_ID] = normalizedH2OAmount;
+            feeAssetIds.push(this.H2O_ASSET_ID);
+          }
+          feeByRecipient.push({
+            recipientId: this.ASSET_FEES_OMNIPOOL_RECIPIENT,
+            destinationType: 'Treasury',
+            assetId: this.H2O_ASSET_ID,
+            amount: normalizedH2OAmount,
+            feeType: 'protocol_treasury',
+          });
+          this.logger.debug(
+            `H2O special case: Added ${normalizedH2OAmount} H2O as protocol_treasury for hop ${hop.id}`,
+          );
+        } else {
+          this.logger.debug(
+            `H2O special case: Detected ${normalizedH2OAmount} H2O input for hop ${hop.id} — omnipool attribution disabled`,
+          );
+        }
+      }
+    }
+
+    const feeCount = swapFees.length;
+    for (const fee of swapFees) {
+      const feeType = isPostUpgrade
+        ? this.determineFeeTypePostUpgrade(fee, feeCount, swapFees, hop.id)
+        : this.determineFeeTypePreUpgrade(fee.recipientId);
+
+      if (feeType === null) continue;
+
+      const { assetId, amount: rawAmount } = fee;
+      let decimals: number = decimalsMap.get(assetId) ?? 0;
+      if (decimals === 0) {
+        const fetchedDecimals = await this.assetRegistry.getDecimals(assetId);
+        if (fetchedDecimals === null) {
+          this.logger.warn(`Decimals not found for asset ${assetId}, defaulting to 1`);
+          decimals = 1;
+        } else {
+          decimals = fetchedDecimals;
+        }
+      }
+
+      const normalizedAmount = this.normalizeAmount(rawAmount, decimals);
+      if (feeAmountsRaw[assetId]) {
+        feeAmountsRaw[assetId] = this.addDecimalNumbers(
+          feeAmountsRaw[assetId],
+          normalizedAmount,
+        );
+      } else {
+        feeAmountsRaw[assetId] = normalizedAmount;
+        feeAssetIds.push(assetId);
+      }
+
+      feeByRecipient.push({
+        recipientId: fee.recipientId,
+        destinationType: fee.destinationType,
+        assetId: fee.assetId,
+        amount: normalizedAmount,
+        feeType,
+      });
+    }
+
+    // Post-upgrade consistency: Add zero burned entry for single protocol fee
+    if (isPostUpgrade && feeCount === 1 && swapFees.length > 0) {
+      const firstFee = swapFees[0];
+      feeByRecipient.push({
+        recipientId: null as any,
+        destinationType: firstFee.destinationType,
+        assetId: firstFee.assetId,
+        amount: '0',
+        feeType: 'protocol_burned',
+      });
+    }
+
+    return { feeAssetIds, feeAmountsRaw, feeByRecipient };
   }
 
   /**

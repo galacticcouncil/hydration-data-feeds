@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { SwapNode } from '../../graphql-client/types/graphql-response.types';
+import { NestedSwapNode, RoutedTradeNode } from '../../graphql-client/types/graphql-response.types';
 import { SwapRaw } from '../../database/entities/swap-raw.entity';
 import { FeeCalculatorService, CalculatedFeeData } from './fee-calculator.service';
 import {
@@ -185,7 +185,11 @@ export class SwapTransformerService {
     }
 
     const transformedSwaps = await Promise.all(
-      swaps.map((swap) => this.transformSwap(swap, priceMap)),
+      swaps.flatMap((swap) =>
+        isRoutedTradeNode(swap)
+          ? swap.swaps.nodes.map((hop) => this.transformSwapHop(swap, hop, priceMap))
+          : [this.transformSwap(swap, priceMap)],
+      ),
     );
 
     const validSwaps = transformedSwaps.filter((swap) => {
@@ -204,6 +208,64 @@ export class SwapTransformerService {
     );
 
     return validSwaps;
+  }
+
+  /**
+   * Transform a single routed trade hop into a SwapRaw row
+   * Uses hop.id as swap_id and only processes that hop's fees
+   */
+  async transformSwapHop(
+    routedTrade: RoutedTradeNode,
+    hop: NestedSwapNode,
+    priceMap?: AssetPriceMap,
+  ): Promise<SwapRaw> {
+    const feeData = await this.feeCalculator.calculateHopFees(
+      hop,
+      routedTrade.paraBlockHeight,
+      routedTrade.inputAssetIds,
+    );
+
+    const time = new Date(hop.paraTimestamp);
+
+    let spotPrices: Record<string, string> = {};
+    if (priceMap) {
+      for (const assetId of feeData.feeAssetIds) {
+        const price = priceMap[assetId];
+        if (price !== undefined) {
+          spotPrices[assetId] = price;
+        }
+      }
+    } else {
+      try {
+        const fetchedPrices = await this.graphqlFetcher.fetchNearestAssetPrices(
+          feeData.feeAssetIds,
+          routedTrade.paraBlockHeight,
+        );
+        for (const assetId of feeData.feeAssetIds) {
+          spotPrices[assetId] = fetchedPrices[assetId] || '0';
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to fetch prices for hop ${hop.id} at block ${routedTrade.paraBlockHeight}: ${error.message}`,
+        );
+        for (const assetId of feeData.feeAssetIds) {
+          spotPrices[assetId] = '0';
+        }
+      }
+    }
+
+    const swapRaw = new SwapRaw();
+    swapRaw.swap_id = hop.id;
+    swapRaw.time = time;
+    swapRaw.block_height = routedTrade.paraBlockHeight;
+    swapRaw.filler_id = hop.fillerId;
+    swapRaw.filler_type = hop.fillerType;
+    swapRaw.fee_asset_ids = feeData.feeAssetIds;
+    swapRaw.fee_amounts_raw = feeData.feeAmountsRaw;
+    swapRaw.fee_by_recipient = feeData.feeByRecipient;
+    swapRaw.fee_spot_prices = spotPrices;
+
+    return swapRaw;
   }
 
   /**
