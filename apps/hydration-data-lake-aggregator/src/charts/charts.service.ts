@@ -349,7 +349,9 @@ export class ChartsService {
       }
     }
 
-    return `(fees_by_type->>'${streamType}')::numeric`;
+    throw new Error(
+      `getValueColumn: unrecognized combination productType=${productType} streamType=${streamType} feeDestination=${feeDestination}`,
+    );
   }
 
   /**
