@@ -155,7 +155,7 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
    * Save swaps to database in batch
    */
   private async saveSwapsBatch(swaps: SwapRaw[]): Promise<void> {
-    await saveInChunks(this.swapRawRepository, swaps);
+    await saveInChunks(this.swapRawRepository, swaps, undefined, this.logger);
     this.logger.debug(`Saved ${swaps.length} swaps to database`);
   }
 

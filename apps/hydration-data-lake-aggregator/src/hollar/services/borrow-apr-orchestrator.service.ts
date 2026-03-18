@@ -185,7 +185,7 @@ export class BorrowAprOrchestratorService extends BaseOrchestratorService {
    * Save Borrow APR entities to database in batch
    */
   private async saveBatch(entities: BorrowAprRaw[]): Promise<void> {
-    await saveInChunks(this.borrowAprRepository, entities);
+    await saveInChunks(this.borrowAprRepository, entities, undefined, this.logger);
     this.logger.debug(`Saved ${entities.length} Borrow APR transfers to database`);
   }
 

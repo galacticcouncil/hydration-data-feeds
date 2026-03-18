@@ -194,7 +194,7 @@ export class HsmRevenueOrchestratorService extends BaseOrchestratorService {
    * Save HSM revenue events to database in batch
    */
   private async saveHsmRevenueBatch(entities: HsmRevenueRaw[]): Promise<void> {
-    await saveInChunks(this.hsmRevenueRepository, entities);
+    await saveInChunks(this.hsmRevenueRepository, entities, undefined, this.logger);
     this.logger.debug(`Saved ${entities.length} HSM revenue events to database`);
   }
 

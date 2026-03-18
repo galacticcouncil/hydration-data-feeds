@@ -219,7 +219,7 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
   private async saveLiquidationsBatch(
     liquidations: MoneyMarketRaw[],
   ): Promise<void> {
-    await saveInChunks(this.moneyMarketRawRepository, liquidations);
+    await saveInChunks(this.moneyMarketRawRepository, liquidations, undefined, this.logger);
     this.logger.debug(`Saved ${liquidations.length} liquidations to database`);
   }
 

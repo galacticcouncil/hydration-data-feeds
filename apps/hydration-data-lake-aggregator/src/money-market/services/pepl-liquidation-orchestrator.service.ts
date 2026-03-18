@@ -199,7 +199,7 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
    * Save PEPL events to database in batch
    */
   private async savePeplEventsBatch(events: MoneyMarketRaw[]): Promise<void> {
-    await saveInChunks(this.moneyMarketRepository, events);
+    await saveInChunks(this.moneyMarketRepository, events, undefined, this.logger);
     this.logger.debug(`Saved ${events.length} PEPL events to database`);
   }
 

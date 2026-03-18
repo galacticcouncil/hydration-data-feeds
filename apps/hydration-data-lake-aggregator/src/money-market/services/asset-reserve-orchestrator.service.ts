@@ -190,7 +190,7 @@ export class AssetReserveOrchestratorService extends BaseOrchestratorService {
    * Save Asset Reserve events to database in batch
    */
   private async saveAssetReserveEventsBatch(events: MoneyMarketRaw[]): Promise<void> {
-    await saveInChunks(this.moneyMarketRepository, events);
+    await saveInChunks(this.moneyMarketRepository, events, undefined, this.logger);
     this.logger.debug(`Saved ${events.length} Asset Reserve events to database`);
   }
 
