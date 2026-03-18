@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { NestedSwapNode, RoutedTradeNode } from '../../graphql-client/types/graphql-response.types';
 import { SwapRaw } from '../../database/entities/swap-raw.entity';
 import { FeeCalculatorService, CalculatedFeeData } from './fee-calculator.service';
 import { SwapOrRoutedTradeNode, isRoutedTradeNode } from './graphql-fetcher.service';
@@ -110,13 +111,15 @@ export class SwapTransformerService {
       );
     }
 
-    // Avoids N redundant in-memory lookups (one per swap) by pre-fetching once
-    const decimalsMap = await this.assetRegistry.getDecimalsBatch(
-      Array.from(allAssetIds),
-    );
+    // Avoids N redundant in-memory lookups by pre-fetching once; hop processing hits the warmed cache
+    const decimalsMap = await this.assetRegistry.getDecimalsBatch(Array.from(allAssetIds));
 
     const transformedSwaps = await Promise.all(
-      swaps.map((swap) => this.transformSwap(swap, priceMap, decimalsMap)),
+      swaps.flatMap((swap) =>
+        isRoutedTradeNode(swap)
+          ? swap.swaps.nodes.map((hop) => this.transformSwapHop(swap, hop, priceMap))
+          : [this.transformSwap(swap, priceMap, decimalsMap)],
+      ),
     );
 
     const validSwaps = transformedSwaps.filter((swap) => this.validateSwap(swap));
@@ -126,6 +129,44 @@ export class SwapTransformerService {
     );
 
     return validSwaps;
+  }
+
+  /**
+   * Transform a single routed trade hop into a SwapRaw row
+   * Uses hop.id as swap_id and only processes that hop's fees
+   */
+  async transformSwapHop(
+    routedTrade: RoutedTradeNode,
+    hop: NestedSwapNode,
+    priceMap?: AssetPriceMap,
+  ): Promise<SwapRaw> {
+    const feeData = await this.feeCalculator.calculateHopFees(
+      hop,
+      routedTrade.paraBlockHeight,
+      routedTrade.inputAssetIds,
+    );
+
+    const time = new Date(hop.paraTimestamp);
+
+    const spotPrices: Record<string, string> = {};
+    if (priceMap) {
+      for (const assetId of feeData.feeAssetIds) {
+        spotPrices[assetId] = priceMap[assetId] ?? '0';
+      }
+    }
+
+    const swapRaw = new SwapRaw();
+    swapRaw.swap_id = hop.id;
+    swapRaw.time = time;
+    swapRaw.block_height = routedTrade.paraBlockHeight;
+    swapRaw.filler_id = hop.fillerId;
+    swapRaw.filler_type = hop.fillerType;
+    swapRaw.fee_asset_ids = feeData.feeAssetIds;
+    swapRaw.fee_amounts_raw = feeData.feeAmountsRaw;
+    swapRaw.fee_by_recipient = feeData.feeByRecipient;
+    swapRaw.fee_spot_prices = spotPrices;
+
+    return swapRaw;
   }
 
   /**
