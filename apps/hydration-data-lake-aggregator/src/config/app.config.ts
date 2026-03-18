@@ -64,11 +64,6 @@ export interface AppConfig {
     intervalSeconds: number;
     backfillOnStartup: boolean;
   };
-  enrichment: {
-    batchSize: number;
-    intervalSeconds: number;
-    maxRetries: number;
-  };
   assetRegistry: {
     refreshIntervalSeconds: number;
   };
@@ -163,11 +158,6 @@ export const configValidationSchema = Joi.object({
   BORROW_APR_INTERVAL_SECONDS: Joi.number().default(300), // 5 minutes
   BORROW_APR_BACKFILL_ON_STARTUP: Joi.boolean().default(true),
 
-  // Enrichment
-  ENRICHMENT_BATCH_SIZE: Joi.number().default(1000),
-  ENRICHMENT_INTERVAL_SECONDS: Joi.number().default(120),
-  ENRICHMENT_MAX_RETRIES: Joi.number().default(3),
-
   // Asset Registry
   ASSET_REGISTRY_REFRESH_INTERVAL: Joi.number().default(43200), // 12 hours
 
@@ -256,11 +246,6 @@ export const getAppConfig = (): AppConfig => ({
     batchSize: parseInt(process.env.BORROW_APR_BATCH_SIZE!, 10),
     intervalSeconds: parseInt(process.env.BORROW_APR_INTERVAL_SECONDS!, 10),
     backfillOnStartup: process.env.BORROW_APR_BACKFILL_ON_STARTUP !== 'false',
-  },
-  enrichment: {
-    batchSize: parseInt(process.env.ENRICHMENT_BATCH_SIZE!, 10),
-    intervalSeconds: parseInt(process.env.ENRICHMENT_INTERVAL_SECONDS!, 10),
-    maxRetries: parseInt(process.env.ENRICHMENT_MAX_RETRIES!, 10),
   },
   assetRegistry: {
     refreshIntervalSeconds: parseInt(process.env.ASSET_REGISTRY_REFRESH_INTERVAL!, 10),
