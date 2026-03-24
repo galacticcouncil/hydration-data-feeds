@@ -6,6 +6,7 @@ on:
       - "fix/**"
       - "feat/**"
       - "main"
+      - "refactor-base"
 
 jobs:
   docker-images-build-publish:
