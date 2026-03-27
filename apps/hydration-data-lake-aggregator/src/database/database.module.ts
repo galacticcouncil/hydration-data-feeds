@@ -15,6 +15,6 @@ import { AggregateRefreshScheduler } from './schedulers/aggregate-refresh.schedu
     TypeOrmModule.forFeature([SwapRaw]),
   ],
   providers: [AggregateRefreshService, AggregateRefreshScheduler],
-  exports: [TypeOrmModule],
+  exports: [TypeOrmModule, AggregateRefreshService],
 })
 export class DatabaseModule {}

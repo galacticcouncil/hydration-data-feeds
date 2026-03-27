@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MoneyMarketRaw } from '../database/entities';
 import { GraphqlClientModule } from '../graphql-client/graphql-client.module';
 import { CommonModule } from '../common/common.module';
+import { DatabaseModule } from '../database/database.module';
 import { MoneyMarketFetcherService } from './services/money-market-fetcher.service';
 import { LiquidationFeeCalculatorService } from './services/liquidation-fee-calculator.service';
 import { LiquidationTransformerService } from './services/liquidation-transformer.service';
@@ -29,6 +30,7 @@ import { AssetReserveScheduler } from './schedulers/asset-reserve.scheduler';
     TypeOrmModule.forFeature([MoneyMarketRaw]),
     GraphqlClientModule,
     CommonModule,
+    DatabaseModule,
   ],
   providers: [
     MoneyMarketFetcherService,

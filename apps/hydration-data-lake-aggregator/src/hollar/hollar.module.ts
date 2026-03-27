@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { CommonModule } from '../common/common.module';
+import { DatabaseModule } from '../database/database.module';
 import { BorrowAprRaw } from '../database/entities/borrow-apr-raw.entity';
 import { HsmRevenueRaw } from '../database/entities/hsm-revenue-raw.entity';
 import { GraphqlClientModule } from '../graphql-client/graphql-client.module';
@@ -25,6 +26,7 @@ import { HsmRevenueTransformerService } from './services/hsm-revenue-transformer
     TypeOrmModule.forFeature([HsmRevenueRaw, BorrowAprRaw]),
     GraphqlClientModule,
     CommonModule,
+    DatabaseModule,
   ],
   providers: [
     HsmRevenueFetcherService,

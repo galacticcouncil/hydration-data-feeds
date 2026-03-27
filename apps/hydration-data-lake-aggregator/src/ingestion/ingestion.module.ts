@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SwapRaw } from '../database/entities';
 import { GraphqlClientModule } from '../graphql-client/graphql-client.module';
 import { CommonModule } from '../common/common.module';
+import { DatabaseModule } from '../database/database.module';
 import { GraphqlFetcherService } from './services/graphql-fetcher.service';
 import { FeeCalculatorService } from './services/fee-calculator.service';
 import { SwapTransformerService } from './services/swap-transformer.service';
@@ -14,6 +15,7 @@ import { SwapIngestionScheduler } from './schedulers/swap-ingestion.scheduler';
     TypeOrmModule.forFeature([SwapRaw]),
     GraphqlClientModule,
     CommonModule,
+    DatabaseModule,
   ],
   providers: [
     GraphqlFetcherService,
