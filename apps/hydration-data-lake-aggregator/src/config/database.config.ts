@@ -22,6 +22,7 @@ export const getDatabaseConfig = (
     migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
     synchronize: dbConfig.synchronize,
     logging: dbConfig.logging,
+    migrationsTransactionMode: 'each',
     // Enable TimescaleDB support
     extra: {
       max: 20, // Maximum number of clients in the pool

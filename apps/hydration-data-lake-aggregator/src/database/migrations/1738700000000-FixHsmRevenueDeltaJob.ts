@@ -17,6 +17,9 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *   query lacked proc_schema filter.
  */
 export class FixHsmRevenueDeltaJob1738700000000 implements MigrationInterface {
+  // refresh_continuous_aggregate() cannot run inside a transaction block
+  public transaction = false;
+
   private readonly deltaIntervals = [
     {
       name: 'hsm_revenue_delta_1min',

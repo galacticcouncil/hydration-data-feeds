@@ -16,4 +16,5 @@ export default new DataSource({
   migrations: [resolve(__dirname, '../database/migrations/**/*{.ts,.js}')],
   synchronize: false,
   logging: true,
+  migrationsTransactionMode: 'each',
 });
