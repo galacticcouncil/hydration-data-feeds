@@ -3,6 +3,7 @@ import * as Joi from 'joi';
 export interface AppConfig {
   nodeEnv: string;
   port: number;
+  nearHeadBlocks: number;
   graphql: {
     endpoint: string;
     multiEndpoint: {
@@ -121,6 +122,9 @@ export const configValidationSchema = Joi.object({
   REDIS_PORT: Joi.number().default(6379),
   REDIS_PASSWORD: Joi.string().optional().allow(''),
 
+  // Near-head CAGG refresh threshold (~5 min at 6s/block, ~10 min at 12s/block)
+  NEAR_HEAD_BLOCKS: Joi.number().default(50),
+
   // Ingestion
   INGESTION_START_BLOCK: Joi.number().required(),
   INGESTION_BATCH_SIZE: Joi.number().default(100),
@@ -183,6 +187,7 @@ export const configValidationSchema = Joi.object({
 export const getAppConfig = (): AppConfig => ({
   nodeEnv: process.env.NODE_ENV!,
   port: parseInt(process.env.PORT!, 10),
+  nearHeadBlocks: parseInt(process.env.NEAR_HEAD_BLOCKS!, 10),
   price: {
     spotPriceBaseAssetId: process.env.ASSET_PRICE_BASE_ASSET_ID!,
   },

@@ -11,6 +11,7 @@ import { SwapTransformerService } from './swap-transformer.service';
 import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import { StateManagerService } from '../../common/services/state-manager.service';
 import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
+import { AggregateRefreshService } from '../../database/services/aggregate-refresh.service';
 
 @Injectable()
 export class IngestionOrchestratorService extends BaseOrchestratorService {
@@ -24,11 +25,12 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
     private feeCalculator: FeeCalculatorService,
     private swapTransformer: SwapTransformerService,
     private graphqlClient: GraphqlClientService,
+    private aggregateRefreshService: AggregateRefreshService,
     stateManager: StateManagerService,
     @InjectRepository(SwapRaw)
     private swapRawRepository: Repository<SwapRaw>,
   ) {
-    super(stateManager);
+    super(stateManager, configService);
     this.upgradeBlock =
       this.configService.get('ingestion.omnipoolRuntimeUpgradeBlock', {
         infer: true,
@@ -58,6 +60,9 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
       this.logger.log(
         `Starting ingestion: last=${lastProcessedBlock}, current=${currentBlock}`,
       );
+
+      await this.maybeRefreshCaggs(lastProcessedBlock, currentBlock,
+        () => this.aggregateRefreshService.refreshSwaps());
 
       if (lastProcessedBlock >= currentBlock) {
         this.logger.debug('No new blocks to process');

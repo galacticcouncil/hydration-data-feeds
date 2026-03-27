@@ -14,6 +14,7 @@ import { GraphqlClientService } from '../../graphql-client/services/graphql-clie
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
 import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
+import { AggregateRefreshService } from '../../database/services/aggregate-refresh.service';
 
 /**
  * Orchestrator for Asset Reserve fee ingestion
@@ -37,11 +38,12 @@ export class AssetReserveOrchestratorService extends BaseOrchestratorService {
     private calculator: AssetReserveCalculatorService,
     private transformer: AssetReserveTransformerService,
     private graphqlClient: GraphqlClientService,
+    private aggregateRefreshService: AggregateRefreshService,
     stateManager: StateManagerService,
     @InjectRepository(MoneyMarketRaw)
     private moneyMarketRepository: Repository<MoneyMarketRaw>,
   ) {
-    super(stateManager);
+    super(stateManager, configService);
     this.batchSize =
       this.configService.get('assetReserve.batchSize', { infer: true }) ?? 500;
   }
@@ -77,6 +79,9 @@ export class AssetReserveOrchestratorService extends BaseOrchestratorService {
       this.logger.log(
         `Starting Asset Reserve ingestion: last=${lastProcessedBlock}, current=${currentBlock}`,
       );
+
+      await this.maybeRefreshCaggs(lastProcessedBlock, currentBlock,
+        () => this.aggregateRefreshService.refreshLiquidations());
 
       if (lastProcessedBlock >= currentBlock) {
         this.logger.debug('No new blocks to process for Asset Reserve');

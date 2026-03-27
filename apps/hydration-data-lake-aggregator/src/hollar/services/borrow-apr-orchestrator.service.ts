@@ -13,6 +13,7 @@ import { BorrowAprTransformerService } from './borrow-apr-transformer.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
 import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
+import { AggregateRefreshService } from '../../database/services/aggregate-refresh.service';
 
 /**
  * Orchestrator for Borrow APR ingestion
@@ -36,11 +37,12 @@ export class BorrowAprOrchestratorService extends BaseOrchestratorService {
     private fetcher: BorrowAprFetcherService,
     private transformer: BorrowAprTransformerService,
     private graphqlClient: GraphqlClientService,
+    private aggregateRefreshService: AggregateRefreshService,
     stateManager: StateManagerService,
     @InjectRepository(BorrowAprRaw)
     private borrowAprRepository: Repository<BorrowAprRaw>,
   ) {
-    super(stateManager);
+    super(stateManager, configService);
     this.batchSize =
       this.configService.get('borrowApr.batchSize', { infer: true }) ?? 1000;
   }
@@ -74,6 +76,9 @@ export class BorrowAprOrchestratorService extends BaseOrchestratorService {
       this.logger.log(
         `Starting Borrow APR ingestion: last=${lastProcessedBlock}, current=${currentBlock}`,
       );
+
+      await this.maybeRefreshCaggs(lastProcessedBlock, currentBlock,
+        () => this.aggregateRefreshService.refreshBorrowApr());
 
       if (lastProcessedBlock >= currentBlock) {
         this.logger.debug('No new blocks to process for Borrow APR');

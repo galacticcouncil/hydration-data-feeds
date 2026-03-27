@@ -15,6 +15,7 @@ import {
 } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
 import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
+import { AggregateRefreshService } from '../../database/services/aggregate-refresh.service';
 
 /**
  * Orchestrator for money market liquidation fee ingestion
@@ -40,11 +41,12 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
     private feeCalculator: LiquidationFeeCalculatorService,
     private liquidationTransformer: LiquidationTransformerService,
     private graphqlClient: GraphqlClientService,
+    private aggregateRefreshService: AggregateRefreshService,
     stateManager: StateManagerService,
     @InjectRepository(MoneyMarketRaw)
     private moneyMarketRawRepository: Repository<MoneyMarketRaw>,
   ) {
-    super(stateManager);
+    super(stateManager, configService);
   }
 
   protected getStartBlock(): number {
@@ -71,6 +73,9 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
       this.logger.log(
         `Starting money market ingestion: last=${lastProcessedBlock}, current=${currentBlock}`,
       );
+
+      await this.maybeRefreshCaggs(lastProcessedBlock, currentBlock,
+        () => this.aggregateRefreshService.refreshLiquidations());
 
       if (lastProcessedBlock >= currentBlock) {
         this.logger.debug('No new blocks to process');

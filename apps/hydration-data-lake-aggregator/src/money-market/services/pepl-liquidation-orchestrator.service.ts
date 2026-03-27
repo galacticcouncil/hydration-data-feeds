@@ -14,6 +14,7 @@ import { GraphqlClientService } from '../../graphql-client/services/graphql-clie
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
 import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
+import { AggregateRefreshService } from '../../database/services/aggregate-refresh.service';
 
 /**
  * Orchestrator for PEPL liquidation profit ingestion
@@ -37,11 +38,12 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
     private calculator: PeplProfitCalculatorService,
     private transformer: PeplProfitTransformerService,
     private graphqlClient: GraphqlClientService,
+    private aggregateRefreshService: AggregateRefreshService,
     stateManager: StateManagerService,
     @InjectRepository(MoneyMarketRaw)
     private moneyMarketRepository: Repository<MoneyMarketRaw>,
   ) {
-    super(stateManager);
+    super(stateManager, configService);
     this.batchSize =
       this.configService.get('peplLiquidation.batchSize', { infer: true }) ??
       500;
@@ -78,6 +80,9 @@ export class PeplLiquidationOrchestratorService extends BaseOrchestratorService 
       this.logger.log(
         `Starting PEPL ingestion: last=${lastProcessedBlock}, current=${currentBlock}`,
       );
+
+      await this.maybeRefreshCaggs(lastProcessedBlock, currentBlock,
+        () => this.aggregateRefreshService.refreshLiquidations());
 
       if (lastProcessedBlock >= currentBlock) {
         this.logger.debug('No new blocks to process for PEPL');

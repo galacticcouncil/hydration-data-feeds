@@ -14,6 +14,7 @@ import { HsmRevenueCalculatorService } from './hsm-revenue-calculator.service';
 import { HsmRevenueFetcherService } from './hsm-revenue-fetcher.service';
 import { HsmRevenueTransformerService } from './hsm-revenue-transformer.service';
 import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
+import { AggregateRefreshService } from '../../database/services/aggregate-refresh.service';
 
 /**
  * Orchestrator for HSM revenue ingestion
@@ -37,11 +38,12 @@ export class HsmRevenueOrchestratorService extends BaseOrchestratorService {
     private calculator: HsmRevenueCalculatorService,
     private transformer: HsmRevenueTransformerService,
     private graphqlClient: GraphqlClientService,
+    private aggregateRefreshService: AggregateRefreshService,
     stateManager: StateManagerService,
     @InjectRepository(HsmRevenueRaw)
     private hsmRevenueRepository: Repository<HsmRevenueRaw>,
   ) {
-    super(stateManager);
+    super(stateManager, configService);
     this.batchSize =
       this.configService.get('hsmRevenue.batchSize', { infer: true }) ?? 500;
   }
@@ -75,6 +77,9 @@ export class HsmRevenueOrchestratorService extends BaseOrchestratorService {
       this.logger.log(
         `Starting HSM revenue ingestion: last=${lastProcessedBlock}, current=${currentBlock}`,
       );
+
+      await this.maybeRefreshCaggs(lastProcessedBlock, currentBlock,
+        () => this.aggregateRefreshService.refreshHsmRevenue());
 
       if (lastProcessedBlock >= currentBlock) {
         this.logger.debug('No new blocks to process for HSM revenue');
