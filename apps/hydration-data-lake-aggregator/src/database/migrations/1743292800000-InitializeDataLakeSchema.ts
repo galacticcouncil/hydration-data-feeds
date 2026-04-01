@@ -356,7 +356,7 @@ export class InitializeDataLakeSchema1743292800000 implements MigrationInterface
       BEGIN
         EXECUTE format('
           WITH last_written AS (
-            SELECT COALESCE(MAX(bucket), NOW() - %L * 3) AS last_bucket
+            SELECT COALESCE(MAX(bucket), NOW() - %L::interval * 3) AS last_bucket
             FROM %I
           ),
           deltas AS (
@@ -365,7 +365,7 @@ export class InitializeDataLakeSchema1743292800000 implements MigrationInterface
               hsm_revenue - LAG(hsm_revenue) OVER (ORDER BY bucket) AS hsm_revenue_delta,
               event_count
             FROM %I
-            WHERE bucket >= (SELECT last_bucket FROM last_written) - %L
+            WHERE bucket >= (SELECT last_bucket FROM last_written) - %L::interval
           )
           INSERT INTO %I (bucket, hsm_revenue_delta, event_count)
           SELECT bucket, hsm_revenue_delta, event_count
