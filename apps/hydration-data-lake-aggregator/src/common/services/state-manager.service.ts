@@ -61,8 +61,7 @@ export class StateManagerService {
     try {
       const key = this.getKey(serviceName);
 
-      // Store in Redis with no expiration (persistent state)
-      await this.cacheManager.set(key, state, 0);
+      await this.cacheManager.set(key, state);
 
       this.logger.debug(
         `Updated state for ${serviceName}: block ${state.lastProcessedBlock}`,
@@ -133,10 +132,10 @@ export class StateManagerService {
     const currentState = await this.getState(serviceName);
 
     const errorState: IngestionState = {
+      ...(currentState ?? {}),
       lastProcessedTimestamp: new Date().toISOString(),
       lastIngestionAt: new Date().toISOString(),
       status: 'error',
-      ...(currentState ?? {}),
       errorMessage,
     };
 

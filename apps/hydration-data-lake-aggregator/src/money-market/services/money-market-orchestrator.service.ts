@@ -1,21 +1,37 @@
+import { Repository } from 'typeorm';
+
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { AppConfig } from '../../config/app.config';
-import { MoneyMarketRaw } from '../../database/entities/money-market-raw.entity';
-import { MoneyMarketFetcherService } from './money-market-fetcher.service';
-import { LiquidationFeeCalculatorService } from './liquidation-fee-calculator.service';
-import { LiquidationTransformerService } from './liquidation-transformer.service';
-import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
-import { StateManagerService } from '../../common/services/state-manager.service';
+
+import {
+  BaseOrchestratorService,
+} from '../../common/services/base-orchestrator.service';
+import {
+  StateManagerService,
+} from '../../common/services/state-manager.service';
 import {
   extractUniqueBlockHeights,
   getMaxBlockHeight,
 } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
-import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
-import { AggregateRefreshService } from '../../database/services/aggregate-refresh.service';
+import { AppConfig } from '../../config/app.config';
+import {
+  MoneyMarketRaw,
+} from '../../database/entities/money-market-raw.entity';
+import {
+  AggregateRefreshService,
+} from '../../database/services/aggregate-refresh.service';
+import {
+  GraphqlClientService,
+} from '../../graphql-client/services/graphql-client.service';
+import {
+  LiquidationFeeCalculatorService,
+} from './liquidation-fee-calculator.service';
+import {
+  LiquidationTransformerService,
+} from './liquidation-transformer.service';
+import { MoneyMarketFetcherService } from './money-market-fetcher.service';
 
 /**
  * Orchestrator for money market liquidation fee ingestion
@@ -239,7 +255,7 @@ export class MoneyMarketOrchestratorService extends BaseOrchestratorService {
     const state = await this.stateManager.getState(this.SERVICE_NAME);
 
     return {
-      lastProcessedBlock: state?.lastProcessedBlock || 0,
+      lastProcessedBlock: state?.lastProcessedBlock ?? 0,
       lastIngestionAt: state?.lastIngestionAt
         ? new Date(state.lastIngestionAt)
         : new Date(),

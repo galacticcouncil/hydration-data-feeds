@@ -1,19 +1,28 @@
-import { Injectable, Logger } from '@nestjs/common';
-
-import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import {
-  GET_SWAPS_QUERY,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+import {
+  FetchResult,
+} from '../../common/interfaces/paginated-response.interface';
+import {
+  PriceFetcherService,
+} from '../../common/services/price-fetcher.service';
+import {
   GET_ROUTED_TRADES_QUERY,
+  GET_SWAPS_QUERY,
 } from '../../graphql-client/queries/swaps.queries';
 import {
-  GetSwapsResponse,
+  GraphqlClientService,
+} from '../../graphql-client/services/graphql-client.service';
+import {
   GetRoutedTradesResponse,
-  SwapNode,
+  GetSwapsResponse,
   RoutedTradeNode,
+  SwapNode,
 } from '../../graphql-client/types/graphql-response.types';
-import { ConfigService } from '@nestjs/config';
-import { PriceFetcherService } from '../../common/services/price-fetcher.service';
-import { FetchResult } from '../../common/interfaces/paginated-response.interface';
 
 // Union type to handle both legacy swaps and new routed trades
 export type SwapOrRoutedTradeNode = SwapNode | RoutedTradeNode;
@@ -174,6 +183,19 @@ export class GraphqlFetcherService {
       limit,
     );
 
+    if (preUpgradeData.items.length === limit && preUpgradeData.totalCount === limit) {
+      this.logger.warn(
+        `Pre-upgrade fetch (blocks ${fromBlock}-${this.upgradeBlock - 1}) returned exactly ` +
+        `${limit} items and totalCount=${limit} — indexer may have capped; data loss possible.`,
+      );
+    }
+    if (postUpgradeData.items.length === limit && postUpgradeData.totalCount === limit) {
+      this.logger.warn(
+        `Post-upgrade fetch (blocks ${this.upgradeBlock}-${toBlock}) returned exactly ` +
+        `${limit} items and totalCount=${limit} — indexer may have capped; data loss possible.`,
+      );
+    }
+
     return {
       items: [...preUpgradeData.items, ...postUpgradeData.items],
       totalCount: preUpgradeData.totalCount + postUpgradeData.totalCount,
@@ -231,6 +253,14 @@ export class GraphqlFetcherService {
       allSwaps.push(...swaps);
 
       if (swaps.length < batchSize || totalCount <= allSwaps.length) {
+        // When we get exactly batchSize items and totalCount also equals batchSize, the indexer
+        // may have capped totalCount at the page limit — we cannot tell if more events exist.
+        if (swaps.length === batchSize && totalCount === batchSize) {
+          this.logger.warn(
+            `Block range ${currentFromBlock}-${toBlock} returned exactly ${batchSize} swaps and ` +
+            `totalCount=${totalCount} — indexer may have capped totalCount; verify no events were dropped.`,
+          );
+        }
         hasMore = false;
       } else {
         const firstBlock = swaps[0].paraBlockHeight;

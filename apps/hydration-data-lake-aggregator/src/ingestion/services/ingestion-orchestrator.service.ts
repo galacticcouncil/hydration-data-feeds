@@ -1,17 +1,27 @@
+import { Repository } from 'typeorm';
+
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+
+import {
+  BaseOrchestratorService,
+} from '../../common/services/base-orchestrator.service';
+import {
+  StateManagerService,
+} from '../../common/services/state-manager.service';
 import { saveInChunks } from '../../common/utils/repository.utils';
 import { AppConfig } from '../../config/app.config';
 import { SwapRaw } from '../../database/entities/swap-raw.entity';
-import { GraphqlFetcherService } from './graphql-fetcher.service';
+import {
+  AggregateRefreshService,
+} from '../../database/services/aggregate-refresh.service';
+import {
+  GraphqlClientService,
+} from '../../graphql-client/services/graphql-client.service';
 import { FeeCalculatorService } from './fee-calculator.service';
+import { GraphqlFetcherService } from './graphql-fetcher.service';
 import { SwapTransformerService } from './swap-transformer.service';
-import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
-import { StateManagerService } from '../../common/services/state-manager.service';
-import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
-import { AggregateRefreshService } from '../../database/services/aggregate-refresh.service';
 
 @Injectable()
 export class IngestionOrchestratorService extends BaseOrchestratorService {
@@ -175,7 +185,7 @@ export class IngestionOrchestratorService extends BaseOrchestratorService {
     const state = await this.stateManager.getState(this.SERVICE_NAME);
 
     return {
-      lastProcessedBlock: state?.lastProcessedBlock || 0,
+      lastProcessedBlock: state?.lastProcessedBlock ?? 0,
       lastIngestionAt: state?.lastIngestionAt
         ? new Date(state.lastIngestionAt)
         : new Date(),

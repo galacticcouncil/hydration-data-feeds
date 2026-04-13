@@ -1,11 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
 import {
   GET_ASSET_PRICES_AT_BLOCK_QUERY,
   GET_NEAREST_ASSET_PRICES_QUERY,
 } from '../../graphql-client/queries/swaps.queries';
+import {
+  GraphqlClientService,
+} from '../../graphql-client/services/graphql-client.service';
 import {
   AssetSpotPriceNode,
   GetAssetPricesAtBlockResponse,
@@ -18,6 +23,7 @@ export interface AssetPriceMap {
 @Injectable()
 export class PriceFetcherService {
   private readonly logger = new Logger(PriceFetcherService.name);
+  private readonly pricelessAssetsWarned = new Set<string>();
 
   constructor(
     private readonly graphqlClient: GraphqlClientService,
@@ -115,9 +121,13 @@ export class PriceFetcherService {
 
       const missingAssetIds = assetIds.filter((id) => !fetchedPrices[id]);
       if (missingAssetIds.length > 0) {
-        this.logger.warn(
-          `Block ${blockHeight}: ${missingAssetIds.length}/${assetIds.length} assets have no historical prices: ${missingAssetIds.join(', ')}`,
-        );
+        const newMissing = missingAssetIds.filter((id) => !this.pricelessAssetsWarned.has(id));
+        newMissing.forEach((id) => this.pricelessAssetsWarned.add(id));
+        if (newMissing.length > 0) {
+          this.logger.warn(
+            `Assets with no historical prices (first occurrence — all batches will use usd_value='0'): ${newMissing.join(', ')}`,
+          );
+        }
       }
 
       return Object.fromEntries(assetIds.map((id) => [id, fetchedPrices[id] || '0']));

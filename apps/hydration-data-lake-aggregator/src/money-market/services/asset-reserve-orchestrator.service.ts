@@ -4,17 +4,31 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { StateManagerService } from '../../common/services/state-manager.service';
-import { AppConfig } from '../../config/app.config';
-import { MoneyMarketRaw } from '../../database/entities/money-market-raw.entity';
-import { AssetReserveFetcherService } from './asset-reserve-fetcher.service';
-import { AssetReserveCalculatorService } from './asset-reserve-calculator.service';
-import { AssetReserveTransformerService } from './asset-reserve-transformer.service';
-import { GraphqlClientService } from '../../graphql-client/services/graphql-client.service';
+import {
+  BaseOrchestratorService,
+} from '../../common/services/base-orchestrator.service';
+import {
+  StateManagerService,
+} from '../../common/services/state-manager.service';
 import { getMaxBlockHeight } from '../../common/utils/block-height.utils';
 import { saveInChunks } from '../../common/utils/repository.utils';
-import { BaseOrchestratorService } from '../../common/services/base-orchestrator.service';
-import { AggregateRefreshService } from '../../database/services/aggregate-refresh.service';
+import { AppConfig } from '../../config/app.config';
+import {
+  MoneyMarketRaw,
+} from '../../database/entities/money-market-raw.entity';
+import {
+  AggregateRefreshService,
+} from '../../database/services/aggregate-refresh.service';
+import {
+  GraphqlClientService,
+} from '../../graphql-client/services/graphql-client.service';
+import {
+  AssetReserveCalculatorService,
+} from './asset-reserve-calculator.service';
+import { AssetReserveFetcherService } from './asset-reserve-fetcher.service';
+import {
+  AssetReserveTransformerService,
+} from './asset-reserve-transformer.service';
 
 /**
  * Orchestrator for Asset Reserve fee ingestion
@@ -210,7 +224,7 @@ export class AssetReserveOrchestratorService extends BaseOrchestratorService {
     const state = await this.stateManager.getState(this.SERVICE_NAME);
 
     return {
-      lastProcessedBlock: state?.lastProcessedBlock || 0,
+      lastProcessedBlock: state?.lastProcessedBlock ?? 0,
       lastIngestionAt: state?.lastIngestionAt
         ? new Date(state.lastIngestionAt)
         : new Date(),

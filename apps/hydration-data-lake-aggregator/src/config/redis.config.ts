@@ -1,6 +1,7 @@
-import { ConfigService } from '@nestjs/config';
-import { CacheModuleOptions } from '@nestjs/cache-manager';
 import KeyvRedis from '@keyv/redis';
+import { CacheModuleOptions } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
+
 import { AppConfig } from './app.config';
 
 export const getRedisConfig = async (
@@ -20,7 +21,6 @@ export const getRedisConfig = async (
   return {
     // @ts-ignore
     stores: [new KeyvRedis(redisUrl)],
-    ttl: 0, // No expiration by default (for persistent state management)
     isGlobal: true,
   };
 };
