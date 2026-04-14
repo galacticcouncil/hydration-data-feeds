@@ -12,6 +12,7 @@ export class AssetRegistryService implements OnModuleInit, OnModuleDestroy {
 
   // In-memory cache (primary storage - no Redis needed since all assets loaded on startup)
   private assetCache: Map<string, number> = new Map();
+  private underlyingAssetMap: Map<string, string> = new Map(); // aTokenId -> underlyingAssetId
   private cacheLastUpdated: Date | null = null;
 
   private readonly refreshInterval: number;
@@ -49,6 +50,13 @@ export class AssetRegistryService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     clearInterval(this.schedulerRegistry.getInterval('asset-registry-refresh'));
+  }
+
+  /**
+   * Get the underlying asset ID for an aToken, or null if not an aToken
+   */
+  getUnderlyingAssetId(assetId: string): string | null {
+    return this.underlyingAssetMap.get(assetId) ?? null;
   }
 
   /**
@@ -95,14 +103,21 @@ export class AssetRegistryService implements OnModuleInit, OnModuleDestroy {
       const assets = response.assets.nodes;
       this.logger.log(`Fetched ${assets.length} assets from GraphQL`);
 
-      // Build new map then swap atomically — avoids a window where assetCache is empty
+      // Build new maps then swap atomically — avoids a window where assetCache is empty
       const newCache = new Map<string, number>();
-      assets.forEach((asset) => newCache.set(asset.id, asset.decimals));
+      const newUnderlyingMap = new Map<string, string>();
+      assets.forEach((asset) => {
+        newCache.set(asset.id, asset.decimals);
+        if (asset.underlyingAssetId) {
+          newUnderlyingMap.set(asset.id, asset.underlyingAssetId);
+        }
+      });
       this.assetCache = newCache;
+      this.underlyingAssetMap = newUnderlyingMap;
       this.cacheLastUpdated = new Date();
 
       this.logger.log(
-        `Updated asset registry with ${this.assetCache.size} assets`,
+        `Updated asset registry with ${this.assetCache.size} assets (${this.underlyingAssetMap.size} aTokens with underlying)`,
       );
     } catch (error) {
       this.logger.error('Failed to refresh asset registry', error.stack);
@@ -115,10 +130,12 @@ export class AssetRegistryService implements OnModuleInit, OnModuleDestroy {
    */
   async getStats(): Promise<{
     assetCount: number;
+    aTokenCount: number;
     lastUpdated: Date | null;
   }> {
     return {
       assetCount: this.assetCache.size,
+      aTokenCount: this.underlyingAssetMap.size,
       lastUpdated: this.cacheLastUpdated,
     };
   }

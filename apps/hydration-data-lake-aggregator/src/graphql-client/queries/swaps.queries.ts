@@ -137,6 +137,8 @@ export const GET_ALL_ASSETS_QUERY = gql`
       nodes {
         id
         decimals
+        resourceType
+        underlyingAssetId
       }
     }
   }

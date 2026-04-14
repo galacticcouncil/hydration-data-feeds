@@ -57,6 +57,8 @@ export interface GetLatestAssetPricesResponse {
 export interface AssetNode {
   id: string;
   decimals: number;
+  resourceType: string | null;
+  underlyingAssetId: string | null;
 }
 
 export interface AssetsConnection {

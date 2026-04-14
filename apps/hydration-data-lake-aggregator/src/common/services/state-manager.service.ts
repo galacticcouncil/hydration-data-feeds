@@ -6,6 +6,10 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+import { IngestionCheckpoint } from '../../database/entities/ingestion-checkpoint.entity';
 
 export interface IngestionState {
   lastProcessedBlock?: number; // Optional: only used for sequential block processing (e.g., ingestion)
@@ -25,7 +29,11 @@ export class StateManagerService {
   private readonly logger = new Logger(StateManagerService.name);
   private readonly KEY_PREFIX = 'ingestion:state:';
 
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    @InjectRepository(IngestionCheckpoint)
+    private readonly checkpointRepository: Repository<IngestionCheckpoint>,
+  ) {}
 
   /**
    * Get ingestion state for a specific service
@@ -76,7 +84,8 @@ export class StateManagerService {
   }
 
   /**
-   * Update only the last processed block
+   * Update only the last processed block.
+   * Also persists a DB checkpoint so the block survives a Redis flush.
    */
   async updateLastBlock(
     serviceName: string,
@@ -93,6 +102,11 @@ export class StateManagerService {
     };
 
     await this.setState(serviceName, newState);
+
+    // Persist to DB — fire-and-forget so a DB hiccup never blocks ingestion
+    this.persistCheckpoint(serviceName, blockNumber).catch((err) =>
+      this.logger.warn(`DB checkpoint write failed for ${serviceName}: ${err.message}`),
+    );
   }
 
   /**
@@ -150,12 +164,35 @@ export class StateManagerService {
     return state?.lastProcessedBlock ?? null;
   }
 
+  /**
+   * Returns the last processed block from Redis, falling back to the DB
+   * checkpoint when Redis is unavailable, and finally to defaultBlock.
+   */
   async getLastProcessedBlockOrDefault(
     serviceName: string,
     defaultBlock: number,
   ): Promise<number> {
     const lastBlock = await this.getLastProcessedBlock(serviceName);
-    return lastBlock ?? defaultBlock;
+    if (lastBlock !== null) return lastBlock;
+
+    // Redis miss — try the DB checkpoint before resetting to genesis
+    try {
+      const checkpoint = await this.checkpointRepository.findOne({
+        where: { serviceName },
+      });
+      if (checkpoint) {
+        this.logger.warn(
+          `Redis state missing for ${serviceName} — resuming from DB checkpoint at block ${checkpoint.lastBlock}`,
+        );
+        return checkpoint.lastBlock;
+      }
+    } catch (err) {
+      this.logger.error(
+        `DB checkpoint fallback failed for ${serviceName}: ${err.message}`,
+      );
+    }
+
+    return defaultBlock;
   }
 
   /**
@@ -197,5 +234,12 @@ export class StateManagerService {
    */
   private getKey(serviceName: string): string {
     return `${this.KEY_PREFIX}${serviceName}`;
+  }
+
+  private async persistCheckpoint(serviceName: string, lastBlock: number): Promise<void> {
+    await this.checkpointRepository.upsert(
+      { serviceName, lastBlock, updatedAt: new Date() },
+      ['serviceName'],
+    );
   }
 }

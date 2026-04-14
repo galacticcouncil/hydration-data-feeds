@@ -15,6 +15,7 @@ import {
   AssetSpotPriceNode,
   GetAssetPricesAtBlockResponse,
 } from '../../graphql-client/types/graphql-response.types';
+import { AssetRegistryService } from './asset-registry.service';
 
 export interface AssetPriceMap {
   [assetId: string]: string; // assetId -> priceNormalised
@@ -28,6 +29,7 @@ export class PriceFetcherService {
   constructor(
     private readonly graphqlClient: GraphqlClientService,
     private readonly configService: ConfigService,
+    private readonly assetRegistry: AssetRegistryService,
   ) {}
 
   /**
@@ -109,6 +111,7 @@ export class PriceFetcherService {
 
   /**
    * Fetch prices for a set of assets and build a complete price map with '0' fallback for missing assets.
+   * For aTokens with no direct price history, falls back to the underlying asset's price.
    */
   async buildBatchPriceMap(
     assetIds: string[],
@@ -119,9 +122,44 @@ export class PriceFetcherService {
     try {
       const fetchedPrices = await this.fetchNearestAssetPrices(assetIds, blockHeight);
 
-      const missingAssetIds = assetIds.filter((id) => !fetchedPrices[id]);
-      if (missingAssetIds.length > 0) {
-        const newMissing = missingAssetIds.filter((id) => !this.pricelessAssetsWarned.has(id));
+      // For assets with no price, fall back to the underlying token price (aTokens)
+      const missingIds = assetIds.filter((id) => !fetchedPrices[id]);
+      if (missingIds.length > 0) {
+        const aTokenFallbacks = new Map<string, string>(); // aTokenId -> underlyingId
+        const underlyingToFetch = new Set<string>();
+
+        for (const id of missingIds) {
+          const underlyingId = this.assetRegistry.getUnderlyingAssetId(id);
+          if (underlyingId) {
+            aTokenFallbacks.set(id, underlyingId);
+            if (!fetchedPrices[underlyingId]) {
+              underlyingToFetch.add(underlyingId);
+            }
+          }
+        }
+
+        if (underlyingToFetch.size > 0) {
+          const underlyingPrices = await this.fetchNearestAssetPrices(
+            Array.from(underlyingToFetch),
+            blockHeight,
+          );
+          Object.assign(fetchedPrices, underlyingPrices);
+        }
+
+        for (const [aTokenId, underlyingId] of aTokenFallbacks) {
+          if (fetchedPrices[underlyingId]) {
+            fetchedPrices[aTokenId] = fetchedPrices[underlyingId];
+            this.logger.debug(
+              `Using underlying asset ${underlyingId} price for aToken ${aTokenId}`,
+            );
+          }
+        }
+      }
+
+      // Warn once for assets still missing after the aToken fallback
+      const stillMissing = assetIds.filter((id) => !fetchedPrices[id]);
+      if (stillMissing.length > 0) {
+        const newMissing = stillMissing.filter((id) => !this.pricelessAssetsWarned.has(id));
         newMissing.forEach((id) => this.pricelessAssetsWarned.add(id));
         if (newMissing.length > 0) {
           this.logger.warn(
