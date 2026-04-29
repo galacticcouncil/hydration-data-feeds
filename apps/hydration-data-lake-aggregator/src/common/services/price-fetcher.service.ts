@@ -181,30 +181,9 @@ export class PriceFetcherService {
     assetIds: string[],
     blockHeight: number,
   ): Promise<AssetPriceMap> {
-    const variables = { assetIds, blockHeight };
-    // Pre-call log: paste `variables` JSON directly into the indexer GraphQL
-    // playground (Variables panel). Query template: GET_NEAREST_ASSET_PRICES_QUERY
-    // in src/graphql-client/queries/swaps.queries.ts
-    this.logger.log(
-      `[GQL] GET_NEAREST_ASSET_PRICES_QUERY START | variables=${JSON.stringify(variables)}`,
-    );
-    const startedAt = Date.now();
-
-    let response: GetAssetPricesAtBlockResponse;
-    try {
-      response = await this.graphqlClient.query<GetAssetPricesAtBlockResponse>(
-        GET_NEAREST_ASSET_PRICES_QUERY,
-        variables,
-      );
-    } catch (error) {
-      this.logger.error(
-        `[GQL] GET_NEAREST_ASSET_PRICES_QUERY FAILED after ${Date.now() - startedAt}ms | variables=${JSON.stringify(variables)} | error=${error?.message ?? error}`,
-      );
-      throw error;
-    }
-
-    this.logger.log(
-      `[GQL] GET_NEAREST_ASSET_PRICES_QUERY DONE in ${Date.now() - startedAt}ms | nodes=${response.assetSpotPriceHistoricalData.nodes.length} | variables=${JSON.stringify(variables)}`,
+    const response = await this.graphqlClient.query<GetAssetPricesAtBlockResponse>(
+      GET_NEAREST_ASSET_PRICES_QUERY,
+      { assetIds, blockHeight },
     );
 
     const assetPricesByBlock = new Map<string, AssetSpotPriceNode>();
