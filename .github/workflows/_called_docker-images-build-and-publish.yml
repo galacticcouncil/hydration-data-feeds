@@ -35,6 +35,9 @@ jobs:
           fi
 
   build-and-push-hdl-adapter-image:
+    permissions:
+      contents: read
+      packages: write
     name: "Build and push Adapter app image"
     runs-on: ubuntu-latest
     needs: extract-image-tag-from-branch-name
@@ -53,23 +56,23 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
-          username: "mckrava"
-          password: ${{ secrets.GHCR_AUTH_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set Docker metadata for Adapter app
         id: hydration-data-lake-adapter-app-meta
         uses: docker/metadata-action@v4
         with:
           images: |
-            ghcr.io/mckrava/hydration-data-lake-adapter
+            ghcr.io/galacticcouncil/data-lake-feed-adapter
           tags: |
             ${{ needs.extract-image-tag-from-branch-name.outputs.tag }}
             ${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=Hydration Data Lake Adapter
-            org.opencontainers.image.licenses=Apache License
-            org.opencontainers.image.title=hydration-data-lake-adapter
+            org.opencontainers.image.licenses=Apache-2.0 license
+            org.opencontainers.image.title=data-lake-feed-adapter
 
       - name: Build and push Docker image of hydration Data Lake Adapter
         id: hydration-data-lake-adapter-app-push
@@ -83,6 +86,9 @@ jobs:
           labels: ${{ steps.hydration-data-lake-adapter-app-meta.outputs.labels }}
 
   build-and-push-hdl-aggregator-image:
+    permissions:
+      contents: read
+      packages: write
     name: "Build and push Aggregator app image"
     runs-on: ubuntu-latest
     needs: extract-image-tag-from-branch-name
@@ -101,23 +107,23 @@ jobs:
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
-          username: "mckrava"
-          password: ${{ secrets.GHCR_AUTH_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set Docker metadata for Aggregator app
         id: hydration-data-lake-aggregator-app-meta
         uses: docker/metadata-action@v4
         with:
           images: |
-            ghcr.io/mckrava/hydration-data-lake-aggregator
+            ghcr.io/galacticcouncil/data-lake-feed-aggregator
           tags: |
             ${{ needs.extract-image-tag-from-branch-name.outputs.tag }}
             ${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=Hydration Data Lake Aggregator
-            org.opencontainers.image.licenses=Apache License
-            org.opencontainers.image.title=hydration-data-lake-aggregator
+            org.opencontainers.image.licenses=Apache-2.0 license
+            org.opencontainers.image.title=data-lake-feed-aggregator
 
       - name: Build and push Docker image of hydration Data Lake Aggregator
         id: hydration-data-lake-aggregator-app-push
