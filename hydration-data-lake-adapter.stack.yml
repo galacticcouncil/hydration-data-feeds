@@ -1,0 +1,151 @@
+
+version: "3.7"
+
+networks:
+  default:
+    driver: overlay
+  gateway:
+    external: true
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+services:
+  hdl-adapter-dev:
+    image: ghcr.io/mckrava/hydration-data-lake-adapter:197a8e4211f2064b60af6d5f06b603c7be92f6fe
+    environment:
+      NODE_ENV: "production"
+      PORT: 8088
+      MAIN_INDEXER_GRAPHQL_ENDPOINT: "https://galacticcouncil.squids.live/hydration-pools:whale-prod/api/graphql"
+      CORS_ORIGINS: "https://adapters.kril.hydration.cloud"
+      SERVER_URL: "https://adapters.kril.hydration.cloud"
+      HOST: "0.0.0.0"
+      ENABLE_CORS: "true"
+      ENABLE_SWAGGER: "true"
+      LOG_LEVELS: "warn"
+      INCLUDE_API_VERSION: "false"
+      FORCE_HTTP: "true"
+    networks:
+      - gateway
+      - default
+    command:
+      - sh
+      - -c
+      - "node dist/main.js"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8088/health/liveness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.adapters-http.rule: Host(`adapters.kril.hydration.cloud`)
+        traefik.http.routers.adapters-http.entrypoints: web
+        traefik.http.routers.adapters-http.middlewares: https-redirect
+        traefik.http.routers.adapters.rule: Host(`adapters.kril.hydration.cloud`)
+        traefik.http.routers.adapters.entrypoints: websecure
+        traefik.http.routers.adapters.tls: "true"
+        traefik.http.routers.adapters.tls.certresolver: myresolver
+        traefik.http.services.adapters.loadbalancer.server.port: "8088"
+        traefik.http.middlewares.https-redirect.redirectscheme.scheme: https
+        traefik.http.middlewares.https-redirect.redirectscheme.permanent: "true"
+      restart_policy:
+        condition: on-failure
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - prometheus-data:/prometheus
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        cat > /tmp/prometheus.yml << 'EOF'
+        global:
+          scrape_interval: 10s
+          evaluation_interval: 10s
+          external_labels:
+            cluster: 'hydration-data-lake'
+            environment: 'production'
+
+        scrape_configs:
+          - job_name: 'prometheus'
+            static_configs:
+              - targets: ['localhost:9090']
+
+          - job_name: 'hydration-data-lake-adapter'
+            metrics_path: '/metrics'
+            scrape_interval: 10s
+            static_configs:
+              - targets: ['hdl-adapter-dev:8088']
+                labels:
+                  service: 'hydration-data-lake-adapter'
+                  env: 'production'
+        EOF
+        /bin/prometheus --config.file=/tmp/prometheus.yml --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=30d --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles
+
+    networks:
+      - default
+      - gateway
+    deploy:
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.prometheus-http.rule: Host(`adapters-prometheus.kril.hydration.cloud`)
+        traefik.http.routers.prometheus-http.entrypoints: web
+        traefik.http.routers.prometheus-http.middlewares: https-redirect
+        traefik.http.routers.prometheus.rule: Host(`adapters-prometheus.kril.hydration.cloud`)
+        traefik.http.routers.prometheus.entrypoints: websecure
+        traefik.http.routers.prometheus.tls: "true"
+        traefik.http.routers.prometheus.tls.certresolver: myresolver
+        traefik.http.services.prometheus.loadbalancer.server.port: "9090"
+      restart_policy:
+        condition: on-failure
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=hydration_admin_2025
+      - GF_SERVER_ROOT_URL=https://adapters-grafana.kril.hydration.cloud
+      - GF_INSTALL_PLUGINS=
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mkdir -p /etc/grafana/provisioning/datasources
+        cat > /etc/grafana/provisioning/datasources/datasource.yml << 'EOF'
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            access: proxy
+            url: http://prometheus:9090
+            isDefault: true
+            editable: true
+            jsonData:
+              timeInterval: 10s
+        EOF
+        /run.sh
+    networks:
+      - default
+      - gateway
+    depends_on:
+      - prometheus
+    deploy:
+      labels:
+        traefik.enable: "true"
+        traefik.http.routers.grafana-http.rule: Host(`adapters-grafana.kril.hydration.cloud`)
+        traefik.http.routers.grafana-http.entrypoints: web
+        traefik.http.routers.grafana-http.middlewares: https-redirect
+        traefik.http.routers.grafana.rule: Host(`adapters-grafana.kril.hydration.cloud`)
+        traefik.http.routers.grafana.entrypoints: websecure
+        traefik.http.routers.grafana.tls: "true"
+        traefik.http.routers.grafana.tls.certresolver: myresolver
+        traefik.http.services.grafana.loadbalancer.server.port: "3000"
+      restart_policy:
+        condition: on-failure

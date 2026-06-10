@@ -7,6 +7,7 @@ import { IsNotEmpty, IsString, IsOptional, IsEnum, ValidationError } from 'class
 import { NodeEnv } from './types';
 import { GraphQLConfig } from './graphql.config';
 import * as dotenv from 'dotenv';
+import { ApiVersion, ConsumerType } from '../consumers/types';
 
 dotenv.config({
   path: (() => {
@@ -16,7 +17,6 @@ dotenv.config({
   })(),
 });
 
-// @Injectable()
 export class AppConfig {
   private static instance: AppConfig;
 
@@ -31,6 +31,23 @@ export class AppConfig {
   @IsString()
   readonly BASE_PATH?: string;
 
+  @Transform(({ value }: { value: string }) => value === 'true')
+  readonly INCLUDE_API_VERSION?: boolean = true;
+
+  @IsOptional()
+  @IsString()
+  readonly SERVER_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  readonly HOST?: string;
+
+  @Transform(({ value }: { value: string }) => value === 'true')
+  readonly FORCE_HTTP: boolean = true;
+
+  @Transform(({ value }: { value: string }) => value.split(',') || [])
+  readonly CORS_ORIGINS: string[] = ['http://localhost:8080'];
+
   @IsNotEmpty()
   @IsString()
   readonly DEX_KEY: string = 'hydration';
@@ -39,13 +56,19 @@ export class AppConfig {
   readonly DEFAULT_CHAIN_ID: number = 1;
 
   @Transform(({ value }: { value: string }) => +value)
+  readonly ENTITIES_CACHE_TTL_MS: number = -1; // -1 means cache never expires
+
+  @Transform(({ value }: { value: string }) => +value)
   readonly API_CACHE_TTL_MS: number = 600_000; // 10 minutes
 
   @Transform(({ value }: { value: string }) => +value)
   readonly REQUEST_TIMEOUT_MS: number = 30_000;
 
   @Transform(({ value }: { value: string }) => +value)
-  readonly MAX_BLOCK_RANGE: number = 1000;
+  readonly MAX_BLOCK_RANGE: number = -1;
+
+  @Transform(({ value }: { value: string }) => +value)
+  readonly MAX_BLOCKS_RANGE_FETCH_BATCH: number = 300;
 
   @Transform(({ value }: { value: string }) => +value)
   readonly DEFAULT_PAGE_SIZE: number = 100;
@@ -68,9 +91,15 @@ export class AppConfig {
   @Transform(({ value }: { value: string }) => value === 'true')
   readonly ENABLE_TYPED_GRAPHQL: boolean = true;
 
+  @Transform(({ value }: { value: string }) => +value)
+  readonly HYDRADX_SS58_PREFIX: number = 0;
+
   @IsOptional()
   @IsString()
   readonly LOG_LEVEL?: string;
+
+  @Transform(({ value }: { value: string }) => value === 'true')
+  readonly IGNORE_INVALID_ENTITIES?: boolean = true;
 
   @Transform(({ value }: { value: string }) => value === 'true')
   readonly ENABLE_DEBUG_LOGGING: boolean = false;
@@ -88,7 +117,6 @@ export class AppConfig {
     } catch (errors) {
       if (Array.isArray(errors) && errors[0] instanceof ValidationError) {
         errors.forEach((error: ValidationError) => {
-          // @ts-ignore
           Object.values(error.constraints).forEach((msg) => console.error(msg));
         });
       } else {
@@ -113,10 +141,16 @@ export class AppConfig {
   }
 
   getServerUrl(): string {
-    const protocol = this.isProduction() ? 'https' : 'http';
+    if (this.SERVER_URL) {
+      return this.SERVER_URL;
+    }
+
+    // Fallback logic
+    const protocol = this.FORCE_HTTP ? 'http' : this.isProduction() ? 'https' : 'http';
+    const host = this.HOST || 'localhost';
     const port = this.PORT !== 80 && this.PORT !== 443 ? `:${this.PORT}` : '';
     const basePath = this.BASE_PATH || '';
-    return `${protocol}://localhost${port}${basePath}`;
+    return `${protocol}://${host}${port}${basePath}`;
   }
 
   // Validation methods
@@ -125,7 +159,7 @@ export class AppConfig {
       throw new Error('fromBlock must be less than or equal to toBlock');
     }
 
-    if (toBlock - fromBlock > this.MAX_BLOCK_RANGE) {
+    if (this.MAX_BLOCK_RANGE > 0 && toBlock - fromBlock > this.MAX_BLOCK_RANGE) {
       throw new Error(`Block range cannot exceed ${this.MAX_BLOCK_RANGE} blocks`);
     }
   }

@@ -12,6 +12,7 @@ import { ApiEndpoint, PaginationConfig } from '../modules/dataSource/types';
 import { AppConfig } from '../modules/config';
 import { retryExchange } from '@urql/exchange-retry';
 import { GraphQlClientProviderToken } from './index';
+import { splitRangeIntoBatches } from '../utils';
 
 const responsePreprocessingExchange: Exchange =
   ({ forward }) =>
@@ -25,6 +26,7 @@ const responsePreprocessingExchange: Exchange =
             `GraphQL API [${(result.operation.context.fetchOptions as RequestInit)?.headers?.['ApiEndpoint']}] Error:`,
             result.error.message
           );
+          // console.dir(result.error, { depth: null });
         }
         return result;
       })
@@ -115,6 +117,50 @@ export class GraphqlClientProvider {
     }
   }
 
+  // private async fetchDataInBlocksRange<T>(
+  //   fromBlockHeight: number,
+  //   toBlockHeight: number,
+  //   fetchFunction: (from: number, to: number) => Promise<T[]>,
+  //   operationName: string
+  // ): Promise<T[]> {
+  //   const allResults: T[] = [];
+  //   const batchSize = this.appConfig.MAX_BLOCKS_RANGE_FETCH_BATCH;
+  //
+  //   let batchNumber = 0;
+  //   const totalBatches = Math.ceil((toBlockHeight - fromBlockHeight + 1) / batchSize);
+  //
+  //   this.logger.log(
+  //     `Fetching ${operationName} in ${totalBatches} batches for range ${fromBlockHeight}-${toBlockHeight}`
+  //   );
+  //
+  //   for (const { from, to } of splitRangeIntoBatches(fromBlockHeight, toBlockHeight, batchSize)) {
+  //     batchNumber++;
+  //     this.logger.debug(
+  //       `Fetching ${operationName} batch ${batchNumber}/${totalBatches}: blocks ${from}-${to}`
+  //     );
+  //
+  //     try {
+  //       const batchResults = await fetchFunction(from, to);
+  //       allResults.push(...batchResults);
+  //
+  //       // Optional delay between batches
+  //       if (batchNumber < totalBatches) {
+  //         await new Promise((resolve) => setTimeout(resolve, 100));
+  //       }
+  //     } catch (error) {
+  //       this.logger.error(`Failed to fetch ${operationName} for batch ${batchNumber}:`, error);
+  //       throw new Error(
+  //         `Failed to fetch ${operationName} for blocks ${from}-${to}: ${error.message}`
+  //       );
+  //     }
+  //   }
+  //
+  //   this.logger.log(
+  //     `Successfully fetched ${allResults.length} ${operationName} items across ${totalBatches} batches`
+  //   );
+  //   return allResults;
+  // }
+
   async *fetchAllPages<R = any[]>({
     requestPromise,
     limit,
@@ -154,51 +200,51 @@ export class GraphqlClientProvider {
       }
     }
   }
-
-  getGenericFilterParams<T>(filtersSrc: Map<number, { blockNumber: number; ids: Set<T> }>): {
-    ids: T[];
-    fromBlockNumber: number;
-    toBlockNumber: number;
-  } {
-    const resp: { ids: T[]; fromBlockNumber: number; toBlockNumber: number } = {
-      ids: [],
-      fromBlockNumber: 0,
-      toBlockNumber: 0,
-    };
-
-    filtersSrc.forEach((blockScope, blockNumber) => {
-      resp.ids.push(...blockScope.ids.values());
-
-      if (
-        resp.fromBlockNumber === 0 ||
-        (resp.fromBlockNumber !== 0 && blockNumber < resp.fromBlockNumber)
-      ) {
-        resp.fromBlockNumber = blockNumber;
-      }
-
-      if (
-        resp.toBlockNumber === 0 ||
-        (resp.toBlockNumber !== 0 && blockNumber > resp.toBlockNumber)
-      ) {
-        resp.toBlockNumber = blockNumber;
-      }
-    });
-
-    return { ...resp, ids: [...new Set(resp.ids).values()] };
-  }
-
-  // Utility method to create pagination parameters
-  createPaginationConfig(
-    pageSize: number,
-    offset: number,
-    endpoint: ApiEndpoint
-  ): PaginationConfig {
-    return {
-      pageSize,
-      offset,
-      endpoint,
-    };
-  }
+  //
+  // getGenericFilterParams<T>(filtersSrc: Map<number, { blockNumber: number; ids: Set<T> }>): {
+  //   ids: T[];
+  //   fromBlockNumber: number;
+  //   toBlockNumber: number;
+  // } {
+  //   const resp: { ids: T[]; fromBlockNumber: number; toBlockNumber: number } = {
+  //     ids: [],
+  //     fromBlockNumber: 0,
+  //     toBlockNumber: 0,
+  //   };
+  //
+  //   filtersSrc.forEach((blockScope, blockNumber) => {
+  //     resp.ids.push(...blockScope.ids.values());
+  //
+  //     if (
+  //       resp.fromBlockNumber === 0 ||
+  //       (resp.fromBlockNumber !== 0 && blockNumber < resp.fromBlockNumber)
+  //     ) {
+  //       resp.fromBlockNumber = blockNumber;
+  //     }
+  //
+  //     if (
+  //       resp.toBlockNumber === 0 ||
+  //       (resp.toBlockNumber !== 0 && blockNumber > resp.toBlockNumber)
+  //     ) {
+  //       resp.toBlockNumber = blockNumber;
+  //     }
+  //   });
+  //
+  //   return { ...resp, ids: [...new Set(resp.ids).values()] };
+  // }
+  //
+  // // Utility method to create pagination parameters
+  // createPaginationConfig(
+  //   pageSize: number,
+  //   offset: number,
+  //   endpoint: ApiEndpoint
+  // ): PaginationConfig {
+  //   return {
+  //     pageSize,
+  //     offset,
+  //     endpoint,
+  //   };
+  // }
 
   // Utility method to validate endpoint configuration
   validateEndpoint(endpoint: ApiEndpoint): boolean {

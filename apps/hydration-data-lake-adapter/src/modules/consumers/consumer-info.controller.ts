@@ -1,8 +1,10 @@
 import { Controller, Get, Param, HttpException, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { ConsumerRegistryService } from './consumer-registry.service';
 import { ConsumerType, ApiVersion } from './types';
 import { AppConfig } from '../config';
 
+@ApiTags('api-info')
 @Controller('api')
 export class ConsumerInfoController {
   constructor(
@@ -11,6 +13,14 @@ export class ConsumerInfoController {
   ) {}
 
   @Get('info')
+  @ApiOperation({
+    summary: 'Get API information',
+    description: 'Returns general information about the API, available consumers, and endpoints.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'API information retrieved successfully',
+  })
   async getApiInfo() {
     const consumerSummary = this.consumerRegistry.getConsumerSummary();
 
@@ -35,6 +45,14 @@ export class ConsumerInfoController {
   }
 
   @Get('consumers')
+  @ApiOperation({
+    summary: 'Get all consumers',
+    description: 'Returns a list of all available consumers and their status.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Consumer list retrieved successfully',
+  })
   async getAllConsumers() {
     const consumers = this.consumerRegistry.getAllConsumers();
 
@@ -57,6 +75,32 @@ export class ConsumerInfoController {
   }
 
   @Get('consumers/:type/:version')
+  @ApiOperation({
+    summary: 'Get specific consumer information',
+    description: 'Returns detailed information about a specific consumer by type and version.',
+  })
+  @ApiParam({
+    name: 'type',
+    description: 'Consumer type (e.g., dexscreener)',
+    example: 'dexscreener',
+  })
+  @ApiParam({
+    name: 'version',
+    description: 'API version (e.g., v1)',
+    example: 'v1',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Consumer information retrieved successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid consumer type or version',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Consumer not found',
+  })
   async getConsumerInfo(
     @Param('type') type: string,
     @Param('version') version: string,
@@ -112,6 +156,14 @@ export class ConsumerInfoController {
   }
 
   @Get('health')
+  @ApiOperation({
+    summary: 'Overall health check',
+    description: 'Returns the overall health status of the application and all consumers.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Health status retrieved successfully',
+  })
   async getOverallHealth() {
     const enabledConsumers = this.consumerRegistry.getEnabledConsumers();
     const totalConsumers = this.consumerRegistry.getAllConsumers().length;

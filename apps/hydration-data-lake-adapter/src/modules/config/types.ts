@@ -3,12 +3,3 @@ export enum NodeEnv {
   PRODUCTION = 'production',
   TEST = 'test',
 }
-
-export enum ApiEndpointType {
-  MAIN = 'MAIN',
-  HISTORICAL = 'HISTORICAL',
-  ANALYTICS = 'ANALYTICS',
-  PAIRS = 'PAIRS',
-  ASSETS = 'ASSETS',
-  EVENTS = 'EVENTS',
-}

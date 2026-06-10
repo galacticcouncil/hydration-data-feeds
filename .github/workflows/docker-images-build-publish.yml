@@ -1,0 +1,20 @@
+name: "Docker images build and publish"
+
+on:
+  push:
+    branches:
+      - "fix/**"
+      - "feat/**"
+      - "main"
+      - "refactor-base"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker-images-build-publish:
+    name: "Build and publish docker images of app"
+    uses: ./.github/workflows/_called_docker-images-build-and-publish.yml
+    secrets:
+      GHCR_AUTH_TOKEN: ${{ secrets.GHCR_AUTH_TOKEN }}

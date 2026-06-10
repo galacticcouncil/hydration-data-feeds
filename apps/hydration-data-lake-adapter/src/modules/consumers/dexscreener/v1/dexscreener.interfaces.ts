@@ -1,5 +1,13 @@
 // DEX Screener specific interfaces based on the specification
 
+import { AssetType, PoolType } from '../../../dataSource/types';
+
+export enum DexScreenerEventType {
+  SWAP = 'swap',
+  JOIN = 'join',
+  EXIT = 'exit',
+}
+
 export interface DexScreenerBlock {
   blockNumber: number;
   blockTimestamp: number;
@@ -14,7 +22,10 @@ export interface DexScreenerAsset {
   circulatingSupply?: string | number;
   coinGeckoId?: string;
   coinMarketCapId?: string;
-  metadata?: Record<string, string>;
+  metadata?: Record<string, string> & {
+    assetType: AssetType;
+    decimals: string;
+  };
 }
 
 export interface DexScreenerPair {
@@ -37,8 +48,13 @@ export interface DexScreenerPair {
   metadata?: Record<string, string>;
 }
 
+export interface DexScreenerEventReserves {
+  asset0: number | string;
+  asset1: number | string;
+}
+
 export interface DexScreenerSwapEvent {
-  eventType: 'swap';
+  eventType: DexScreenerEventType;
   txnId: string;
   txnIndex: number;
   eventIndex: number;
@@ -49,15 +65,12 @@ export interface DexScreenerSwapEvent {
   asset0Out?: number | string;
   asset1Out?: number | string;
   priceNative: number | string;
-  reserves?: {
-    asset0: number | string;
-    asset1: number | string;
-  };
+  reserves?: DexScreenerEventReserves;
   metadata?: Record<string, string>;
 }
 
 export interface DexScreenerJoinExitEvent {
-  eventType: 'join' | 'exit';
+  eventType: DexScreenerEventType;
   txnId: string;
   txnIndex: number;
   eventIndex: number;
@@ -65,14 +78,31 @@ export interface DexScreenerJoinExitEvent {
   pairId: string;
   amount0: number | string;
   amount1: number | string;
-  reserves?: {
-    asset0: number | string;
-    asset1: number | string;
-  };
+  reserves?: DexScreenerEventReserves;
   metadata?: Record<string, string>;
 }
 
-export type DexScreenerEvent = DexScreenerSwapEvent | DexScreenerJoinExitEvent;
+// export interface DexScreenerGenericPool {
+//   id: string;
+//   name: string;
+//   assetIds?: string[];
+//   pairIds?: string[];
+//   assets: DexScreenerAsset[];
+//   metadata?: Record<string, string> & {
+//     poolType: PoolType;
+//     shareAssetId: string;
+//   };
+// }
+export interface DexScreenerGenericPool {
+  id: string; // account public key
+  poolType: PoolType;
+  assets: DexScreenerAsset[];
+}
+
+// export type DexScreenerEvent = DexScreenerSwapEvent | DexScreenerJoinExitEvent;
+export type DexScreenerEvent = DexScreenerSwapEvent;
+
+export type DexScreenerEventWithBlock = { block: DexScreenerBlock } & DexScreenerEvent;
 
 // Response interfaces
 export interface DexScreenerLatestBlockResponse {
@@ -88,5 +118,5 @@ export interface DexScreenerPairResponse {
 }
 
 export interface DexScreenerEventsResponse {
-  events: Array<{ block: DexScreenerBlock } & DexScreenerEvent>;
+  events: Array<DexScreenerEventWithBlock>;
 }

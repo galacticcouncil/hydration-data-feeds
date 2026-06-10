@@ -28,3 +28,32 @@ export interface RequestParams {
   fromBlock?: number;
   toBlock?: number;
 }
+
+export enum PoolType {
+  Omnipool = 'Omnipool',
+  Stableswap = 'Stableswap',
+  Xykpool = 'Xykpool',
+  Lbppool = 'Lbppool',
+  Hsmpool = 'Hsmpool',
+  AAVE = 'AAVE',
+}
+
+export enum SwapFillerType {
+  Omnipool = 'Omnipool',
+  Stableswap = 'Stableswap',
+  XYK = 'XYK',
+  LBP = 'LBP',
+  OTC = 'OTC',
+  HSM = 'HSM',
+  AAVE = 'AAVE',
+}
+
+export enum AssetType {
+  Bond = 'Bond',
+  External = 'External',
+  StableSwap = 'StableSwap',
+  Token = 'Token',
+  XYK = 'XYK',
+  Erc20 = 'Erc20',
+  PoolShare = 'PoolShare',
+}

@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AppConfig, GraphQLConfig } from './modules/config';
 
@@ -22,13 +23,48 @@ async function bootstrap() {
   );
 
   if (appConfig.ENABLE_CORS) {
-    app.enableCors();
+    app.enableCors({
+      origin: appConfig.CORS_ORIGINS,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+      credentials: true,
+    });
     logger.log('CORS enabled');
   }
 
   if (appConfig.BASE_PATH) {
     app.setGlobalPrefix(appConfig.BASE_PATH);
     logger.log(`Global prefix set to: ${appConfig.BASE_PATH}`);
+  }
+
+  // Configure Swagger/OpenAPI documentation
+  if (appConfig.ENABLE_SWAGGER) {
+    const config = new DocumentBuilder()
+      .setTitle('Hydration Data Lake Adapter')
+      .setDescription(
+        'DEX Screener Adapter API for Hydration Protocol - provides HTTP endpoints for tracking historical and real-time data from the Hydration decentralized exchange'
+      )
+      .setVersion('1.0.0')
+      .setContact('Hydration Team', 'https://hydration.net', 'support@hydration.net')
+      .setLicense('UNLICENSED', '')
+      .addTag('dexscreener', 'DEX Screener API endpoints')
+      .addTag('health', 'Health check endpoints')
+      .addServer(appConfig.getServerUrl(), 'Local development server')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    const swaggerPath = appConfig.BASE_PATH ? `${appConfig.BASE_PATH}/docs` : '/docs';
+    SwaggerModule.setup(swaggerPath, app, document, {
+      customSiteTitle: 'Hydration Data Lake Adapter API',
+      customfavIcon: '/favicon.ico',
+      customCss: '.swagger-ui .topbar { display: none }',
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+      },
+    });
+
+    logger.log(`Swagger documentation available at: ${appConfig.getServerUrl()}${swaggerPath}`);
   }
 
   await app.listen(appConfig.PORT);
